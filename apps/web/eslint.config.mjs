@@ -35,6 +35,11 @@ export default tseslint.config(
     rules: { "@typescript-eslint/no-unused-vars": ["error", { caughtErrors: "none" }] },
   },
   {
+    // Tests index into known fixtures, so non-null assertions keep them readable.
+    files: ["**/*.test.ts", "**/*.test.tsx"],
+    rules: { "@typescript-eslint/no-non-null-assertion": "off" },
+  },
+  {
     files: ["scripts/**/*.mjs"],
     languageOptions: { globals: { console: "readonly", Buffer: "readonly" } },
   },

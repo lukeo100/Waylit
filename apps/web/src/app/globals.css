@@ -3,6 +3,8 @@
 
 /* Phones held in landscape have very little height. */
 @custom-variant short (@media (max-height: 520px));
+/* The smallest landscape phones and split screen windows. Tighter than short. */
+@custom-variant tight (@media (max-height: 400px));
 
 /*
  * Tailwind theme mapped onto the Waylit tokens. Default Tailwind colours are cleared
@@ -42,6 +44,7 @@
   --text-2xl: var(--wl-font-size-2xl);
   --text-3xl: var(--wl-font-size-3xl);
   --text-display: var(--wl-font-size-display);
+  --text-display-sm: var(--wl-font-size-display-sm);
 
   --leading-tight: var(--wl-line-height-tight);
   --leading-snug: var(--wl-line-height-snug);
@@ -256,6 +259,54 @@
 
   @media (prefers-reduced-motion: reduce) {
     .wl-corridor-chevrons {
+      animation: none;
+    }
+  }
+}
+
+/*
+ * Riding screen. See docs/DESIGN_SYSTEM.md, "Riding screen layout".
+ */
+@layer components {
+  /* Placeholder for the 3D scene (task 8): a dark gradient and nothing else. */
+  .wl-scene {
+    background:
+      radial-gradient(120% 90% at 50% 105%, var(--wl-color-night-700) 0%, transparent 60%),
+      linear-gradient(180deg, var(--wl-color-night-950) 0%, var(--wl-color-night-900) 100%);
+  }
+
+  /* Fill that grows while a guarded control is held. Left to right, then it fires. */
+  .wl-hold-fill {
+    transform: scaleX(0);
+    transform-origin: left center;
+  }
+
+  .wl-hold-fill[data-holding="true"] {
+    transform: scaleX(1);
+    transition-property: transform;
+    transition-timing-function: linear;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    /* No growing bar. The caption changes to "Keep holding" instead. */
+    .wl-hold-fill {
+      display: none;
+    }
+  }
+
+  /* Gentle pulse on the connectivity dot while offline. Off for reduced motion. */
+  .wl-pulse {
+    animation: wl-pulse 1.6s ease-in-out infinite;
+  }
+
+  @keyframes wl-pulse {
+    50% {
+      opacity: 0.35;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .wl-pulse {
       animation: none;
     }
   }

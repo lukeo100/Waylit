@@ -48,6 +48,8 @@ export const fontSize = {
   "3xl": "2.441rem",
   /** Speed readout and other glanceable numbers. */
   display: "4rem",
+  /** The same readout on short landscape screens, such as a phone held sideways. */
+  displaySm: "3rem",
 } as const;
 
 export const lineHeight = {
