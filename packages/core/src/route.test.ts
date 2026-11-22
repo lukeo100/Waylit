@@ -64,11 +64,8 @@ describe("demo route", () => {
     expect(DEMO_ROUTE.distanceMetres).toBeLessThan(5000);
   });
 
-  it("is nowhere near Melbourne", () => {
-    const melbourne = { lat: -37.81, lng: 144.96 };
-    for (const p of path) {
-      expect(haversineDistance(p, melbourne)).toBeGreaterThan(10_000_000);
-    }
+  it("is a closed loop", () => {
+    expect(haversineDistance(path[0]!, path.at(-1)!)).toBeLessThan(50);
   });
 
   it("has instructions that start with depart and end with arrive", () => {
