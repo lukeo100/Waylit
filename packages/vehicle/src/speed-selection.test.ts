@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { PositionFix } from "@waylit/core";
-import { selectSpeed } from "./speed-selection";
+import { isTelemetryStale, selectSpeed } from "./speed-selection";
 import type { VehicleTelemetry } from "./types";
 
 const now = 100_000;
@@ -82,5 +82,14 @@ describe("selectSpeed", () => {
       speedMps: 0,
       source: "vehicle",
     });
+  });
+});
+
+describe("isTelemetryStale", () => {
+  it("is false at the limit and true past it", () => {
+    expect(isTelemetryStale({ timestamp: now - 2000 }, now)).toBe(false);
+    expect(isTelemetryStale({ timestamp: now - 2001 }, now)).toBe(true);
+    expect(isTelemetryStale({ timestamp: now - 3000 }, now, 5000)).toBe(false);
+    expect(isTelemetryStale({ timestamp: Number.NaN }, now)).toBe(true);
   });
 });

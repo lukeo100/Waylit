@@ -71,6 +71,18 @@ export function selectSpeed(input: SelectSpeedInput): SelectedSpeed {
   return { speedMps: undefined, source: undefined, fallbackReason: reason };
 }
 
+/**
+ * True when a telemetry sample is older than `staleAfterMs` (default 2000) or has no usable
+ * timestamp. Screens use it to stop showing vehicle values that are no longer live.
+ */
+export function isTelemetryStale(
+  sample: VehicleTelemetry,
+  nowMs: number,
+  staleAfterMs: number = DEFAULT_TELEMETRY_STALE_MS,
+): boolean {
+  return isStale(sample.timestamp, nowMs, staleAfterMs);
+}
+
 /** A timestamp in the future by a little is fine, a clock may be slightly off. */
 function isStale(timestamp: number, nowMs: number, maxAgeMs: number): boolean {
   return !Number.isFinite(timestamp) || nowMs - timestamp > maxAgeMs;
