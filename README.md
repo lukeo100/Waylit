@@ -2,7 +2,7 @@
 
 Open source 3D navigation for electric scooters and bicycles.
 
-> **Status: pre-alpha.** There is nothing to install yet. The repository currently holds the project foundations, documentation and plans. Application code arrives phase by phase, see the [roadmap](docs/ROADMAP.md).
+> **Status: pre-alpha.** The project structure, design system and a placeholder home page are in place. The riding screen and 3D view arrive phase by phase, see the [roadmap](docs/ROADMAP.md).
 
 ## What it is
 
@@ -21,7 +21,29 @@ Waylit is a navigation aid, not a safety system. Follow your local road and path
 
 ## Getting started
 
-Setup instructions will appear here with the first application commit. The goal is simple: clone, install, run, with no accounts or keys needed.
+You need Node.js 22 (see `.nvmrc`) and Git. pnpm is pinned in `package.json` and provided by Corepack, which ships with Node.js. No accounts or API keys are needed.
+
+```sh
+git clone https://github.com/lukeo100/Waylit.git waylit
+cd waylit
+corepack enable
+pnpm install
+pnpm dev
+```
+
+Then open http://localhost:3000.
+
+| Command | What it does |
+|---|---|
+| `pnpm dev` | Start the web app in development mode |
+| `pnpm build` | Production build of the web app |
+| `pnpm start` | Serve the production build |
+| `pnpm lint` | Lint every workspace |
+| `pnpm typecheck` | Type check every workspace |
+| `pnpm test` | Run the unit tests once |
+| `pnpm format` | Format code with Prettier (`pnpm format:check` to check only) |
+
+The code is split into a Next.js app and small shared packages, described in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 Anyone should be able to deploy their own copy. The plan for that is in [docs/DEPLOYING.md](docs/DEPLOYING.md). Waylit does not run a shared hosted instance, so there are no shared API keys: you bring your own for any optional provider.
 
@@ -35,6 +57,8 @@ Contributions of all kinds are welcome, including bug reports, device testing, d
 |---|---|
 | [docs/VISION.md](docs/VISION.md) | Goals, principles and design direction |
 | [docs/ROADMAP.md](docs/ROADMAP.md) | Phases and current status |
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Package layout and dependency rules |
+| [docs/DESIGN_SYSTEM.md](docs/DESIGN_SYSTEM.md) | Design tokens and visual principles |
 | [docs/DEPLOYING.md](docs/DEPLOYING.md) | Running your own copy |
 | [docs/MAINTAINING.md](docs/MAINTAINING.md) | Repository settings and release process |
 | [docs/THIRD_PARTY.md](docs/THIRD_PARTY.md) | Third party licences and required attributions |

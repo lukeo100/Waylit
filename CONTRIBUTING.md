@@ -17,11 +17,30 @@ Thanks for helping. Waylit is open source under the Apache License 2.0 and is bu
 
 ## Development setup
 
-Application code is still arriving, so exact commands will be documented here and in `docs/` once the app exists. The rules we are building toward:
+You need Node.js 22 (see `.nvmrc`) and Git. pnpm is pinned in `package.json` and provided by Corepack.
+
+```sh
+corepack enable
+pnpm install
+pnpm dev
+```
+
+Before opening a pull request, run the same checks as CI:
+
+```sh
+pnpm format:check
+pnpm lint
+pnpm typecheck
+pnpm test
+pnpm build
+```
+
+The rules:
 
 - Cloning, installing and running the app needs no API keys or accounts. Optional providers fall back to a built-in map and mock data.
-- One documented command each for dev server, lint, typecheck, test and build.
-- Pinned toolchain versions and a committed lockfile.
+- The toolchain is pinned and the lockfile is committed. Commit `pnpm-lock.yaml` whenever dependencies change.
+- Shared code goes in `packages/*` and must stay free of DOM and React so the later native app can reuse it. See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+- Use the design tokens rather than raw colours or sizes. See [docs/DESIGN_SYSTEM.md](docs/DESIGN_SYSTEM.md).
 
 If the setup instructions are missing or wrong for you, that is a bug. Please open an issue.
 

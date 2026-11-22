@@ -30,4 +30,16 @@ Work only within the brief. If a request falls outside it, stop and propose an a
 
 ## Commands
 
-Application code has not landed yet. Commands for install, dev, lint, typecheck, test and build will be listed here when it does.
+Use Node.js 22 (`.nvmrc`) and the pnpm version pinned in `package.json` (`corepack enable`).
+
+```sh
+pnpm install         # install the workspace
+pnpm dev             # web app dev server on http://localhost:3000
+pnpm lint            # ESLint in every workspace
+pnpm typecheck       # tsc in every workspace
+pnpm test            # Vitest, all packages
+pnpm build           # production build of apps/web
+pnpm format          # Prettier (format:check to check only)
+```
+
+Package layout and dependency rules are in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md). Design tokens are in [docs/DESIGN_SYSTEM.md](docs/DESIGN_SYSTEM.md). Keep `packages/*` free of DOM and React.
