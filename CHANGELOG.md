@@ -17,4 +17,5 @@ All notable changes to this project are recorded here. The format follows [Keep 
 
 ### Changed
 
+- Public project brief mirror updated for the model policy and the mapping provider decision (CesiumJS with Google Photorealistic 3D Tiles as primary, MapLibre GL JS on OpenFreeMap as fallback).
 - CI uses the Node.js version from `.nvmrc` and also checks formatting. Dependabot now watches npm dependencies.
