@@ -1,0 +1,47 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build output
+.next/
+out/
+dist/
+build/
+coverage/
+*.tsbuildinfo
+
+# Environment and secrets (names only belong in .env.example)
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.keystore
+*.jks
+
+# Hosting tool state
+.vercel/
+.turbo/
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# Editor and OS files
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.DS_Store
+Thumbs.db
+
+# Local agent files and settings (private pointers and permissions)
+CLAUDE.local.md
+.claude/settings.local.json
+
+# Local-only data: never commit real ride traces or personal data
+*.gpx
+*.fit
+*.tcx
+traces/

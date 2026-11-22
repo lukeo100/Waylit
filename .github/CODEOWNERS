@@ -1,0 +1,5 @@
+# Every change needs review from the maintainer until more code owners join.
+* @lukeo100
+
+# Anything that could touch vehicle communication or safety needs explicit review.
+/packages/vehicle/ @lukeo100

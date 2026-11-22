@@ -1,0 +1,91 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main, dev]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  hygiene:
+    name: Repository hygiene
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Required community files exist
+        run: |
+          missing=0
+          for f in LICENSE NOTICE README.md CONTRIBUTING.md CODE_OF_CONDUCT.md SECURITY.md SUPPORT.md CHANGELOG.md AGENTS.md .env.example .gitignore .editorconfig .github/CODEOWNERS .github/PULL_REQUEST_TEMPLATE.md docs/THIRD_PARTY.md; do
+            if [ ! -f "$f" ]; then
+              echo "::error::Missing required file: $f"
+              missing=1
+            fi
+          done
+          exit $missing
+
+      - name: No committed environment files
+        run: |
+          bad=$(git ls-files | grep -E '(^|/)\.env($|\.)' | grep -v '\.env\.example$' || true)
+          if [ -n "$bad" ]; then
+            echo "::error::Environment files must not be committed:"
+            echo "$bad"
+            exit 1
+          fi
+
+      - name: Secret scan
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  app:
+    name: Lint, typecheck, test, build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Detect application code
+        id: detect
+        run: |
+          if [ -f package.json ]; then echo "present=true" >> "$GITHUB_OUTPUT"; else echo "present=false" >> "$GITHUB_OUTPUT"; fi
+
+      - name: Set up Node
+        if: steps.detect.outputs.present == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: "lts/*"
+
+      - name: Enable pnpm
+        if: steps.detect.outputs.present == 'true'
+        run: corepack enable
+
+      - name: Install
+        if: steps.detect.outputs.present == 'true'
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint
+        if: steps.detect.outputs.present == 'true'
+        run: pnpm lint
+
+      - name: Typecheck
+        if: steps.detect.outputs.present == 'true'
+        run: pnpm typecheck
+
+      - name: Test
+        if: steps.detect.outputs.present == 'true'
+        run: pnpm test
+
+      - name: Build
+        if: steps.detect.outputs.present == 'true'
+        run: pnpm build

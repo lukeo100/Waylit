@@ -1,0 +1,54 @@
+name: Bug report
+description: Something is broken or behaves unexpectedly
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting. Please do not include API keys, tokens or your real location. For security problems, use the private reporting link in the issue chooser instead.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: Describe the problem and what you expected instead.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Open the app
+        2. Start a simulated trip
+        3. ...
+    validations:
+      required: true
+  - type: input
+    id: device
+    attributes:
+      label: Device and browser
+      description: Phone or computer model, operating system, and browser with version.
+      placeholder: Mid-range Android phone, Android 15, Chrome 140
+    validations:
+      required: true
+  - type: dropdown
+    id: install
+    attributes:
+      label: How are you running it?
+      options:
+        - Installed PWA
+        - In a browser tab
+        - Local development server
+        - Self-hosted deployment
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version or commit
+      description: A release version or commit hash.
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs, console output or screenshots
+      description: Remove anything private first.
