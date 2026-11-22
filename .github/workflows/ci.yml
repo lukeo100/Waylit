@@ -52,6 +52,8 @@ jobs:
   app:
     name: Lint, typecheck, test, build
     runs-on: ubuntu-latest
+    env:
+      NEXT_TELEMETRY_DISABLED: "1"
     steps:
       - uses: actions/checkout@v4
 
@@ -64,7 +66,7 @@ jobs:
         if: steps.detect.outputs.present == 'true'
         uses: actions/setup-node@v4
         with:
-          node-version: "lts/*"
+          node-version-file: ".nvmrc"
 
       - name: Enable pnpm
         if: steps.detect.outputs.present == 'true'
@@ -73,6 +75,10 @@ jobs:
       - name: Install
         if: steps.detect.outputs.present == 'true'
         run: pnpm install --frozen-lockfile
+
+      - name: Format
+        if: steps.detect.outputs.present == 'true'
+        run: pnpm format:check
 
       - name: Lint
         if: steps.detect.outputs.present == 'true'
