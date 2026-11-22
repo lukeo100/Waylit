@@ -2,7 +2,7 @@
 
 Waylit is a pnpm workspace monorepo. The web app is one consumer of a set of small shared packages. A later Expo app will be a second consumer of the same packages, so anything that is not specific to the browser lives outside `apps/web`.
 
-This page describes what exists today. The map provider and design system packages are still mostly interfaces and tokens, and fill in as the milestone 1 tasks land (see [AGENT_BRIEF.md](AGENT_BRIEF.md)).
+This page describes what exists today. The map provider package is still only an interface, and the rest fills in as the milestone 1 tasks land (see [AGENT_BRIEF.md](AGENT_BRIEF.md)).
 
 ## Layout
 
@@ -10,8 +10,8 @@ This page describes what exists today. The map provider and design system packag
 apps/
   web/                 Next.js App Router app (the PWA). Rendering, pages, browser APIs.
 packages/
-  core/                Navigation types, units, geo helpers, simulated GPS, smoothing, media model and mock tracks. No DOM, no React.
-  vehicle/             Read-only vehicle interface, mock Ninebot MAX G3 adapter, energy model and speed fallback. No DOM, no React.
+  core/                Navigation types, units, geo helpers, route progress, simulated GPS, GPS distance, smoothing, HUD number formatting, media model and mock tracks. No DOM, no React.
+  vehicle/             Read-only vehicle interface, mock Ninebot MAX G3 adapter, energy model, speed fallback and trip distance fallback. No DOM, no React.
   map-provider/        Map provider interface types. No DOM, no React, no provider SDKs.
   ui-tokens/           Design tokens as TypeScript values plus a CSS variables file.
 ```
@@ -28,12 +28,47 @@ apps/web/
     icons/                   Generated app icons
   scripts/generate-icons.mjs Dependency free icon generator
   src/app/manifest.ts        Web app manifest (from design tokens)
-  src/app/ride/              Placeholder riding screen: full screen, no chrome, wake lock
+  src/app/ride/              The riding screen: full screen, no chrome, wake lock while a trip runs
   src/pwa/                   Plain TypeScript logic: wake lock, install, update flow, safety notice, orientation
   src/components/            Thin React wrappers: install button, safety notice, rotate prompt, worker registrar
 ```
 
-Logic sits in `src/pwa` as framework free modules that take their browser objects as arguments, so Vitest can test them with fakes. The components only wire those modules to React. The ride screen calls `useWakeLock`. Nothing here moves into `packages/*`, because it all needs the browser.
+Logic sits in `src/pwa` as framework free modules that take their browser objects as arguments, so Vitest can test them with fakes. The components only wire those modules to React. The ride screen calls `useWakeLock` while a trip is running. Nothing here moves into `packages/*`, because it all needs the browser.
+
+## Riding screen
+
+The riding screen (`apps/web/src/app/ride/page.tsx`) draws the HUD around an empty middle that is kept for the 3D scene (task 8). It runs on the simulation layer and makes no network calls.
+
+```
+apps/web/src/
+  ride/
+    ride-session.ts     One simulated ride, no timers and no DOM. Wires GpsSimulator, the mock vehicle
+                        adapter, selectSpeed, GpsDistanceIntegrator, TripTracker and route progress
+                        into one snapshot per tick. Phases: idle, riding, summary.
+    ride-store.ts       useSyncExternalStore adapter. Runs the session on a 250 ms timer only while subscribed.
+    use-ride.ts         React hook over the store
+    guard.ts            Speed guard thresholds and the hold times
+  hud/
+    NavigationPanel     top left: speed, next turn, distance, arrival, distance and time left
+    StatusCluster       top right: time, mock weather, online or offline
+    Minimap             top right: plain SVG route line, position dot, heading. No tiles
+    MediaPanel          bottom left: artwork, title, artist, progress, previous, play or pause, next
+    VehiclePanel        bottom right: battery, range, trip, scooter speed and GPS speed, End trip
+    SceneSlot           the gradient scene placeholder and the reserved attribution strip
+    StartPrompt, TripSummary, DevControls, HoldButton, icons, and pure helpers (hold, minimap geometry)
+  media/                Media Session binding, tone engine and useMockMedia (see Mock media above)
+```
+
+How it fits together:
+
+- **Screen grid.** One CSS grid with three columns (left panel, free centre, right panel) and four rows: top panels, free space, bottom panels, and a strip for credits. The credits strip is its own row, so no panel can overlap it. Nothing but the start prompt, the trip summary and the dev controls is drawn in the centre column.
+- **Data flow.** `RideSession.tick()` advances the GPS simulator, ticks the mock vehicle, projects the smoothed GPS fix onto the route (`projectOntoRoute`) to get the distance along it, and turns that into the next instruction, distance to it, remaining distance and time and arrival (`computeProgress`). Speed comes from `selectSpeed`. Trip distance and duration come from `TripTracker`. The HUD only reads the snapshot.
+- **GPS fallback.** Scooter speed is used while telemetry is fresh. When it is missing or older than two seconds, the headline speed uses GPS and says so, battery, range and scooter speed show dashes, and trip distance and duration carry on from GPS distance (`GpsDistanceIntegrator`) and the ride clock. `TripTracker` adds up changes instead of swapping totals, so the figure never jumps and never goes backwards, and distance covered during a dropout is kept.
+- **Minimap.** Drawn from the route's own coordinates only. While riding it follows the rider with the heading up. Before and after a trip it shows the whole route, north up. It uses no map tiles and no map data, so it needs no map credit and can sit next to Google tiles later (see Amendment 3 in the brief).
+- **Speed guard.** Above 8 km/h (off again below 5) the media controls and End trip need a deliberate press: a touch or mouse press must be held for 0.6 s (0.9 s for End trip), with a fill that shows progress. Keyboard and assistive technology activation goes straight through. The media panel dims while the guard is on.
+- **End trip.** Takes the summary (distance, duration, average speed), stops the simulator, releases the wake lock (the hook is only enabled while riding) and stops the media: `useMockMedia(false)` pauses and rewinds the player, silences the tone engine and clears the Media Session metadata and handlers. **Start new trip** builds a fresh session and returns to the start state.
+- **Dev controls.** Playback speed (1x, 2x, 4x, 8x) and a "Lose scooter data" switch. Shown in development builds. In a production build they appear only when the address has `?dev=1`. At fast playback the HUD shows ride time, so arrival and time left are what the simulated rider would see at normal speed.
+- **First render.** The server render and the first client render use a fixed empty snapshot and the clock shows `--:--` until mounted, so there is no hydration mismatch.
 
 ## Dependency rules
 
@@ -72,7 +107,7 @@ Milestone 1 runs on simulated inputs. The simulation lives in the shared package
 ### Mock media
 
 - `packages/core` holds the media model: `MediaTrack`, `MediaPlayer` (play, pause, toggle, next, previous, seek and progress, driven by the injected clock) and five invented tracks in `mock-media.ts`. Cover art is generated as SVG by `artwork.ts`. Nothing is a recording, and no real artist or service is involved.
-- `apps/web/src/media` is the browser side. `mediaSession.ts` mirrors the player to the Media Session API (metadata, artwork, position and the play, pause, next track and previous track handlers). `toneEngine.ts` synthesises each track with Web Audio and routes it through a media element so browsers treat the page as playing media. `useMockMedia.ts` ties them together for the HUD to use. None of it draws any UI.
+- `apps/web/src/media` is the browser side. `mediaSession.ts` mirrors the player to the Media Session API (metadata, artwork, position and the play, pause, next track and previous track handlers). `toneEngine.ts` synthesises each track with Web Audio and routes it through a media element so browsers treat the page as playing media. `useMockMedia.ts` ties them together for the HUD to use, and `useMockMedia(false)` stops everything. None of it draws any UI. `mediaSession.ts` also offers PNG copies of the artwork (`artwork-png.ts`) next to the SVG, because media notifications are not guaranteed to draw SVG, and handles the `seekto` action.
 
 ## How packages are consumed
 

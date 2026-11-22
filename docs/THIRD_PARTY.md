@@ -49,6 +49,10 @@ The PWA shell (manifest, service worker, install flow, wake lock) adds no depend
 
 The simulation layer adds no dependencies. The filters, random number generator, route handling, energy model and Web Audio synthesis are written for this project.
 
+### Riding screen
+
+The riding screen adds no dependencies. Icons are original inline SVG drawn for Waylit, the minimap is plain SVG from the demo route's own coordinates, and mock weather is a fixed value. No map tiles or map data are used on the screen, so it needs no map credit. The credits strip is reserved for the 3D scene's attributions.
+
 ### Fonts
 
 None. The app uses the platform's system UI font, so no font files are bundled or downloaded.

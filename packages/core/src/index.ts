@@ -16,8 +16,38 @@ export { createManualClock, systemClock } from "./clock";
 export type { Clock, ManualClock, Scheduler } from "./clock";
 export { createRng, gaussian } from "./random";
 export type { RandomSource } from "./random";
-export { createRouteIndex, locateAlongRoute, pathFromFeature, pathLength } from "./route";
-export type { RouteFeature, RouteIndex, RouteLineString, RoutePoint } from "./route";
+export {
+  createRouteIndex,
+  locateAlongRoute,
+  locateInstructions,
+  pathFromFeature,
+  pathLength,
+  projectOntoRoute,
+} from "./route";
+export type {
+  ProjectOptions,
+  RouteFeature,
+  RouteIndex,
+  RouteLineString,
+  RoutePoint,
+  RouteProjection,
+} from "./route";
+export { computeProgress, createProgressModel } from "./progress";
+export type { ProgressInput, ProgressModel } from "./progress";
+export { GpsDistanceIntegrator } from "./gps-distance";
+export type { GpsDistanceOptions } from "./gps-distance";
+export {
+  MISSING_VALUE,
+  averageSpeedKmh,
+  formatDistance,
+  formatDuration,
+  formatPercent,
+  formatRange,
+  formatSpeedKmh,
+  formatStopwatch,
+  formatTripDistance,
+} from "./format";
+export type { FormattedValue } from "./format";
 export { DEMO_ROUTE, DEMO_ROUTE_FEATURE, DEMO_ROUTE_INSTRUCTIONS } from "./demo-route";
 export { AlphaBetaFilter, AngleLowPassFilter, LowPassFilter, PositionSmoother } from "./smoothing";
 export type { PositionSmootherOptions } from "./smoothing";

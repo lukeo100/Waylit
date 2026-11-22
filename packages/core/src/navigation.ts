@@ -37,8 +37,12 @@ export interface Route {
 export interface NavigationProgress {
   readonly nextInstruction?: RouteInstruction;
   readonly distanceToNextMetres?: number;
+  /** Distance travelled along the route so far, in metres. */
+  readonly distanceAlongMetres: number;
   readonly remainingDistanceMetres: number;
   readonly remainingDurationSeconds?: number;
   /** Estimated arrival, milliseconds since the Unix epoch. */
   readonly etaTimestamp?: number;
+  /** True once the rider has reached the end of the route. */
+  readonly arrived: boolean;
 }
