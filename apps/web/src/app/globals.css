@@ -67,6 +67,14 @@
 }
 
 @layer base {
+  :root {
+    /* Notches, camera cut-outs and gesture bars. Zero where the device has none. */
+    --wl-safe-top: env(safe-area-inset-top, 0px);
+    --wl-safe-right: env(safe-area-inset-right, 0px);
+    --wl-safe-bottom: env(safe-area-inset-bottom, 0px);
+    --wl-safe-left: env(safe-area-inset-left, 0px);
+  }
+
   html {
     color-scheme: dark;
     background: var(--wl-color-night-950);
@@ -87,6 +95,65 @@
 }
 
 @layer components {
+  /*
+   * Keeps ordinary pages out from under system bars when the app is full screen
+   * (viewport-fit=cover). The riding screen is fixed and uses the --wl-safe-* values itself.
+   */
+  .wl-safe-area {
+    display: flex;
+    flex-direction: column;
+    min-height: 100dvh;
+    padding: var(--wl-safe-top) var(--wl-safe-right) var(--wl-safe-bottom) var(--wl-safe-left);
+  }
+
+  /*
+   * Rotate prompt for small phones held upright. Hidden everywhere else. It sits above
+   * every screen that includes it, and the ride content underneath is not interactive
+   * while it shows.
+   */
+  .wl-rotate-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 60;
+    padding: max(1.5rem, var(--wl-safe-top)) max(1.5rem, var(--wl-safe-right))
+      max(1.5rem, var(--wl-safe-bottom)) max(1.5rem, var(--wl-safe-left));
+    place-items: center;
+    align-content: center;
+    justify-items: center;
+    text-align: center;
+    background: var(--wl-color-night-950);
+    color: var(--wl-color-cyan);
+  }
+
+  @media (orientation: portrait) and (max-width: 767px) {
+    .wl-rotate-overlay {
+      display: grid;
+    }
+  }
+
+  .wl-rotate-icon {
+    animation: wl-rotate-hint 2.8s var(--wl-motion-ease-out) infinite;
+  }
+
+  @keyframes wl-rotate-hint {
+    0%,
+    30% {
+      transform: rotate(0deg);
+    }
+    60%,
+    100% {
+      transform: rotate(-90deg);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .wl-rotate-icon {
+      animation: none;
+      transform: rotate(-90deg);
+    }
+  }
+
   /* Translucent glass panel. The base surface for every HUD element. */
   .wl-glass {
     background:
