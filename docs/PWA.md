@@ -37,7 +37,7 @@ To test offline behaviour, install the app, open the start screen and the ride s
 
 - The install button appears, and the installed app launches full screen in landscape.
 - The ride screen shows no address bar, header, sidebar or install button.
-- The screen stays on while the ride screen is open, and turns off normally after leaving it.
+- The screen stays on while a trip is running (after **Start trip**), and turns off normally after **End trip** or after leaving the ride screen.
 - Rotating to portrait on the ride screen shows the "Turn your phone sideways" prompt, and rotating back hides it.
 - The first run safety notice appears once, and not again after tapping **I understand**.
 - After a second deploy, the start screen offers **Reload** and the new version loads afterwards.
@@ -106,7 +106,7 @@ Build assets have content hashes in their names, so a saved copy is always the r
 
 ## Screen wake lock
 
-`apps/web/src/pwa/wake-lock.ts` holds the logic and `use-wake-lock.ts` is the React hook. A ride screen calls `useWakeLock(true)`. It requests a screen wake lock, asks again whenever the page becomes visible (the browser releases the lock when the page is hidden), and releases it on unmount. It is feature detected, and a refused or missing lock does nothing and never throws.
+`apps/web/src/pwa/wake-lock.ts` holds the logic and `use-wake-lock.ts` is the React hook. The ride screen calls `useWakeLock(true)` only while a trip is running, so the lock is released as soon as **End trip** is pressed. It requests a screen wake lock, asks again whenever the page becomes visible (the browser releases the lock when the page is hidden), and releases it on unmount. It is feature detected, and a refused or missing lock does nothing and never throws.
 
 ## First run safety notice
 
@@ -134,7 +134,7 @@ Manual, in headless desktop Chrome against a production build, on localhost:
 - Chrome reports no manifest errors and no installability errors.
 - The worker registers, activates, takes control and fills its caches. After the server is stopped, the start page, the ride page and the start URL load from cache, and an unvisited page shows the offline page.
 - The ride screen has no header, nav or sidebar, and no install UI. The rotate prompt shows in a 390 by 844 viewport and is hidden at 844 by 390.
-- The wake lock requested on the ride screen reports active.
+- The wake lock requested on the ride screen reports active while a trip runs, and inactive after End trip.
 - The safety notice shows on first run, and its acknowledgement is stored.
 
 Not verified: installing on a real Android phone (Samsung Galaxy A35 is the target), the standalone launch there, the real wake lock behaviour with the screen timeout, the `beforeinstallprompt` flow on the phone, a Lighthouse audit, and update prompts across a real second deploy.

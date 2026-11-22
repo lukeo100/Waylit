@@ -56,6 +56,7 @@ Waylit uses the platform's system UI font (`font.sans`). It is legible at small 
 | `2xl` | `text-2xl` | 1.953rem | Distance to next turn |
 | `3xl` | `text-3xl` | 2.441rem | Secondary readouts |
 | `display` | `text-display` | 4rem | Speed readout |
+| `displaySm` | `text-display-sm` | 3rem | Speed readout on short landscape screens |
 
 The scale is a major third (1.25) from a 1rem base. Line heights are `tight` (1.1) for display numbers, `snug` (1.3) for headings and `normal` (1.5) for body. Weights are 400, 500, 600 and 700. Display text uses `tracking-display` (-0.02em). Use `tabular-nums` on any number that updates live, so digits do not jump.
 
@@ -102,7 +103,34 @@ The `.wl-glass` component class combines the glass fill, a faint top sheen, the 
 
 ## Layout
 
-The riding screen is landscape first. Phones in landscape can be as short as 360px, so the web app defines a `short:` Tailwind variant for viewports up to 520px tall. Use it to tighten spacing and step type down one size rather than hiding information a rider needs. Respect safe areas with `env(safe-area-inset-*)` once the full screen PWA shell lands.
+The riding screen is landscape first. Phones in landscape can be as short as 360px, so the web app defines a `short:` Tailwind variant for viewports up to 520px tall, and a `tight:` variant for up to 400px. Use it to tighten spacing and step type down one size rather than hiding information a rider needs. Respect safe areas with `env(safe-area-inset-*)` once the full screen PWA shell lands.
+
+## Riding screen layout
+
+Built in `apps/web/src/app/ride/page.tsx` and `apps/web/src/hud/`. It is one grid: a left panel column, a free centre and a right panel column, with the panels at the top and the bottom and a strip for credits along the bottom edge. Column width is `clamp(15rem, 34vw, 23rem)`. It was checked at 915 by 412 (Samsung Galaxy A35 in landscape, in CSS pixels), 740 by 360, 667 by 375, 800 by 360 and 1280 by 720.
+
+| Area | Content |
+|---|---|
+| Top left | Speed in km/h with its source (Scooter or GPS fallback), next turn icon, distance to the turn and instruction, then arrival time, distance to go and time left |
+| Top right | Local time, mock weather, online or offline, and the minimap below them |
+| Bottom left | Media player: artwork, title, artist, progress, previous, play or pause, next |
+| Bottom right | Battery percent and bar, range, trip distance and time, scooter speed and GPS speed side by side, and the End trip button |
+| Centre | Empty. A dark gradient for the 3D scene. Only the start prompt, the trip summary and the dev controls ever appear here |
+| Bottom edge | The credits strip, `#attribution-slot`, a row of its own. Google, Cesium ion and OpenStreetMap credits go here when the 3D scene lands. No panel can overlap it, and the scene must not cover it |
+
+Rules for this screen:
+
+- **Nothing in the bottom corners except the two panels.** No floating vertical buttons, no distance scale and no zoom controls.
+- **Large targets.** Media buttons and End trip are at least 48 pixels tall and wide. End trip is `danger` red and the only red on the screen.
+- **Speed guard.** Above 8 km/h the media controls and End trip need a hold (0.6 s, and 0.9 s for End trip), and the media panel dims. Caution amber is used for the hint "Hold a button to use it". The guard switches off below 5 km/h.
+- **Missing data shows dashes**, never zero. A caution note says when GPS is standing in for the scooter.
+- **Contrast.** Numbers use `text` (17.9:1 on `night-950`) on glass panels over a near black scene. Sunlight readability on a real screen has not been tested yet. Once the 3D scene is behind the panels, a bright sky may need the panels to switch to `glassStrong`.
+- **Container queries.** The navigation panel uses a Tailwind container query (`@[16rem]`) so the turn distance steps down when the panel is narrow, rather than relying on screen height.
+- **Reduced motion.** The hold fill is hidden and the caption changes to "Keep holding". The offline pulse stops. Nothing else on this screen animates.
+- **Copy.** Sentence case, no emoji, no em dashes. Speed in km/h, distances under 1 km in metres rounded to 10 m, longer ones in km with one decimal, trip distance in km with two decimals, 24 hour time.
+- **Variants.** `short:` is for screens up to 520 px tall and `tight:` is for up to 400 px tall. Both tighten spacing and step type down, and never hide information.
+
+Screenshots of the screen are in [`docs/images/`](images/).
 
 ## Using the tokens
 
