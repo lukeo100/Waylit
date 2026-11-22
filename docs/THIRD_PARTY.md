@@ -42,6 +42,10 @@ Most transitive packages are MIT, ISC, BSD or Apache 2.0. A few differ, none are
 
 Candidates under evaluation, not yet adopted: CesiumJS (Apache 2.0), three.js (MIT), MapLibre GL JS (BSD-3-Clause). The mapping spike decides between them. Each must be checked for compatibility with Apache 2.0 when adopted.
 
+### PWA shell
+
+The PWA shell (manifest, service worker, install flow, wake lock) adds no dependencies. The service worker is hand written, and the icon generator uses only Node.js built-ins (`zlib`, `fs`). It does not use the optional `sharp` package that Next.js installs.
+
 ### Fonts
 
 None. The app uses the platform's system UI font, so no font files are bundled or downloaded.
@@ -62,7 +66,8 @@ Scooter and rider models, icons, sample media and artwork are created for this p
 
 | Asset | Source | Licence |
 |---|---|---|
-| none yet | | |
+| App icons and logo (`apps/web/public/icons/`) | Drawn for this project by `apps/web/scripts/generate-icons.mjs` | Project licence (Apache-2.0) |
+| Rotate phone icon (inline SVG in `RotateOverlay`) | Drawn for this project | Project licence (Apache-2.0) |
 
 ## Names and trademarks
 

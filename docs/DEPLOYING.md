@@ -1,6 +1,6 @@
 # Deploying your own copy
 
-> **Status: partial.** Running locally works today. The Vercel and self-host steps are outlined below and will be checked from a clean environment before the first release. The PWA install steps arrive with the PWA shell (task 5).
+> **Status: partial.** Running locally works today. The Vercel and self-host steps are outlined below and will be checked from a clean environment before the first release.
 
 The goal is that anyone can run their own copy with their own accounts and keys. There is no shared hosted instance and no shared API key.
 
@@ -89,7 +89,7 @@ To be written after the mapping spike: how to get your own key for the chosen pr
 
 ## 7. Installing the PWA
 
-To be written with the PWA shell (task 5): Android and desktop steps and browser limitations.
+Open your deployed HTTPS URL in Chrome on Android and tap **Install app**. The steps, how to test on a phone over USB, and the browser limitations are in [PWA.md](PWA.md). Static hosts and web servers must serve `/sw.js` and `/sw-strategy.js` with `Cache-Control: no-cache`, so updates are not delayed.
 
 ## 8. Updating and troubleshooting
 
