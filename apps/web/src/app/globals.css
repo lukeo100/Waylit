@@ -1,0 +1,195 @@
+@import "tailwindcss";
+@import "@waylit/ui-tokens/tokens.css";
+
+/* Phones held in landscape have very little height. */
+@custom-variant short (@media (max-height: 520px));
+
+/*
+ * Tailwind theme mapped onto the Waylit tokens. Default Tailwind colours are cleared
+ * so only the Waylit palette is available. See docs/DESIGN_SYSTEM.md.
+ */
+@theme inline {
+  --color-*: initial;
+  --color-night-950: var(--wl-color-night-950);
+  --color-night-900: var(--wl-color-night-900);
+  --color-night-800: var(--wl-color-night-800);
+  --color-night-700: var(--wl-color-night-700);
+  --color-volt: var(--wl-color-volt);
+  --color-volt-soft: var(--wl-color-volt-soft);
+  --color-cyan: var(--wl-color-cyan);
+  --color-cyan-soft: var(--wl-color-cyan-soft);
+  --color-text: var(--wl-color-text);
+  --color-text-secondary: var(--wl-color-text-secondary);
+  --color-text-muted: var(--wl-color-text-muted);
+  --color-caution: var(--wl-color-caution);
+  --color-danger: var(--wl-color-danger);
+  --color-ok: var(--wl-color-ok);
+  --color-glass: var(--wl-color-glass);
+  --color-glass-strong: var(--wl-color-glass-strong);
+  --color-glass-border: var(--wl-color-glass-border);
+  --color-glass-highlight: var(--wl-color-glass-highlight);
+  --color-transparent: transparent;
+  --color-current: currentColor;
+
+  --font-sans: var(--wl-font-sans);
+  --font-mono: var(--wl-font-mono);
+
+  --text-xs: var(--wl-font-size-xs);
+  --text-sm: var(--wl-font-size-sm);
+  --text-base: var(--wl-font-size-base);
+  --text-lg: var(--wl-font-size-lg);
+  --text-xl: var(--wl-font-size-xl);
+  --text-2xl: var(--wl-font-size-2xl);
+  --text-3xl: var(--wl-font-size-3xl);
+  --text-display: var(--wl-font-size-display);
+
+  --leading-tight: var(--wl-line-height-tight);
+  --leading-snug: var(--wl-line-height-snug);
+  --leading-normal: var(--wl-line-height-normal);
+
+  --tracking-display: var(--wl-letter-spacing-display);
+  --tracking-wide: var(--wl-letter-spacing-wide);
+
+  --radius-sm: var(--wl-radius-sm);
+  --radius-md: var(--wl-radius-md);
+  --radius-lg: var(--wl-radius-lg);
+  --radius-pill: var(--wl-radius-pill);
+
+  --blur-sm: var(--wl-blur-sm);
+  --blur-md: var(--wl-blur-md);
+  --blur-lg: var(--wl-blur-lg);
+
+  --shadow-glow-volt: var(--wl-glow-volt);
+  --shadow-glow-cyan: var(--wl-glow-cyan);
+  --shadow-glow-focus: var(--wl-glow-focus);
+
+  --ease-out: var(--wl-motion-ease-out);
+}
+
+@layer base {
+  html {
+    color-scheme: dark;
+    background: var(--wl-color-night-950);
+    color: var(--wl-color-text);
+    font-family: var(--wl-font-sans);
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    min-height: 100dvh;
+  }
+
+  :focus-visible {
+    outline: none;
+    box-shadow: var(--wl-glow-focus);
+    border-radius: var(--wl-radius-sm);
+  }
+}
+
+@layer components {
+  /* Translucent glass panel. The base surface for every HUD element. */
+  .wl-glass {
+    background:
+      linear-gradient(180deg, var(--wl-color-glass-highlight), transparent 40%),
+      var(--wl-color-glass);
+    border: 1px solid var(--wl-color-glass-border);
+    border-radius: var(--wl-radius-lg);
+    backdrop-filter: blur(var(--wl-blur-md)) saturate(140%);
+    -webkit-backdrop-filter: blur(var(--wl-blur-md)) saturate(140%);
+  }
+
+  @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+    .wl-glass {
+      background: var(--wl-color-glass-strong);
+    }
+  }
+}
+
+/*
+ * Placeholder corridor: a glowing route receding into the distance.
+ * One slow drift animation, switched off for reduced motion.
+ */
+@layer components {
+  .wl-corridor {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    perspective: 520px;
+    perspective-origin: 50% 0%;
+    pointer-events: none;
+  }
+
+  .wl-corridor::after {
+    /* Horizon haze so the road fades into the night instead of ending on a hard edge. */
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(180deg, var(--wl-color-night-950) 8%, transparent 45%);
+  }
+
+  .wl-corridor-plane {
+    position: absolute;
+    left: 50%;
+    bottom: -10%;
+    width: 46%;
+    min-width: 11rem;
+    height: 220%;
+    transform: translateX(-50%) rotateX(68deg);
+    transform-origin: 50% 100%;
+  }
+
+  .wl-corridor-road {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      rgba(46, 139, 255, 0.16) 18%,
+      rgba(46, 139, 255, 0.1) 50%,
+      rgba(46, 139, 255, 0.16) 82%,
+      transparent
+    );
+    border-inline: 2px solid var(--wl-color-cyan);
+    box-shadow:
+      var(--wl-glow-cyan),
+      inset 0 0 40px rgba(53, 224, 255, 0.25);
+  }
+
+  .wl-corridor-chevrons {
+    --wl-chevron-step: 9rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: calc(var(--wl-chevron-step) - 3rem);
+    padding-top: 2rem;
+    animation: wl-drift 2.4s linear infinite;
+  }
+
+  .wl-chevron {
+    width: 55%;
+    height: 3rem;
+    flex: none;
+    fill: none;
+    stroke: var(--wl-color-cyan-soft);
+    stroke-width: 3;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    filter: drop-shadow(0 0 6px var(--wl-color-cyan));
+  }
+
+  @keyframes wl-drift {
+    from {
+      transform: translateY(calc(var(--wl-chevron-step) * -1));
+    }
+    to {
+      transform: translateY(0);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .wl-corridor-chevrons {
+      animation: none;
+    }
+  }
+}

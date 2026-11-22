@@ -45,3 +45,4 @@ CLAUDE.local.md
 *.fit
 *.tcx
 traces/
+next-env.d.ts
