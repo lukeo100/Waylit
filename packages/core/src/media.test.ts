@@ -91,6 +91,23 @@ describe("MediaPlayer", () => {
     expect(player.getState().positionSeconds).toBe(0);
   });
 
+  it("stops: pauses and returns to the start of the first track", () => {
+    const { clock, player } = make();
+    player.next();
+    player.play();
+    clock.advance(4000);
+    const heard: MediaState[] = [];
+    player.subscribe((s) => heard.push(s));
+    player.stop();
+    const s = player.getState();
+    expect(s.status).toBe("paused");
+    expect(s.trackIndex).toBe(0);
+    expect(s.positionSeconds).toBe(0);
+    expect(heard).toHaveLength(1);
+    clock.advance(5000);
+    expect(player.getState().positionSeconds).toBe(0);
+  });
+
   it("tells subscribers about changes and stops after unsubscribe", () => {
     const { clock, player } = make();
     const seen: MediaState[] = [];

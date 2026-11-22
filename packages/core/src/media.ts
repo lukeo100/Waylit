@@ -154,6 +154,16 @@ export class MediaPlayer implements MediaControls {
     }
   }
 
+  /** Pauses and goes back to the start of the first track. Listeners are told once. */
+  stop(): void {
+    this.sync();
+    this.status = "paused";
+    this.index = 0;
+    this.anchorPosition = 0;
+    this.anchorMs = this.clock.now();
+    this.notify(this.snapshot());
+  }
+
   seek(seconds: number): void {
     this.sync();
     const duration = this.currentTrack().durationSeconds;
