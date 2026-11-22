@@ -7,7 +7,7 @@ Status key: **done**, **in progress**, **planned**.
 | Phase | Name | What it delivers | Status |
 |---|---|---|---|
 | 0 | Open source foundation | Licence, community files, CI, contribution and deployment docs, a run-with-no-keys rule | in progress |
-| 1 | PWA foundation | Project structure, design system, installable landscape PWA, riding screen with media player and vehicle dashboard on mock data | planned |
+| 1 | PWA foundation | Project structure, design system, installable landscape PWA, riding screen with media player and vehicle dashboard on mock data | in progress |
 | 2 | 3D mapping prototype | Provider decision from a written spike, realistic 3D environment, third-person camera, rider and scooter, holographic route corridor, proven smooth on a mid-range Android phone | planned |
 | 3 | GPS and navigation | Live GPS, heading and position smoothing, route calculation, turn-by-turn, recalculation, scooter-aware routing | planned |
 | 4 | Speed zones | Geographic speed-zone data, road limit datasets, custom path zones, moderation tools, personal overrides, visualisation | planned |

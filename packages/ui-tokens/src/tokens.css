@@ -1,0 +1,70 @@
+/*
+ * Waylit design tokens as CSS custom properties.
+ * Source of truth is tokens.ts. Keep the two in step: tokens.test.ts fails if they drift.
+ * Documented in docs/DESIGN_SYSTEM.md.
+ */
+:root {
+  --wl-color-night-950: #05080f;
+  --wl-color-night-900: #0a1220;
+  --wl-color-night-800: #121c2e;
+  --wl-color-night-700: #1c2940;
+  --wl-color-volt: #2e8bff;
+  --wl-color-volt-soft: #7fb6ff;
+  --wl-color-cyan: #35e0ff;
+  --wl-color-cyan-soft: #a6f1ff;
+  --wl-color-text: #eaf3ff;
+  --wl-color-text-secondary: #9db0cc;
+  --wl-color-text-muted: #6e82a4;
+  --wl-color-caution: #ffb23f;
+  --wl-color-danger: #ff5a6b;
+  --wl-color-ok: #3ddc97;
+  --wl-color-glass: rgba(14, 24, 42, 0.55);
+  --wl-color-glass-strong: rgba(14, 24, 42, 0.78);
+  --wl-color-glass-border: rgba(150, 200, 255, 0.14);
+  --wl-color-glass-highlight: rgba(166, 241, 255, 0.08);
+  --wl-font-sans:
+    ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans", sans-serif;
+  --wl-font-mono: ui-monospace, "SFMono-Regular", "Cascadia Mono", "Roboto Mono", monospace;
+  --wl-font-size-xs: 0.75rem;
+  --wl-font-size-sm: 0.875rem;
+  --wl-font-size-base: 1rem;
+  --wl-font-size-lg: 1.25rem;
+  --wl-font-size-xl: 1.5625rem;
+  --wl-font-size-2xl: 1.953rem;
+  --wl-font-size-3xl: 2.441rem;
+  --wl-font-size-display: 4rem;
+  --wl-line-height-tight: 1.1;
+  --wl-line-height-snug: 1.3;
+  --wl-line-height-normal: 1.5;
+  --wl-font-weight-regular: 400;
+  --wl-font-weight-medium: 500;
+  --wl-font-weight-semibold: 600;
+  --wl-font-weight-bold: 700;
+  --wl-letter-spacing-display: -0.02em;
+  --wl-letter-spacing-normal: 0;
+  --wl-letter-spacing-wide: 0.02em;
+  --wl-space-0: 0;
+  --wl-space-1: 0.25rem;
+  --wl-space-2: 0.5rem;
+  --wl-space-3: 0.75rem;
+  --wl-space-4: 1rem;
+  --wl-space-5: 1.5rem;
+  --wl-space-6: 2rem;
+  --wl-space-7: 3rem;
+  --wl-space-8: 4rem;
+  --wl-radius-sm: 6px;
+  --wl-radius-md: 12px;
+  --wl-radius-lg: 20px;
+  --wl-radius-pill: 999px;
+  --wl-blur-sm: 8px;
+  --wl-blur-md: 16px;
+  --wl-blur-lg: 28px;
+  --wl-glow-volt: 0 0 24px rgba(46, 139, 255, 0.35);
+  --wl-glow-cyan: 0 0 18px rgba(53, 224, 255, 0.45);
+  --wl-glow-focus: 0 0 0 3px rgba(53, 224, 255, 0.6);
+  --wl-motion-fast: 120ms;
+  --wl-motion-base: 200ms;
+  --wl-motion-slow: 360ms;
+  --wl-motion-ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --wl-touch-min: 48px;
+}
