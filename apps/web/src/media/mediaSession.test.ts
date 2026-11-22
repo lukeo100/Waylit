@@ -45,9 +45,9 @@ describe("bindMediaSession", () => {
     expect(fake.raw.playbackState).toBe("paused");
   });
 
-  it("registers play, pause, nexttrack and previoustrack handlers", () => {
+  it("registers play, pause, nexttrack, previoustrack and seekto handlers", () => {
     const { fake } = setup();
-    for (const action of ["play", "pause", "nexttrack", "previoustrack"]) {
+    for (const action of ["play", "pause", "nexttrack", "previoustrack", "seekto"]) {
       expect(typeof fake.handlers.get(action)).toBe("function");
     }
   });
@@ -88,6 +88,65 @@ describe("bindMediaSession", () => {
     expect(fake.handlers.get("play")).toBeNull();
     player.play();
     expect(fake.raw.playbackState).toBe("none");
+  });
+
+  it("seeks the player from the seekto handler", () => {
+    const { player, fake } = setup();
+    (fake.handlers.get("seekto") as unknown as (d: { seekTime?: number }) => void)({
+      seekTime: 42,
+    });
+    expect(player.getState().positionSeconds).toBe(42);
+    expect(() => (fake.handlers.get("seekto") as unknown as (d: object) => void)({})).not.toThrow();
+    expect(player.getState().positionSeconds).toBe(42);
+  });
+
+  describe("PNG artwork", () => {
+    const rasterise = async (_svg: string, size: number): Promise<string | undefined> =>
+      `data:image/png;base64,size${size}`;
+    const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
+    type Art = { src: string; sizes: string; type: string }[];
+
+    function withPng(raster = rasterise) {
+      const clock = createManualClock(0);
+      const player = new MediaPlayer({ tracks: MOCK_TRACKS, clock });
+      const fake = fakeSession();
+      const dispose = bindMediaSession(player, {
+        mediaSession: fake.session,
+        createMetadata,
+        rasterise: raster,
+      });
+      return { player, fake, dispose };
+    }
+
+    it("shows the SVG straight away, then offers PNG copies ahead of it", async () => {
+      const { fake } = withPng();
+      const first = (fake.raw.metadata as { artwork: Art }).artwork;
+      expect(first.map((a) => a.type)).toEqual(["image/svg+xml"]);
+      await flush();
+      const upgraded = (fake.raw.metadata as { artwork: Art }).artwork;
+      expect(upgraded.map((a) => a.sizes)).toEqual(["512x512", "256x256", "512x512"]);
+      expect(upgraded.map((a) => a.type)).toEqual(["image/png", "image/png", "image/svg+xml"]);
+      expect(upgraded[0]?.src).toBe("data:image/png;base64,size512");
+    });
+
+    it("keeps the SVG when drawing the PNG fails", async () => {
+      const { fake } = withPng(async () => undefined);
+      await flush();
+      const art = (fake.raw.metadata as { artwork: Art }).artwork;
+      expect(art.map((a) => a.type)).toEqual(["image/svg+xml"]);
+    });
+
+    it("does not put old artwork on a newer track or on a closed session", async () => {
+      const { player, fake, dispose } = withPng();
+      player.next();
+      await flush();
+      const meta = fake.raw.metadata as { title: string; artwork: Art };
+      expect(meta.title).toBe(MOCK_TRACKS[1]?.title);
+      expect(meta.artwork[0]?.type).toBe("image/png");
+      dispose();
+      await flush();
+      expect(fake.raw.metadata).toBeNull();
+    });
   });
 
   it("does nothing when the browser has no Media Session", () => {
