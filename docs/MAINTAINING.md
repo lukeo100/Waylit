@@ -57,3 +57,12 @@ Contributors branch from `dev` and open pull requests against `dev`. The maintai
 ## Keeping docs in step
 
 `docs/AGENT_BRIEF.md` is the public copy of the project brief. Update it whenever the brief is amended. Keep `docs/THIRD_PARTY.md` current whenever a dependency, data source or asset is added.
+
+## Keeping a personal deployment private
+
+A maintainer's own Vercel project is separate from the project and is not part of it. To keep it private:
+
+- Connect it through the Vercel Git integration only. Do not add Vercel tokens, org IDs or project IDs to the repo or to GitHub Actions secrets. CI does not need them.
+- Keep Deployment Protection on in the Vercel project settings, so previews and production require a Vercel login.
+- The Vercel GitHub app can post preview URLs on pull requests and show deployments on the repo. On a public repo those are visible to everyone, so protection matters, and personal deployment URLs should not be pasted into issues, pull requests or docs.
+- Never commit `.vercel/` (already ignored) or `.env*` files.
