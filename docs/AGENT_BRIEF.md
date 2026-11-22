@@ -1,6 +1,6 @@
 # Waylit project brief (public mirror)
 
-**Status:** Approved on 2026-11-22. Amendment 1 (public repository and open source practice) applied the same day.
+**Status:** Approved on 2026-11-22. Amendment 1 (public repository and open source practice), Amendment 2 (model policy) and Amendment 3 (mapping provider decision) applied the same day.
 
 This is the public, sanitised copy of the project brief. It tells AI coding agents and contributors what Waylit is, what is in scope and how to work. The maintainer keeps private planning notes elsewhere, so this file is the version everyone can see. To propose a change to the brief, open an issue.
 
@@ -14,7 +14,7 @@ The 3D riding view is the defining feature and the biggest technical risk, so it
 
 1. The PWA installs on Android Chrome and launches in standalone landscape mode, with no browser navigation, website header or sidebar on the riding screen.
 2. The riding screen has the layout described in [VISION.md](VISION.md): speed, next turn, distance, ETA and remaining trip at top left, time, weather, connectivity and a minimap at top right, a media player at bottom left, and a vehicle dashboard with an End Trip button at bottom right.
-3. A realistic 3D environment renders from the provider chosen in the mapping spike, with a third-person camera following the simulated rider. A holographic rider silhouette and an original stylised scooter sit in the lower middle of the screen.
+3. A realistic 3D environment renders from the provider chosen in the mapping spike (see Amendment 3), with a third-person camera following the simulated rider. A holographic rider silhouette and an original stylised scooter sit in the lower middle of the screen.
 4. A glowing route corridor, floating chevron arrows and a holographic heading marker show the route. A turn instruction appears and its distance counts down.
 5. Scene lighting follows the real local time of day, and a time override demonstrates sunset, day and night.
 6. Simulated GPS follows a predefined route with smoothing. Simulated telemetry uses realistic scooter values. GPS speed and vehicle speed are separate values, and GPS is the fallback when vehicle telemetry is missing.
@@ -38,14 +38,15 @@ The 3D riding view is the defining feature and the biggest technical risk, so it
 ## 4. Constraints
 
 - **Free tiers only.** No paid plan is required to build, run or deploy Waylit. If a free allowance runs out, fall back to the OpenStreetMap-based option.
-- **Provider terms.** Attribution and licence rules of any map or tile provider must be verified before use, and required attribution must be visible. Do not assume a use is allowed.
-- **Bring your own keys.** Keys come from each deployer's environment variables and are never committed or shared. Without keys the app uses the fallback provider and mock data. Browser keys are restricted by referrer and quota.
+- **Provider terms.** Attribution and licence rules of any map or tile provider must be verified before use, and required attribution must be visible and never covered by the HUD. Do not assume a use is allowed.
+- **Bring your own keys.** Keys and tokens, including the Cesium ion token, come from each deployer's environment variables and are never committed or shared. Without keys the app uses the fallback provider and mock data. Browser keys are restricted by referrer and quota. There is no Google billing account and no direct Google key path.
 - **Public repository.** Everything committed is visible forever. Scan for secrets and personal data before every push. Keep private links, personal devices and location details out.
 - **Built for everyone.** No maintainer-specific values in code, config or docs. Maintainer accounts and project identifiers never appear in the repo.
 - **Assets.** Original stylised scooter and rider models. No vehicle maker artwork or logos. Mock media uses original placeholder names and generated artwork. No third party copyrighted material.
 - **Safety.** No code may write to vehicle firmware, braking or other critical systems. The README and the app's first run state that Waylit is a navigation aid, not a safety system.
 - **Licence.** Apache 2.0. Inbound equals outbound under section 5, so there is no CLA and no DCO sign-off.
 - **Later backend.** Any later Supabase work must be deployable by anyone, with migrations and seed data in the repo and no hardcoded project references.
+- **Models.** Every agent uses Sonnet 5.5 on high effort, including orchestration, research, development and UI work. Only the critic agent uses Opus 5.5. Where the task table names another model as owner, read Sonnet 5.5 on high effort instead (Amendment 2).
 - **Style.** Plain prose, no em dashes, no emojis in docs or UI copy unless needed.
 
 ## 5. Milestone 1 tasks
@@ -82,8 +83,24 @@ The 3D riding view is the defining feature and the biggest technical risk, so it
 |---|---|
 | Provider terms, quota or cost make a tile source unusable | Check terms first. Fall back to an OpenStreetMap-based renderer behind the provider interface |
 | Photorealistic tiles are too heavy for mid-range phones | Frame budget, lower detail, measure early |
-| Route corridor floats or clips on reality-mesh tiles | Drape it using sampled surface height and stylise to hide imperfections |
+| Route corridor floats or clips on reality-mesh tiles | In Google mode the corridor uses classification and never reads or records heights from Google tiles. Sampled heights from open elevation data are used only in the fallback. Stylise with glow to hide imperfections. If it looks poor on a device, the maintainer may accept the risk or disable the feature (Amendment 3) |
 | Phone use while riding | Large touch targets, minimal interaction while moving, check local rules |
 | Secrets or personal data reach the public history | Scans before every push, push protection, `.env.example` only |
 | Setup works only on the maintainer's machine | Fresh clone test, pinned toolchain, committed lockfile |
 | Maintainer time lost to unreviewed generated pull requests | Templates, code owners, protected `main`, stated AI policy |
+
+## 8. Amendments
+
+**Amendment 1, 2026-11-22.** The project is developed in a public repository and is built for everyone, not only the maintainer. Criteria 12 to 16 and the open source constraints were added, and the maintainer keeps private planning notes elsewhere.
+
+**Amendment 2, 2026-11-22. Model policy.** Every agent uses Sonnet 5.5 on high effort, except the critic, which uses Opus 5.5. This applies to work started after the change.
+
+**Amendment 3, 2026-11-22. Mapping provider decision.**
+
+- The primary provider is CesiumJS showing Google Photorealistic 3D Tiles through a Cesium ion token. There is no Google billing account and no direct Google key path.
+- The fallback is MapLibre GL JS on OpenFreeMap tiles with open terrain. It is what runs when no token is configured.
+- In Google mode the minimap is a plain drawn route. It never uses OpenStreetMap content, because the Google terms do not allow mixing Google tiles with other map content.
+- In Google mode the route corridor uses classification only. It never reads or records heights from Google tiles. Heights sampled from open elevation data are used only in the fallback.
+- Chevrons, rider and scooter may float or sink slightly in Google mode. This is an accepted risk for success criterion 4.
+- Attribution for Google, Cesium and OpenStreetMap must stay uncovered, so the HUD layout leaves room for it.
+- Everything stays behind the map provider interface, so the provider can be swapped without changing navigation logic.
