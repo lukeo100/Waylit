@@ -2,7 +2,7 @@
 
 Waylit is a pnpm workspace monorepo. The web app is one consumer of a set of small shared packages. A later Expo app will be a second consumer of the same packages, so anything that is not specific to the browser lives outside `apps/web`.
 
-This page describes what exists today. Most packages hold interfaces and placeholders, and fill in as the milestone 1 tasks land (see [AGENT_BRIEF.md](AGENT_BRIEF.md)).
+This page describes what exists today. The map provider and design system packages are still mostly interfaces and tokens, and fill in as the milestone 1 tasks land (see [AGENT_BRIEF.md](AGENT_BRIEF.md)).
 
 ## Layout
 
@@ -10,8 +10,8 @@ This page describes what exists today. Most packages hold interfaces and placeho
 apps/
   web/                 Next.js App Router app (the PWA). Rendering, pages, browser APIs.
 packages/
-  core/                Navigation types, unit conversions, geo helpers. No DOM, no React.
-  vehicle/             Read-only vehicle interface and mock adapter types. No DOM, no React.
+  core/                Navigation types, units, geo helpers, simulated GPS, smoothing, media model and mock tracks. No DOM, no React.
+  vehicle/             Read-only vehicle interface, mock Ninebot MAX G3 adapter, energy model and speed fallback. No DOM, no React.
   map-provider/        Map provider interface types. No DOM, no React, no provider SDKs.
   ui-tokens/           Design tokens as TypeScript values plus a CSS variables file.
 ```
@@ -30,6 +30,30 @@ core, ui-tokens ──> nothing
 - **Providers stay behind the interface.** `map-provider` defines what the app needs from any map or 3D tile provider. Provider SDK types (CesiumJS, MapLibre or others) belong in a provider implementation, never in shared types. The provider choice is made by the mapping spike (task 3), so no implementation exists yet.
 - **Vehicles stay behind the interface.** `vehicle` exposes telemetry and connection state only. It has no methods that send commands to a vehicle, and must not gain any without a maintainer agreement in an issue. Every telemetry field is optional, and the app falls back to GPS-derived values when one is missing. GPS speed and vehicle speed are separate values.
 - **Tokens are the single source of visual values.** `ui-tokens/src/tokens.ts` is the source of truth. `tokens.css` mirrors it as CSS custom properties for the web, and a test fails if the two drift. The web app maps the variables into its Tailwind theme. See [DESIGN_SYSTEM.md](DESIGN_SYSTEM.md).
+
+## Simulation layer
+
+Milestone 1 runs on simulated inputs. The simulation lives in the shared packages, not in the web app, so the later Expo app can reuse all of it. Only the code that touches browser APIs stays in `apps/web/src/media`.
+
+### Simulated GPS (`packages/core`)
+
+- `demo-route.ts` holds an original closed loop of about 4.2 km as plain GeoJSON (a `LineString` with `[longitude, latitude]` coordinates) plus hand-written instructions. The loop is in an open public area of Berlin, far from any maintainer location. Its origin is recorded in the file header and in [THIRD_PARTY.md](THIRD_PARTY.md).
+- `GpsSimulator` moves a virtual rider along any path. The rider accelerates to a cruise speed, slows for corners, and stops at the end, or loops. Each second a pretend receiver adds noise, and the smoothing filters turn that into the fixes the app uses: an alpha-beta (constant gain Kalman) filter for position, and low-pass filters for speed and heading, in `smoothing.ts`.
+- Time comes from an injected `Clock`. The simulator has no timers: the caller calls `update()` once per frame or once per second and it catches up. Playback speed, pause and resume are supported, and a fixed seed makes the noise repeatable. Tests use `createManualClock`.
+- `getTruth()` and `getMotion()` expose the rider's true speed and simulated elapsed time, which is what the mock vehicle reads.
+
+### Vehicle telemetry (`packages/vehicle`)
+
+- `createMockVehicleAdapter` implements the read-only `VehicleAdapter` interface. It imitates a Segway Ninebot MAX G3: battery percent, estimated range, trip distance, trip duration, odometer and a vehicle speed that is separate from GPS speed. The reference figures and their sources are in `spec.ts`.
+- The default speed limit is 25 km/h. It is a setting, not a property of the vehicle, and the mock never reports more than the limit.
+- The energy model in `energy.ts` is fitted through the maker's two claimed range points (80 km at 15 km/h and 65 km at 25 km/h), then scaled by a real-world factor of 1.5 and a small constant draw. It is a plausible mock, not a physical model.
+- `selectSpeed` is the fallback selector. Vehicle speed is used when it is present and fresh. If telemetry is missing, has no speed, is invalid or is older than two seconds, GPS speed is used instead and the result says why. GPS speed is ignored too once it is older than five seconds. The result also says which source it used.
+- The adapter has no method that sends anything to a vehicle and uses no Bluetooth. Its `tick()`, `startTrip()` and `setOmittedFields()` controls exist only on the mock type, to drive tests and demos.
+
+### Mock media
+
+- `packages/core` holds the media model: `MediaTrack`, `MediaPlayer` (play, pause, toggle, next, previous, seek and progress, driven by the injected clock) and five invented tracks in `mock-media.ts`. Cover art is generated as SVG by `artwork.ts`. Nothing is a recording, and no real artist or service is involved.
+- `apps/web/src/media` is the browser side. `mediaSession.ts` mirrors the player to the Media Session API (metadata, artwork, position and the play, pause, next track and previous track handlers). `toneEngine.ts` synthesises each track with Web Audio and routes it through a media element so browsers treat the page as playing media. `useMockMedia.ts` ties them together for the HUD to use. None of it draws any UI.
 
 ## How packages are consumed
 

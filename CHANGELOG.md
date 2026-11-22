@@ -12,8 +12,10 @@ All notable changes to this project are recorded here. The format follows [Keep 
 - Placeholder home page with the app name, a safety notice and a link to the source code. Runs with no keys and makes no network calls.
 - Read-only vehicle interface and map provider interface types, with no implementations yet.
 - Docs: `docs/ARCHITECTURE.md`, run-locally steps in the README and `docs/DEPLOYING.md`, a proposed self-host path (static export), and dependency licences in `docs/THIRD_PARTY.md`.
+- Simulation layer: a simulated GPS in `@waylit/core` that follows an original demo route with smoothing, playback speed, pause and resume and an injected clock, a mock Segway Ninebot MAX G3 telemetry adapter in `@waylit/vehicle` (battery drain, range, trip distance and duration, 25 km/h default limit, vehicle speed separate from GPS speed) with a GPS fallback selector, and a mock media player model with invented tracks and generated artwork, wired to the browser Media Session API with a Web Audio tone engine and a `useMockMedia` hook in `apps/web`. No new dependencies.
 - Optional `NEXT_PUBLIC_WAYLIT_SOURCE_URL` so forks can point the source link at their own repository.
 
 ### Changed
 
+- Public project brief mirror updated for the model policy and the mapping provider decision (CesiumJS with Google Photorealistic 3D Tiles as primary, MapLibre GL JS on OpenFreeMap as fallback).
 - CI uses the Node.js version from `.nvmrc` and also checks formatting. Dependabot now watches npm dependencies.

@@ -15,5 +15,10 @@ export default tseslint.config(
       "no-restricted-globals": ["error", "window", "document", "navigator", "localStorage"],
     },
   },
+  {
+    // Tests index into known fixtures, so non-null assertions keep them readable.
+    files: ["**/*.test.ts"],
+    rules: { "@typescript-eslint/no-non-null-assertion": "off" },
+  },
   prettier,
 );

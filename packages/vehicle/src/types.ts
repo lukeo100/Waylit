@@ -1,11 +1,12 @@
 /**
- * Vehicle interface. Placeholder types only.
+ * Vehicle interface types.
  *
  * Safety rule: this interface is read-only. It exposes telemetry and connection state
  * and has no methods that send commands to a vehicle. Do not add any method that writes
  * to firmware, braking, throttle, lights or other vehicle systems without a maintainer
  * agreement recorded in an issue.
  */
+import type { Clock, Scheduler } from "@waylit/core";
 
 /** Telemetry fields a vehicle may report. Every field is optional because support varies. */
 export interface VehicleTelemetry {
@@ -17,6 +18,8 @@ export interface VehicleTelemetry {
   readonly rangeMetres?: number;
   /** Trip distance in metres as reported by the vehicle. */
   readonly tripDistanceMetres?: number;
+  /** Trip duration in seconds as reported by the vehicle. */
+  readonly tripDurationSeconds?: number;
   /** Lifetime odometer in metres. */
   readonly odometerMetres?: number;
   /** Riding mode name as the vehicle reports it, for display only. */
@@ -62,16 +65,52 @@ export interface VehicleAdapter {
 }
 
 /**
- * Options for the mock adapter. The mock adapter itself is implemented in the
- * simulation task (task 7). These types fix its shape early so UI work can target it.
+ * Source of the rider's true motion that the mock adapter turns into telemetry. The GPS
+ * simulator in `@waylit/core` fits this shape through `getMotion()`, but anything that
+ * provides it will do.
  */
+export interface MotionSource {
+  /**
+   * True speed over ground in metres per second, and simulated seconds elapsed. Elapsed time
+   * counts playback speed and leaves out pauses, so the vehicle drains and counts the trip
+   * on the same timeline as the ride.
+   */
+  getMotion(): { readonly speedMps: number; readonly elapsedSeconds: number };
+}
+
+/** Options for the mock adapter, which is implemented in `mock-adapter.ts`. */
 export interface MockVehicleAdapterOptions {
-  /** Interval between telemetry samples in milliseconds. */
+  /** Where true motion comes from. Without one the mock vehicle sits still. */
+  readonly motion?: MotionSource;
+  /** Time source for sample timestamps. Defaults to the system clock. */
+  readonly clock?: Clock;
+  /**
+   * Runs the adapter on a timer while connected. Without one, the caller drives it by
+   * calling `tick()`.
+   */
+  readonly scheduler?: Scheduler;
+  /** Interval between telemetry samples in milliseconds. Default 250. */
   readonly sampleIntervalMs?: number;
-  /** Starting battery percent, 0 to 100. */
+  /** Starting battery percent, 0 to 100. Default 100. */
   readonly initialBatteryPercent?: number;
+  /** Speed limit in km/h that the vehicle will not exceed. Default 25, a common legal limit. */
+  readonly speedLimitKmh?: number;
+  /** Odometer reading at the start of the trip, in metres. Default 0. */
+  readonly initialOdometerMetres?: number;
+  /** Seed for the small measurement noise. Default 1. */
+  readonly seed?: number;
   /** Fields to omit, to exercise the GPS fallback path. */
   readonly omitFields?: readonly TelemetryField[];
 }
 
-export type CreateMockVehicleAdapter = (options?: MockVehicleAdapterOptions) => VehicleAdapter;
+/** The mock adapter adds manual control on top of the read-only interface. */
+export interface MockVehicleAdapter extends VehicleAdapter {
+  /** Catches up to the motion source and emits a sample if the sample interval has passed. */
+  tick(): void;
+  /** Starts a new trip: zero trip distance and duration. Battery and odometer carry on. */
+  startTrip(): void;
+  /** Stops reporting some fields from now on, for example to simulate a lost signal. */
+  setOmittedFields(fields: readonly TelemetryField[]): void;
+}
+
+export type CreateMockVehicleAdapter = (options?: MockVehicleAdapterOptions) => MockVehicleAdapter;
