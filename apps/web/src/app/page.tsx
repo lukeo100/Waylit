@@ -1,9 +1,11 @@
 import { Corridor } from "@/components/Corridor";
+import { InstallPrompt } from "@/components/InstallPrompt";
+import { RideLink } from "@/components/RideLink";
 import { sourceUrl } from "@/config";
 
 export default function HomePage() {
   return (
-    <main className="relative isolate grid min-h-dvh overflow-hidden landscape:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] short:landscape:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
+    <main className="relative isolate grid flex-1 overflow-hidden landscape:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] short:landscape:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
       <div className="relative order-2 min-h-[38dvh] landscape:order-none landscape:col-start-2 landscape:row-start-1 landscape:min-h-0">
         <Corridor />
       </div>
@@ -43,6 +45,8 @@ export default function HomePage() {
           >
             View the source code
           </a>
+          <RideLink>Open ride screen preview</RideLink>
+          <InstallPrompt />
           <span className="text-sm text-text-muted">Apache License 2.0</span>
         </div>
       </section>

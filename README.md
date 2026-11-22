@@ -2,7 +2,7 @@
 
 Open source 3D navigation for electric scooters and bicycles.
 
-> **Status: pre-alpha.** The project structure, design system and a placeholder home page are in place. The riding screen and 3D view arrive phase by phase, see the [roadmap](docs/ROADMAP.md).
+> **Status: pre-alpha.** The project structure, design system, installable PWA shell and a placeholder home page are in place. The riding screen and 3D view arrive phase by phase, see the [roadmap](docs/ROADMAP.md).
 
 ## What it is
 
@@ -31,7 +31,7 @@ pnpm install
 pnpm dev
 ```
 
-Then open http://localhost:3000.
+Then open http://localhost:3000. The service worker only runs in production builds. To try install and offline behaviour, see [docs/PWA.md](docs/PWA.md).
 
 | Command | What it does |
 |---|---|
@@ -59,6 +59,7 @@ Contributions of all kinds are welcome, including bug reports, device testing, d
 | [docs/ROADMAP.md](docs/ROADMAP.md) | Phases and current status |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Package layout and dependency rules |
 | [docs/DESIGN_SYSTEM.md](docs/DESIGN_SYSTEM.md) | Design tokens and visual principles |
+| [docs/PWA.md](docs/PWA.md) | Installing, offline caching, wake lock, testing on Android and PWA limits |
 | [docs/DEPLOYING.md](docs/DEPLOYING.md) | Running your own copy |
 | [docs/MAINTAINING.md](docs/MAINTAINING.md) | Repository settings and release process |
 | [docs/THIRD_PARTY.md](docs/THIRD_PARTY.md) | Third party licences and required attributions |

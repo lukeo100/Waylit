@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="Waylit">
+  <defs>
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="10"/>
+    </filter>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="#05080f"/>
+  <g fill="none" stroke-width="36" stroke-linecap="round" stroke-linejoin="round">
+    <g filter="url(#glow)" opacity="0.65">
+    <polyline points="156,214 256,124 356,214" stroke="#a6f1ff"/>
+    <polyline points="156,304 256,214 356,304" stroke="#35e0ff"/>
+    <polyline points="156,394 256,304 356,394" stroke="#2e8bff"/>
+    </g>
+    <polyline points="156,214 256,124 356,214" stroke="#a6f1ff"/>
+    <polyline points="156,304 256,214 356,304" stroke="#35e0ff"/>
+    <polyline points="156,394 256,304 356,394" stroke="#2e8bff"/>
+  </g>
+</svg>

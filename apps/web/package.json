@@ -8,6 +8,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
+    "icons": "node scripts/generate-icons.mjs",
     "lint": "eslint .",
     "typecheck": "next typegen && tsc --noEmit"
   },

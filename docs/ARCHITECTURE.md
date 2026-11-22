@@ -16,6 +16,25 @@ packages/
   ui-tokens/           Design tokens as TypeScript values plus a CSS variables file.
 ```
 
+## PWA shell
+
+The installable shell lives in `apps/web` because it depends on browser APIs. See [PWA.md](PWA.md) for behaviour and testing.
+
+```
+apps/web/
+  public/
+    sw.js, sw-strategy.js    Hand written service worker and its pure rules
+    offline.html             Self contained offline page
+    icons/                   Generated app icons
+  scripts/generate-icons.mjs Dependency free icon generator
+  src/app/manifest.ts        Web app manifest (from design tokens)
+  src/app/ride/              Placeholder riding screen: full screen, no chrome, wake lock
+  src/pwa/                   Plain TypeScript logic: wake lock, install, update flow, safety notice, orientation
+  src/components/            Thin React wrappers: install button, safety notice, rotate prompt, worker registrar
+```
+
+Logic sits in `src/pwa` as framework free modules that take their browser objects as arguments, so Vitest can test them with fakes. The components only wire those modules to React. The ride screen calls `useWakeLock`. Nothing here moves into `packages/*`, because it all needs the browser.
+
 ## Dependency rules
 
 ```
