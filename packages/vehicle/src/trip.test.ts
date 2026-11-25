@@ -119,11 +119,125 @@ describe("TripTracker", () => {
     expect(lost.distanceSource).toBe("gps");
     expect(lost.distanceMetres).toBeCloseTo(100 + 95, 6);
     expect(lost.durationSeconds).toBeCloseTo(20, 6);
-    // Telemetry comes back reporting a total that includes the gap. Only new distance counts.
+    // Telemetry comes back reporting a total that includes the gap. The gap itself is already
+    // counted from GPS, and the second since the last update is covered from GPS too. After
+    // that only new vehicle distance counts.
     const first = step(true, 1);
     expect(first.distanceSource).toBe("vehicle");
-    expect(first.distanceMetres).toBeCloseTo(195, 6);
-    expect(step(true, 10).distanceMetres).toBeCloseTo(295, 6);
+    expect(first.distanceMetres).toBeCloseTo(195 + 9.5, 6);
+    expect(step(true, 10).distanceMetres).toBeCloseTo(195 + 9.5 + 100, 6);
+  });
+
+  describe("stale window", () => {
+    // The scooter reports 10 m per second, GPS sees 9.5. The link freezes after the sample at
+    // 10 s: the same sample keeps arriving, so it counts as fresh for two seconds and adds
+    // nothing, then it goes stale.
+    const FROZEN = sample(10_000, 100, 10);
+
+    const rideTo = (trip: TripTracker, startMs: number, endMs: number) => {
+      for (let t = startMs; t <= endMs; t += 250) {
+        trip.update({
+          vehicle: sample(t, (t / 1000) * 10, t / 1000),
+          gpsDistanceMetres: (t / 1000) * 9.5,
+          rideElapsedSeconds: t / 1000,
+          nowMs: t,
+        });
+      }
+    };
+    const frozenAt = (trip: TripTracker, nowMs: number) =>
+      trip.update({
+        vehicle: FROZEN,
+        gpsDistanceMetres: (nowMs / 1000) * 9.5,
+        rideElapsedSeconds: nowMs / 1000,
+        nowMs,
+      });
+
+    it("adds nothing while a frozen sample still counts as fresh", () => {
+      const trip = new TripTracker();
+      rideTo(trip, 0, 10_000);
+      const frozen = frozenAt(trip, 11_500);
+      expect(frozen.distanceSource).toBe("vehicle");
+      expect(frozen.distanceMetres).toBeCloseTo(100, 6);
+      expect(frozen.durationSeconds).toBeCloseTo(10, 6);
+    });
+
+    it("backfills distance and time from GPS the moment the sample goes stale", () => {
+      const trip = new TripTracker();
+      rideTo(trip, 0, 10_000);
+      frozenAt(trip, 11_500);
+      const stale = frozenAt(trip, 12_250);
+      expect(stale.distanceSource).toBe("gps");
+      expect(stale.distanceFallbackReason).toBe("vehicle-telemetry-stale");
+      // 2.25 s of GPS at 9.5 m/s since the last fresh sample, on top of the first 100 m.
+      expect(stale.distanceMetres).toBeCloseTo(100 + 2.25 * 9.5, 6);
+      expect(stale.durationSeconds).toBeCloseTo(12.25, 6);
+      expect(stale.usedGps).toBe(true);
+      expect(stale.gpsDistanceMetres).toBeCloseTo(2.25 * 9.5, 6);
+    });
+
+    it("keeps counting from GPS after the backfill without a gap or a repeat", () => {
+      const trip = new TripTracker();
+      rideTo(trip, 0, 10_000);
+      for (let t = 10_250; t <= 20_000; t += 250) frozenAt(trip, t);
+      const reading = trip.reading;
+      expect(reading.distanceMetres).toBeCloseTo(100 + 10 * 9.5, 6);
+      expect(reading.durationSeconds).toBeCloseTo(20, 6);
+    });
+
+    it("never goes down across the stale window", () => {
+      const trip = new TripTracker();
+      rideTo(trip, 0, 10_000);
+      let previous = trip.reading.distanceMetres;
+      let previousTime = trip.reading.durationSeconds;
+      for (let t = 10_250; t <= 16_000; t += 250) {
+        const reading = frozenAt(trip, t);
+        expect(reading.distanceMetres).toBeGreaterThanOrEqual(previous);
+        expect(reading.durationSeconds).toBeGreaterThanOrEqual(previousTime);
+        previous = reading.distanceMetres;
+        previousTime = reading.durationSeconds;
+      }
+    });
+
+    it("covers the stale window when the link comes back, without counting it twice", () => {
+      const trip = new TripTracker();
+      rideTo(trip, 0, 10_000);
+      for (let t = 10_250; t <= 14_000; t += 250) frozenAt(trip, t);
+      // The link returns at 14.25 s with a total that includes the dropout.
+      const back = trip.update({
+        vehicle: sample(14_250, 142.5, 14.25),
+        gpsDistanceMetres: 14.25 * 9.5,
+        rideElapsedSeconds: 14.25,
+        nowMs: 14_250,
+      });
+      expect(back.distanceSource).toBe("vehicle");
+      expect(back.distanceMetres).toBeCloseTo(100 + 4.25 * 9.5, 6);
+      expect(back.durationSeconds).toBeCloseTo(14.25, 6);
+      const next = trip.update({
+        vehicle: sample(15_250, 152.5, 15.25),
+        gpsDistanceMetres: 15.25 * 9.5,
+        rideElapsedSeconds: 15.25,
+        nowMs: 15_250,
+      });
+      expect(next.distanceMetres).toBeCloseTo(100 + 4.25 * 9.5 + 10, 6);
+    });
+
+    it("does not report GPS use on a trip that never lost the vehicle", () => {
+      const trip = new TripTracker();
+      rideTo(trip, 0, 20_000);
+      expect(trip.reading.usedGps).toBe(false);
+      expect(trip.reading.gpsDistanceMetres).toBe(0);
+    });
+
+    it("remembers that GPS was used even after the vehicle came back", () => {
+      const trip = new TripTracker();
+      rideTo(trip, 0, 10_000);
+      for (let t = 10_250; t <= 14_000; t += 250) frozenAt(trip, t);
+      rideTo(trip, 14_250, 30_000);
+      expect(trip.reading.distanceSource).toBe("vehicle");
+      expect(trip.reading.usedGps).toBe(true);
+      expect(trip.reading.gpsDistanceMetres).toBeGreaterThan(0);
+      expect(trip.reading.gpsDistanceMetres).toBeLessThan(trip.reading.distanceMetres);
+    });
   });
 
   it("never goes down when the vehicle restarts its trip counter", () => {
