@@ -269,23 +269,63 @@
  * Riding screen. See docs/DESIGN_SYSTEM.md, "Riding screen layout".
  */
 @layer components {
-  /* Placeholder for the 3D scene (task 8): a dark gradient and nothing else. */
+  /*
+   * Placeholder for the 3D scene (task 8): a dark gradient and nothing else, with a faint tint
+   * that follows the sun so day, dusk and night can be told apart until real lighting lands.
+   * --wl-daylight (0 dark to 1 day) and --wl-warmth (0 to 1, peaks at sunrise and sunset) are
+   * set on the screen root from the sun's elevation. Without them the scene is plain night.
+   */
   .wl-scene {
     background:
-      radial-gradient(110% 70% at 50% 108%, var(--wl-color-night-700) 0%, transparent 62%),
-      linear-gradient(180deg, var(--wl-color-night-950) 0%, var(--wl-color-night-900) 100%);
+      radial-gradient(
+        130% 85% at 50% 108%,
+        color-mix(
+            in srgb,
+            var(--wl-color-caution) calc(var(--wl-warmth, 0) * 52%),
+            var(--wl-color-night-700)
+          )
+          0%,
+        transparent 70%
+      ),
+      linear-gradient(
+        180deg,
+        color-mix(
+            in srgb,
+            var(--wl-color-cyan) calc(var(--wl-daylight, 0) * 16%),
+            var(--wl-color-night-950)
+          )
+          0%,
+        color-mix(
+            in srgb,
+            var(--wl-color-cyan) calc(var(--wl-daylight, 0) * 22%),
+            var(--wl-color-night-900)
+          )
+          100%
+      );
   }
 
   /*
-   * Panel fill by time of day. The riding screen sets data-daylight from the local time.
-   * Daylight is more solid so the dock stays readable in the sun, night more see-through.
+   * Panel fill by daylight. The riding screen sets --wl-daylight from the sun's elevation,
+   * smoothly from 0 (dark) to 1 (day). The fill blends from the night fill to the more solid
+   * day fill, so the dock stays readable in the sun and is a little see-through at night.
    */
-  [data-daylight="true"] {
-    --wl-panel: var(--wl-color-glass-day);
+  [data-daylight] {
+    --wl-panel: color-mix(
+      in srgb,
+      var(--wl-color-glass-day) calc(var(--wl-daylight, 0) * 100%),
+      var(--wl-color-glass-night)
+    );
   }
 
-  [data-daylight="false"] {
-    --wl-panel: var(--wl-color-glass-night);
+  /* Browsers without color-mix fall back to the two fixed fills. */
+  @supports not (color: color-mix(in srgb, red 50%, blue)) {
+    [data-daylight="true"] {
+      --wl-panel: var(--wl-color-glass-day);
+    }
+
+    [data-daylight="false"] {
+      --wl-panel: var(--wl-color-glass-night);
+    }
   }
 
   /*

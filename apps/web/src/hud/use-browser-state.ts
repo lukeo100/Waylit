@@ -49,3 +49,12 @@ export function useDevControls(): boolean {
     () => false,
   );
 }
+
+/** The address query string, for reading dev options. Empty on the server. */
+export function useSearch(): string {
+  return useSyncExternalStore(
+    subscribeNever,
+    () => window.location.search,
+    () => "",
+  );
+}

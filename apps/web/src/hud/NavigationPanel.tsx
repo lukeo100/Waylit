@@ -16,6 +16,11 @@ interface NavigationPanelProps {
   readonly riding: boolean;
   /** Shown in amber under the speed when the scooter has stopped sending data. */
   readonly note?: string | undefined;
+  /**
+   * The overridden time, only while the dev time override is on. The arrival time is then the
+   * overridden time plus the time left, so it agrees with the clock the rider is shown.
+   */
+  readonly simulatedNowMs?: number | undefined;
 }
 
 /**
@@ -33,6 +38,7 @@ export function NavigationPanel({
   progress,
   riding,
   note,
+  simulatedNowMs,
 }: NavigationPanelProps) {
   const speedValue = formatSpeedKmh(speed.speedMps);
   const gpsValue = formatSpeedKmh(gpsSpeedMps);
@@ -40,10 +46,11 @@ export function NavigationPanel({
   const toTurn = formatDistance(progress.distanceToNextMetres);
   const remaining = formatDistance(progress.remainingDistanceMetres);
   const fallback = speed.source === "gps" && speed.fallbackReason !== undefined;
-  const arrival =
-    riding && progress.etaTimestamp !== undefined
-      ? formatClockTime(progress.etaTimestamp)
-      : "--:--";
+  const arrivalMs =
+    simulatedNowMs !== undefined && progress.remainingDurationSeconds !== undefined
+      ? simulatedNowMs + progress.remainingDurationSeconds * 1000
+      : progress.etaTimestamp;
+  const arrival = riding && arrivalMs !== undefined ? formatClockTime(arrivalMs) : "--:--";
 
   return (
     <section

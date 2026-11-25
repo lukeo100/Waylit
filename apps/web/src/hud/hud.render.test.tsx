@@ -15,7 +15,9 @@ import { TripSummary } from "./TripSummary";
 import { VehiclePanel } from "./VehiclePanel";
 import { HoldButton } from "./HoldButton";
 import { telemetryNote } from "./telemetry-note";
-import { isDaylight } from "./time";
+import { formatClockTime } from "./time";
+import { DevControls } from "./DevControls";
+import { DEFAULT_SUN_POSITION, computeDaylight } from "./daylight";
 
 const noop = () => undefined;
 
@@ -311,15 +313,66 @@ describe("riding screen components", () => {
     expect(scooter).not.toContain("GPS");
   });
 
-  it("treats 07:00 to 19:00 local time as daylight", () => {
-    const at = (hour: number) => new Date(2026, 5, 1, hour, 30).getTime();
-    expect(isDaylight(at(6))).toBe(false);
-    expect(isDaylight(at(7))).toBe(true);
-    expect(isDaylight(at(12))).toBe(true);
-    expect(isDaylight(at(18))).toBe(true);
-    expect(isDaylight(at(19))).toBe(false);
-    expect(isDaylight(at(23))).toBe(false);
-    expect(isDaylight(undefined)).toBe(false);
+  it("dev controls have the time override and every touch target is at least 44 px", () => {
+    const daylight = computeDaylight(DEFAULT_SUN_POSITION, Date.UTC(2026, 5, 21, 11, 0), true);
+    const html = renderToStaticMarkup(
+      <DevControls
+        playbackSpeed={1}
+        telemetryLost={false}
+        onPlaybackSpeed={noop}
+        onTelemetryLost={noop}
+        daylight={daylight}
+        realNowMs={Date.UTC(2026, 5, 21, 11, 0)}
+        position={DEFAULT_SUN_POSITION}
+        timeOverrideMs={Date.UTC(2026, 5, 21, 11, 0)}
+        onTimeOverride={noop}
+      />,
+    );
+    for (const id of ["time-dawn", "time-noon", "time-sunset", "time-night", "time-slider"]) {
+      expect(html).toContain(`data-testid="${id}"`);
+    }
+    expect(html).toContain('data-testid="time-date"');
+    expect(html).toContain('data-overridden="true"');
+    expect(html).toContain("Live");
+    expect(html).toContain("day");
+    // The time row is folded away until it is asked for, so the panel stays small.
+    const folded = renderToStaticMarkup(
+      <DevControls
+        playbackSpeed={1}
+        telemetryLost={false}
+        onPlaybackSpeed={noop}
+        onTelemetryLost={noop}
+        daylight={daylight}
+        realNowMs={Date.UTC(2026, 5, 21, 11, 0)}
+        position={DEFAULT_SUN_POSITION}
+        timeOverrideMs={undefined}
+        onTimeOverride={noop}
+      />,
+    );
+    expect(folded).toContain('data-testid="time-toggle"');
+    expect(folded).toContain('aria-expanded="false"');
+    expect(folded).not.toContain('data-testid="time-override"');
+    expect(folded).not.toContain("time-slider");
+    // No 32 px targets any more.
+    expect(html).not.toContain("min-h-8");
+    expect(html).not.toContain("min-w-8");
+    expect(html.match(/min-h-11/g)?.length ?? 0).toBeGreaterThanOrEqual(10);
+  });
+
+  it("shows arrival from the overridden clock when the time is overridden", () => {
+    const { snapshot } = ridingSnapshot();
+    const remaining = snapshot.progress.remainingDurationSeconds ?? 0;
+    const simulated = Date.UTC(2026, 5, 21, 11, 0);
+    const html = renderToStaticMarkup(
+      <NavigationPanel
+        speed={snapshot.speed}
+        gpsSpeedMps={snapshot.gpsSpeedMps}
+        progress={snapshot.progress}
+        riding
+        simulatedNowMs={simulated}
+      />,
+    );
+    expect(html).toContain(`Arrive ${formatClockTime(simulated + remaining * 1000)}`);
   });
 
   it("uses no em dashes or emoji in any copy", () => {

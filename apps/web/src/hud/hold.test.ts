@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createHoldController } from "./hold";
-import { devControlsEnabled, PLAYBACK_SPEEDS } from "./dev-controls";
+import { devControlsEnabled, parseTimeOverride, PLAYBACK_SPEEDS } from "./dev-controls";
+import { DEFAULT_SUN_POSITION, computeDaylight } from "./daylight";
 
 const timers = {
   setTimeout: (callback: () => void, ms: number) => setTimeout(callback, ms),
@@ -70,5 +71,36 @@ describe("dev controls flag", () => {
 
   it("offers playback speeds starting at normal", () => {
     expect(PLAYBACK_SPEEDS[0]).toBe(1);
+  });
+});
+
+describe("time override in the address", () => {
+  const now = Date.UTC(2026, 5, 21, 9, 0);
+
+  it("reads a date and time with an offset", () => {
+    expect(parseTimeOverride("?dev=1&time=2026-12-21T16:30:00Z", DEFAULT_SUN_POSITION, now)).toBe(
+      Date.UTC(2026, 11, 21, 16, 30),
+    );
+    expect(parseTimeOverride("?time=2026-12-21T17:30+01:00", DEFAULT_SUN_POSITION, undefined)).toBe(
+      Date.UTC(2026, 11, 21, 16, 30),
+    );
+  });
+
+  it("reads a preset on the real date at the rider's place", () => {
+    for (const [name, isDay] of [
+      ["noon", true],
+      ["night", false],
+    ] as const) {
+      const ms = parseTimeOverride(`?time=${name}`, DEFAULT_SUN_POSITION, now);
+      expect(ms).toBeDefined();
+      expect(computeDaylight(DEFAULT_SUN_POSITION, ms ?? 0).isDay).toBe(isDay);
+    }
+    expect(parseTimeOverride("?time=sunset", DEFAULT_SUN_POSITION, undefined)).toBeUndefined();
+  });
+
+  it("ignores anything it cannot read, including a time with no offset", () => {
+    for (const search of ["", "?time=", "?time=lunch", "?time=2026-12-21T16:30:00", "?time=1"]) {
+      expect(parseTimeOverride(search, DEFAULT_SUN_POSITION, now)).toBeUndefined();
+    }
   });
 });
