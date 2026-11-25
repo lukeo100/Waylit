@@ -1,6 +1,6 @@
 /**
- * The middle of the riding screen belongs to the 3D scene (task 8). Until it lands this is a
- * dark gradient and nothing else, and nothing is drawn over the centre.
+ * The scene belongs to the 3D view (task 8). Until it lands this is a dark gradient that fills
+ * the whole screen, and the HUD floats on it. Nothing is drawn over the centre.
  */
 export function ScenePlaceholder() {
   return (
@@ -14,21 +14,31 @@ export function ScenePlaceholder() {
   );
 }
 
+interface AttributionSlotProps {
+  /**
+   * Show a faint label in the strip. Only for development builds and `?dev=1`, so a layout
+   * check can see where the strip is. Riders never see it: in production the strip is empty
+   * until real credits are mounted into it.
+   */
+  readonly showPlaceholder?: boolean;
+}
+
 /**
- * A strip along the bottom edge reserved for map and data credits (Google, Cesium ion and
- * OpenStreetMap contributors). It is its own row in the screen grid, so no HUD panel can
- * overlap it, and the 3D scene's attribution control mounts here.
+ * The reserved credits strip, a darker band along the bottom edge. It is its own row in the
+ * screen grid, so no HUD panel can overlap it, and it is sized to fit the real credits later
+ * (Google, Cesium ion and OpenStreetMap contributors), which the 3D scene's attribution
+ * control mounts into. The scene must not draw over it.
  */
-export function AttributionSlot() {
+export function AttributionSlot({ showPlaceholder = false }: AttributionSlotProps) {
   return (
     <footer
       id="attribution-slot"
       data-testid="attribution-slot"
       data-slot="attribution"
       aria-label="Map and data credits"
-      className="col-span-3 col-start-1 row-start-4 flex min-h-6 items-center border-t border-dashed border-glass-border px-1 text-xs text-text-muted tight:min-h-5"
+      className="row-start-3 flex min-h-[clamp(1.25rem,5.2dvh,1.75rem)] items-center bg-credits px-[max(0.75rem,var(--wl-safe-left))] text-hud-sm text-text-muted"
     >
-      Credits area: map and data attributions appear here.
+      {showPlaceholder ? <span className="opacity-60">Credits area (dev only)</span> : null}
     </footer>
   );
 }
