@@ -66,6 +66,18 @@ export {
 } from "./fx";
 export type { FxLevel, FxParameters } from "./fx";
 export {
+  HoloGovernor,
+  HOLO_DETAILS,
+  cheaperDetail,
+  holoDetailSettings,
+  holoItemDrawn,
+} from "./holo-governor";
+export type { HoloDetail, HoloDetailSettings } from "./holo-governor";
+export { LoadGovernor } from "./load-governor";
+export type { LoadChange } from "./load-governor";
+export { StepDownGovernor } from "./step-governor";
+export type { StepGovernorOptions } from "./step-governor";
+export {
   CORRIDOR_RAIL_METRES,
   CORRIDOR_WIDTH_METRES,
   HOLO_CYAN,

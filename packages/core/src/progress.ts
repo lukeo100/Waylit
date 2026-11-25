@@ -33,8 +33,11 @@ export interface ProgressInput {
   readonly nowMs: number;
 }
 
-/** An instruction counts as passed once the rider is this far beyond it. */
-const PASSED_TOLERANCE_METRES = 0.5;
+/**
+ * An instruction counts as passed once the rider is this far beyond it. The HUD (`computeProgress`)
+ * and the turn beacon (`nextTurn`) both use it, so they drop a turn at the same moment.
+ */
+export const PASSED_TOLERANCE_METRES = 0.5;
 /** Within this distance of the end the rider has arrived. */
 const ARRIVED_TOLERANCE_METRES = 3;
 

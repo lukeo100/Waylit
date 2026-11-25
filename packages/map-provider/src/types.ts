@@ -89,6 +89,12 @@ export interface HoloItem {
   readonly pulse: number;
   /** Metres above the provider's ground, so chevrons float. */
   readonly liftMetres: number;
+  /**
+   * For a chevron, its whole number place along the route (distance divided by the spacing), which
+   * never changes as the rider moves. A provider that draws fewer chevrons on a slow phone keeps
+   * the ones whose slot divides evenly, so the same ones stay.
+   */
+  readonly slot?: number;
 }
 
 /** The turn beacon's state, for the countdown text the app draws next to the light column. */

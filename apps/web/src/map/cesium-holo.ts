@@ -1,5 +1,6 @@
 import {
   BoundingSphere,
+  Cartesian2,
   Cartesian3,
   Color,
   ColorGeometryInstanceAttribute,
@@ -31,11 +32,14 @@ import {
   HOLO_CYAN_BRIGHT,
   HOLO_RIBBON,
   HOLO_RIBBON_ALPHA,
+  holoDetailSettings,
+  holoItemDrawn,
   meshFor,
   type BeaconState,
   type CorridorShape,
   type GroundHeightSource,
   type GuidanceFrame,
+  type HoloDetail,
   type HoloItem,
   type HoloKind,
   type HoloMesh,
@@ -69,6 +73,8 @@ const CORRIDOR_VOLUME_HALF_HEIGHT_METRES = 30;
 /** The most items of one kind that are drawn at once. Chevrons are the only repeated kind. */
 const POOL_LIMITS: Record<HoloKind, number> = { rider: 1, heading: 1, beacon: 1, chevron: 16 };
 
+const KINDS: readonly HoloKind[] = ["rider", "heading", "beacon", "chevron"];
+
 interface Entry {
   readonly primitive: Primitive;
   readonly material: Material;
@@ -81,7 +87,10 @@ export class CesiumHolo {
     beacon: [],
     chevron: [],
   };
-  private classification: ClassificationPrimitive[] = [];
+  private ribbon: ClassificationPrimitive | undefined;
+  private rails: ClassificationPrimitive | undefined;
+  private corridor: CorridorShape | undefined;
+  private detail: HoloDetail = "full";
   private readonly overlay: HTMLDivElement;
   private readonly label: BeaconLabel;
   private destroyed = false;
@@ -89,6 +98,16 @@ export class CesiumHolo {
   private readonly enu = new Matrix4();
   private readonly turn = new Matrix3();
   private readonly world = new Cartesian3();
+  // Scratch values reused every frame, so the per frame path allocates nothing of its own.
+  private readonly labelWorld = new Cartesian3();
+  private readonly labelWindow = new Cartesian2();
+  private readonly labelPoint = { x: 0, y: 0 };
+  private readonly used: Record<HoloKind, number> = {
+    rider: 0,
+    heading: 0,
+    beacon: 0,
+    chevron: 0,
+  };
 
   constructor(
     private readonly scene: Scene,
@@ -103,38 +122,52 @@ export class CesiumHolo {
   /** Builds the corridor as classification volumes. Safe to call again for a new route. */
   setRoute(corridor: CorridorShape): void {
     if (this.destroyed) return;
+    this.corridor = corridor;
     this.clearClassification();
     if (!ClassificationPrimitive.isSupported(this.scene)) return;
     const base = this.groundAt(corridor.centre[0]);
     const low = base - CORRIDOR_VOLUME_HALF_HEIGHT_METRES;
     const high = base + CORRIDOR_VOLUME_HALF_HEIGHT_METRES;
     const ribbonColour = Color.fromCssColorString(HOLO_RIBBON).withAlpha(HOLO_RIBBON_ALPHA);
-    const railColour = Color.fromCssColorString(HOLO_CYAN_BRIGHT).withAlpha(0.85);
-    const ribbon = classificationPrimitive([
+    this.ribbon = classificationPrimitive([
       corridorInstance(corridor.centre, corridor.widthMetres, low, high, ribbonColour),
     ]);
-    const rails = classificationPrimitive([
-      corridorInstance(corridor.leftRail, corridor.railWidthMetres, low, high, railColour),
-      corridorInstance(corridor.rightRail, corridor.railWidthMetres, low, high, railColour),
-    ]);
-    for (const primitive of [ribbon, rails]) {
-      this.scene.primitives.add(primitive);
-      this.classification.push(primitive);
-    }
+    this.scene.primitives.add(this.ribbon);
+    if (holoDetailSettings(this.detail).rails) this.addRails(corridor);
+  }
+
+  /**
+   * How much to draw. `light` and `minimal` thin the chevrons, and `minimal` also removes the
+   * rails volume (a second classification pass over the tiles). Called by the provider's own
+   * frame rate governor, whatever the fx level is. Going back up is allowed here but the governor
+   * never asks for it.
+   */
+  setDetail(detail: HoloDetail): void {
+    if (this.destroyed || detail === this.detail) return;
+    this.detail = detail;
+    const wantRails = holoDetailSettings(detail).rails;
+    if (!wantRails) this.removeRails();
+    else if (this.corridor && this.ribbon && !this.rails) this.addRails(this.corridor);
+  }
+
+  get currentDetail(): HoloDetail {
+    return this.detail;
   }
 
   /** Moves everything to this frame's guidance. */
   setGuidance(frame: GuidanceFrame, nowMs: number): void {
     if (this.destroyed) return;
-    const used: Record<HoloKind, number> = { rider: 0, heading: 0, beacon: 0, chevron: 0 };
+    const used = this.used;
+    for (const kind of KINDS) used[kind] = 0;
     for (const item of frame.items) {
+      if (!holoItemDrawn(item, this.detail)) continue;
       const index = used[item.kind];
       if (index >= POOL_LIMITS[item.kind]) continue;
       used[item.kind] = index + 1;
       const entry = (this.pools[item.kind][index] ??= this.createEntry(item.kind));
       this.place(entry, item, nowMs);
     }
-    for (const kind of Object.keys(this.pools) as HoloKind[]) {
+    for (const kind of KINDS) {
       const pool = this.pools[kind];
       for (let i = used[kind]; i < pool.length; i++) {
         const entry = pool[i];
@@ -157,11 +190,27 @@ export class CesiumHolo {
     this.overlay.remove();
   }
 
+  private addRails(corridor: CorridorShape): void {
+    const base = this.groundAt(corridor.centre[0]);
+    const low = base - CORRIDOR_VOLUME_HALF_HEIGHT_METRES;
+    const high = base + CORRIDOR_VOLUME_HALF_HEIGHT_METRES;
+    const railColour = Color.fromCssColorString(HOLO_CYAN_BRIGHT).withAlpha(0.85);
+    this.rails = classificationPrimitive([
+      corridorInstance(corridor.leftRail, corridor.railWidthMetres, low, high, railColour),
+      corridorInstance(corridor.rightRail, corridor.railWidthMetres, low, high, railColour),
+    ]);
+    this.scene.primitives.add(this.rails);
+  }
+
+  private removeRails(): void {
+    if (this.rails && !this.scene.isDestroyed()) this.scene.primitives.remove(this.rails);
+    this.rails = undefined;
+  }
+
   private clearClassification(): void {
-    if (!this.scene.isDestroyed()) {
-      for (const primitive of this.classification) this.scene.primitives.remove(primitive);
-    }
-    this.classification = [];
+    this.removeRails();
+    if (this.ribbon && !this.scene.isDestroyed()) this.scene.primitives.remove(this.ribbon);
+    this.ribbon = undefined;
   }
 
   private groundAt(position: LatLng | undefined): number {
@@ -230,9 +279,16 @@ export class CesiumHolo {
       beacon.position.lng,
       beacon.position.lat,
       this.groundAt(beacon.position) + beacon.heightMetres,
+      Ellipsoid.WGS84,
+      this.labelWorld,
     );
-    const window = SceneTransforms.worldToWindowCoordinates(this.scene, top);
-    const point: ScreenPoint | undefined = window ? { x: window.x, y: window.y } : undefined;
+    const window = SceneTransforms.worldToWindowCoordinates(this.scene, top, this.labelWindow);
+    let point: ScreenPoint | undefined;
+    if (window) {
+      this.labelPoint.x = window.x;
+      this.labelPoint.y = window.y;
+      point = this.labelPoint;
+    }
     this.label.update(point, beacon);
   }
 }

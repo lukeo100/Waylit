@@ -107,7 +107,17 @@ describe("nextTurn on the demo route", () => {
     const last = nextTurn(model, end - 30)!;
     expect(last.direction).toBe("arrive");
     expect(last.phase).toBe("imminent");
-    expect(nextTurn(model, end + 5)?.direction ?? "arrive").toBe("arrive");
+    // Past the end the rider is clamped to the arrival: the same turn, zero metres away.
+    const past = nextTurn(model, end + 5);
+    const zero = formatDistance(0);
+    expect(past).toMatchObject({
+      direction: "arrive",
+      distanceMetres: 0,
+      phase: "now",
+      atMetres: end,
+      label: `${zero.value} ${zero.unit}`,
+    });
+    expect(nextTurn(model, end)).toEqual(past);
   });
 
   it("clamps a negative or huge distance along", () => {
@@ -148,6 +158,16 @@ describe("driven by the GPS simulator (success criterion 4)", () => {
     // The countdown only ever goes down, within a metre of GPS noise.
     for (let i = 1; i < seen.length; i++) {
       expect(seen[i]!.distance).toBeLessThanOrEqual(seen[i - 1]!.distance + 1);
+    }
+    // The text on the beacon and the HUD never goes up either. Compare its value in metres.
+    const labelMetres = seen.map((s) => {
+      const [value = "0", unit = "m"] = s.label.split(" ");
+      return Number(value) * (unit === "km" ? 1000 : 1);
+    });
+    for (let i = 1; i < labelMetres.length; i++) {
+      expect(labelMetres[i]!, `label ${String(i)}: ${seen[i]!.label}`).toBeLessThanOrEqual(
+        labelMetres[i - 1]!,
+      );
     }
     expect(seen[0]!.distance).toBeGreaterThan(150);
     expect(seen[seen.length - 1]!.distance).toBeLessThan(25);

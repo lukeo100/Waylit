@@ -1,7 +1,9 @@
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 import {
   DEMO_ROUTE,
+  computeProgress,
   createProgressModel,
+  formatDistance,
   fromLocalMetres,
   haversineDistance,
   locateAlongRoute,
@@ -245,5 +247,62 @@ describe("RouteGuide on the demo route", () => {
         expect(Number.isFinite(item.position.lat)).toBe(true);
       }
     }
+  });
+});
+
+describe("the beacon and the HUD read the same distance", () => {
+  const model = createProgressModel(DEMO_ROUTE);
+  const guide = new RouteGuide(DEMO_ROUTE);
+  // The guide remembers where the rider was, so every test starts from a clean slate.
+  beforeEach(() => guide.reset());
+
+  const frameAt = (along: number) => {
+    const here = guide.pointAt(along);
+    return guide.frame(here.position, here.headingDegrees, 0, along);
+  };
+
+  it("shows the same rounded distance as the HUD for every metre of the demo route", () => {
+    let compared = 0;
+    for (let along = 0; along <= model.index.totalMetres; along += 1) {
+      const frame = frameAt(along);
+      const hud = computeProgress(model, { distanceAlongMetres: along, nowMs: 0 });
+      const beacon = frame.beacon;
+      if (!beacon) continue;
+      // Where the HUD names the same instruction, the text is identical.
+      const turn = nextTurn(model, along)!;
+      if (hud.nextInstruction === turn.instruction) {
+        const shown = formatDistance(hud.distanceToNextMetres!);
+        expect(beacon.label, `at ${String(along)} m`).toBe(`${shown.value} ${shown.unit}`);
+        compared += 1;
+      }
+    }
+    expect(compared).toBeGreaterThan(200);
+  });
+
+  it("handles the departure the same way at the very start: the HUD says depart, no beacon", () => {
+    const hud = computeProgress(model, { distanceAlongMetres: 0, nowMs: 0 });
+    expect(hud.nextInstruction?.manoeuvre).toBe("depart");
+    expect(frameAt(0).beacon).toBeUndefined();
+    // Once the rider has moved off, the HUD skips the departure and both name the next turn.
+    const moving = computeProgress(model, { distanceAlongMetres: 2, nowMs: 0 });
+    expect(moving.nextInstruction?.manoeuvre).not.toBe("depart");
+    expect(moving.nextInstruction).toBe(nextTurn(model, 2)!.instruction);
+  });
+
+  it("uses the session distance for the beacon even when the rider is drawn a little behind", () => {
+    const turn = nextTurn(model, 0)!;
+    const sessionAlong = turn.atMetres - 40;
+    const behind = guide.pointAt(sessionAlong - 6);
+    const withSession = guide.frame(behind.position, behind.headingDegrees, 0, sessionAlong);
+    const without = guide.frame(behind.position, behind.headingDegrees, 0);
+    expect(withSession.beacon?.label).toBe("40 m");
+    expect(without.beacon?.label).toBe("50 m");
+  });
+
+  it("ignores a session distance that is not a number", () => {
+    const here = guide.pointAt(300);
+    const a = guide.frame(here.position, here.headingDegrees, 0, Number.NaN);
+    const b = guide.frame(here.position, here.headingDegrees, 0);
+    expect(a.beacon).toEqual(b.beacon);
   });
 });

@@ -162,9 +162,19 @@ export class RouteGuide {
   /**
    * What to draw for a rider at `rider` heading `headingDegrees`, at time `nowMs`. The rider's
    * distance along the route comes from projecting the position onto it, using the last answer
-   * as a hint so a closed loop never jumps from its end back to its start.
+   * as a hint so a closed loop never jumps from its end back to its start. That position places
+   * the chevrons, which have to sit on the road ahead of the rider as drawn.
+   *
+   * `sessionAlongMetres` is the ride session's own distance along the route, the one the HUD
+   * uses. When it is given, the turn beacon and its countdown use it, so the beacon and the HUD
+   * read the same input and show the same distance. Without it the projected position is used.
    */
-  frame(rider: LatLng, headingDegrees: number, nowMs: number): GuidanceFrame {
+  frame(
+    rider: LatLng,
+    headingDegrees: number,
+    nowMs: number,
+    sessionAlongMetres?: number,
+  ): GuidanceFrame {
     const o = this.options;
     const projection = projectOntoRoute(
       this.model.index,
@@ -201,7 +211,11 @@ export class RouteGuide {
     let beacon: BeaconState | undefined;
     if (!offRoute) {
       items.push(...this.chevrons(along, nowMs));
-      const turn = nextTurn(this.model, along);
+      const turnAlong =
+        sessionAlongMetres !== undefined && Number.isFinite(sessionAlongMetres)
+          ? sessionAlongMetres
+          : along;
+      const turn = nextTurn(this.model, turnAlong);
       if (turn && turn.phase !== "far") {
         const position = locateAlongRoute(this.model.index, turn.atMetres).position;
         beacon = {
@@ -255,6 +269,7 @@ export class RouteGuide {
         // The wave runs from far to near, so the chevrons seem to flow toward the rider.
         pulse: pulse01(nowMs, 2100, ahead / 60),
         liftMetres: o.chevronLiftMetres,
+        slot: k,
       });
     }
     return items;

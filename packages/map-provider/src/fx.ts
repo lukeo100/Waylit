@@ -1,6 +1,6 @@
-import { FrameStats } from "./frame-stats";
 import { hexToRgb, lightingParameters, mixHex, type Rgb, type ScenePalette } from "./lighting";
 import { readQuery } from "./query";
+import { StepDownGovernor, type StepGovernorOptions } from "./step-governor";
 import type { ProviderId, SceneLighting } from "./types";
 
 /**
@@ -249,67 +249,10 @@ export function gradePalette(
  * Chooses the effect level from measured frame rate. It starts at the level it is given and
  * only ever steps down (high, then low, then off) when the median frame rate since the last
  * change is below 30 fps, so a phone that cannot keep up stops paying for the effect. It never
- * steps back up, which keeps it from flipping. It reads the frame times through the same
- * `FrameStats` the dev overlay uses.
+ * steps back up, which keeps it from flipping. See `StepDownGovernor`.
  */
-export class FxGovernor {
-  private current: FxLevel;
-  private readonly stats = new FrameStats(10_000);
-  private changedAtMs: number | undefined;
-  private readonly minSamples: number;
-  private readonly settleMs: number;
-  private readonly downgradeBelowFps: number;
-
-  /**
-   * @param initial Where to start.
-   * @param options `downgradeBelowFps` defaults to 30 less the frame limiter's 2 ms tolerance,
-   *   so a steady 30 fps does not count as slow. `minSamples` frames and `settleMs` of running
-   *   at a level are needed before it judges that level.
-   */
-  constructor(
-    initial: FxLevel,
-    options: { downgradeBelowFps?: number; minSamples?: number; settleMs?: number } = {},
-  ) {
-    this.current = initial;
-    this.downgradeBelowFps = options.downgradeBelowFps ?? 1000 / (1000 / 30 + 2);
-    this.minSamples = options.minSamples ?? 90;
-    this.settleMs = options.settleMs ?? 4_000;
-  }
-
-  get level(): FxLevel {
-    return this.current;
-  }
-
-  /** Feeds the time of a drawn frame. Call only while riding. */
-  recordFrame(nowMs: number): void {
-    if (this.changedAtMs === undefined) this.changedAtMs = nowMs;
-    this.stats.record(nowMs);
-  }
-
-  /** Forget the history, for a pause or a new ride. */
-  reset(): void {
-    this.stats.reset();
-    this.changedAtMs = undefined;
-  }
-
-  /** Returns the new level if it should change, otherwise undefined. */
-  evaluate(nowMs: number): FxLevel | undefined {
-    const next = cheaperLevel(this.current);
-    if (next === undefined) return undefined;
-    const summary = this.stats.summary(nowMs);
-    if (summary.sampleCount < this.minSamples) return undefined;
-    if (this.changedAtMs === undefined || nowMs - this.changedAtMs < this.settleMs)
-      return undefined;
-    if (summary.medianFps >= this.downgradeBelowFps) return undefined;
-    this.current = next;
-    this.stats.reset();
-    this.changedAtMs = nowMs;
-    return next;
-  }
-
-  /** Forces a level, for a manual override. Starts a fresh judgement. */
-  set(level: FxLevel): void {
-    this.current = level;
-    this.reset();
+export class FxGovernor extends StepDownGovernor<FxLevel> {
+  constructor(initial: FxLevel, options: StepGovernorOptions = {}) {
+    super(initial, cheaperLevel, options);
   }
 }

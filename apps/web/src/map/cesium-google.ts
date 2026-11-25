@@ -22,7 +22,7 @@ import {
 import {
   DEMO_ROUTE_GROUND_ELLIPSOID_METRES,
   constantGroundHeight,
-  FxGovernor,
+  LoadGovernor,
   effectivePixelRatio,
   lightingParameters,
   longSideFovDegrees,
@@ -103,7 +103,7 @@ export class CesiumGoogleProvider extends BaseProvider {
   private fx: CesiumFx | undefined;
   private holo: CesiumHolo | undefined;
   private corridor: CorridorShape | undefined;
-  private governor: FxGovernor | undefined;
+  private governor: LoadGovernor | undefined;
   private lastFxCheckMs = 0;
   private lastLighting: SceneLighting | undefined;
   private marker: PointPrimitive | undefined;
@@ -195,7 +195,7 @@ export class CesiumGoogleProvider extends BaseProvider {
       // The futuristic post process: one full screen pass, colour only. It starts at the level
       // from the address or the default and steps down on its own if the frame rate is low.
       this.fx = new CesiumFx(scene, this.tuning.fxLevel);
-      this.governor = new FxGovernor(this.tuning.fxLevel);
+      this.governor = new LoadGovernor(this.tuning.fxLevel, this.tuning.fxPinned);
       if (this.lastLighting) this.fx.setLighting(this.lastLighting);
       this.removeListeners.push(() => this.fx?.destroy());
 
@@ -414,19 +414,20 @@ export class CesiumGoogleProvider extends BaseProvider {
   }
 
   /**
-   * Steps the effect down (high, low, off) when the median frame rate while riding is below
-   * 30 fps. Skipped when the address pinned a level. See `FxGovernor`.
+   * Drops optional work when the median frame rate while riding is below 30 fps, one step at a
+   * time. The screen effect steps first (high, low, off) unless the address pinned it. The
+   * hologram objects step next (fewer chevrons, then no rails volume) and do so whatever the fx
+   * level is, including the Google default of off. See `LoadGovernor`.
    */
   private adaptEffect(nowMs: number): void {
     const governor = this.governor;
-    const fx = this.fx;
-    if (!governor || !fx || this.tuning.fxPinned || this.activity !== "riding") return;
-    if (governor.level === "off") return;
+    if (!governor || this.activity !== "riding") return;
     governor.recordFrame(nowMs);
     if (nowMs - this.lastFxCheckMs < 1000) return;
     this.lastFxCheckMs = nowMs;
-    const next = governor.evaluate(nowMs);
-    if (next !== undefined) fx.setLevel(next);
+    const change = governor.evaluate(nowMs);
+    if (change?.fx !== undefined) this.fx?.setLevel(change.fx);
+    if (change?.holo !== undefined) this.holo?.setDetail(change.holo);
   }
 
   private fail(error: unknown, kind?: "network" | "render") {

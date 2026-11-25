@@ -1,6 +1,6 @@
 import { formatDistance } from "./format";
 import type { Manoeuvre, RouteInstruction } from "./navigation";
-import type { ProgressModel } from "./progress";
+import { PASSED_TOLERANCE_METRES, type ProgressModel } from "./progress";
 
 /**
  * Turn guidance: which turn is coming up, how far away it is and how urgent it is. It is the
@@ -9,7 +9,10 @@ import type { ProgressModel } from "./progress";
  * nothing about a renderer or a map provider.
  *
  * "Next turn" means the next instruction that asks the rider to do something. The departure
- * and plain "continue" instructions are skipped, so a beacon never stands at the start.
+ * and plain "continue" instructions are skipped, so a beacon never stands at the start. The HUD shows
+ * the departure instruction at the very start (until the rider is 0.5 m past it) and the beacon
+ * never does. Everywhere else both show the same next instruction at the same rounded distance,
+ * as long as both are given the same distance along the route (the ride session's).
  */
 
 export type TurnDirection = "left" | "right" | "u-turn" | "roundabout" | "arrive";
@@ -89,9 +92,6 @@ export function turnPhase(
   if (distanceMetres <= thresholds.approachingMetres) return "approaching";
   return "far";
 }
-
-/** Passed instructions stop counting once the rider is this far beyond them, in metres. */
-const PASSED_TOLERANCE_METRES = 0.5;
 
 /**
  * The next turn for a rider at `alongMetres`, or undefined when none is left. A turn that the
