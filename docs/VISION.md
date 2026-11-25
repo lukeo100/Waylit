@@ -18,7 +18,7 @@ The 3D environment is the primary visual element. Interface elements complement 
 - **Bottom left.** A compact media player with artwork, artist, track, previous, play or pause, next and progress.
 - **Bottom right.** A vehicle dashboard with speed, trip distance, battery, estimated range, trip duration and an End Trip button.
 
-The look is dark and premium: translucent glass-style panels, electric blue and cyan highlights, restrained holographic effects, minimal readable typography and smooth animation. Where the underlying 3D geometry is imperfect, subtle lighting and stylisation keep the scene cohesive. Performance always takes priority over visual complexity.
+The look is dark and premium: flat translucent dark panels, one soft cyan accent, restrained holographic effects, minimal readable typography and smooth animation. Where the underlying 3D geometry is imperfect, subtle lighting and stylisation keep the scene cohesive. Performance always takes priority over visual complexity.
 
 ## Principles
 

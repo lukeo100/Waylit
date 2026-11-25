@@ -11,7 +11,7 @@ apps/
   web/                 Next.js App Router app (the PWA). Rendering, pages, browser APIs.
 packages/
   core/                Navigation types, units, geo helpers, route progress, simulated GPS, GPS distance, smoothing, HUD number formatting, media model and mock tracks. No DOM, no React.
-  vehicle/             Read-only vehicle interface, mock Ninebot MAX G3 adapter, energy model, speed fallback and trip distance fallback. No DOM, no React.
+  vehicle/             Read-only vehicle interface, mock Ninebot MAX G3 adapter, energy model, speed fallback and trip distance fallback with GPS backfill. No DOM, no React.
   map-provider/        Map provider interface types. No DOM, no React, no provider SDKs.
   ui-tokens/           Design tokens as TypeScript values plus a CSS variables file.
 ```
@@ -37,7 +37,7 @@ Logic sits in `src/pwa` as framework free modules that take their browser object
 
 ## Riding screen
 
-The riding screen (`apps/web/src/app/ride/page.tsx`) draws the HUD around an empty middle that is kept for the 3D scene (task 8). It runs on the simulation layer and makes no network calls.
+The riding screen (`apps/web/src/app/ride/page.tsx`) is a floating HUD over a scene that fills the whole screen. The middle is kept clear for the 3D scene (task 8). It runs on the simulation layer and makes no network calls. It keeps `useWakeLock` (while a trip is running) and the `RotateOverlay` from the route layout.
 
 ```
 apps/web/src/
@@ -49,25 +49,30 @@ apps/web/src/
     use-ride.ts         React hook over the store
     guard.ts            Speed guard thresholds and the hold times
   hud/
-    NavigationPanel     top left: speed, next turn, distance, arrival, distance and time left
-    StatusCluster       top right: time, mock weather, online or offline
-    Minimap             top right: plain SVG route line, position dot, heading. No tiles
-    MediaPanel          bottom left: artwork, title, artist, progress, previous, play or pause, next
-    VehiclePanel        bottom right: battery, range, trip, scooter speed and GPS speed, End trip
-    SceneSlot           the gradient scene placeholder and the reserved attribution strip
-    StartPrompt, TripSummary, DevControls, HoldButton, icons, and pure helpers (hold, minimap geometry)
+    NavigationPanel     top left, no card: vehicle speed as a huge bare number, GPS speed and unit under it,
+                        next turn arrow, distance, street instruction, time and distance left, arrival
+    StatusCluster       top right: local time, mock temperature, connectivity dot (plain text, no panel)
+    Minimap             top right: round plain SVG route line, position dot, heading cone, N. No tiles
+    Dock                one joined glass dock with a hairline divider between its two halves
+    MediaPanel          dock, left half: artwork, title, artist, previous, play or pause, next, progress line
+    VehiclePanel        dock, right half: battery, range, trip distance and time, End trip
+    SceneSlot           the gradient scene placeholder and the reserved credits strip
+    HoldButton          hold to press control with ring or fill feedback and a static held state
+    StartPrompt, TripSummary, DevControls, icons, and pure helpers (hold, minimap geometry,
+                        telemetry note, time of day)
   media/                Media Session binding, tone engine and useMockMedia (see Mock media above)
 ```
 
 How it fits together:
 
-- **Screen grid.** One CSS grid with three columns (left panel, free centre, right panel) and four rows: top panels, free space, bottom panels, and a strip for credits. The credits strip is its own row, so no panel can overlap it. Nothing but the start prompt, the trip summary and the dev controls is drawn in the centre column.
+- **Screen grid.** The scene is `absolute inset-0` and the HUD sits on it in one CSS grid with three rows: the top area (speed, turn, status and minimap, and the free centre), the dock, and the credits strip. The credits strip is its own row, a darker band, so no panel can overlap it. The dock is inset from the screen edges and is the only thing along the bottom. In the centre column only the start prompt, the trip summary and the dev controls are ever drawn.
+- **Day and night.** `isDaylight` (`hud/time.ts`) turns the local clock into `data-daylight` on the screen root (07:00 to 19:00 is day). CSS maps that to the `--wl-panel` variable, so the dock is more solid in daylight and a little more see-through at night. It is a stand in for real sunrise and sunset.
 - **Data flow.** `RideSession.tick()` advances the GPS simulator, ticks the mock vehicle, projects the smoothed GPS fix onto the route (`projectOntoRoute`) to get the distance along it, and turns that into the next instruction, distance to it, remaining distance and time and arrival (`computeProgress`). Speed comes from `selectSpeed`. Trip distance and duration come from `TripTracker`. The HUD only reads the snapshot.
-- **GPS fallback.** Scooter speed is used while telemetry is fresh. When it is missing or older than two seconds, the headline speed uses GPS and says so, battery, range and scooter speed show dashes, and trip distance and duration carry on from GPS distance (`GpsDistanceIntegrator`) and the ride clock. `TripTracker` adds up changes instead of swapping totals, so the figure never jumps and never goes backwards, and distance covered during a dropout is kept.
-- **Minimap.** Drawn from the route's own coordinates only. While riding it follows the rider with the heading up. Before and after a trip it shows the whole route, north up. It uses no map tiles and no map data, so it needs no map credit and can sit next to Google tiles later (see Amendment 3 in the brief).
-- **Speed guard.** Above 8 km/h (off again below 5) the media controls and End trip need a deliberate press: a touch or mouse press must be held for 0.6 s (0.9 s for End trip), with a fill that shows progress. Keyboard and assistive technology activation goes straight through. The media panel dims while the guard is on.
+- **GPS fallback.** Scooter speed is used while telemetry is fresh. When it is missing or older than two seconds, the headline speed uses GPS and says so (an amber `GPS 17` and a note under the speed), battery and range show dashes, and trip distance and duration carry on from GPS distance (`GpsDistanceIntegrator`) and the ride clock. `TripTracker` adds up changes instead of swapping totals, so the figure never jumps and never goes backwards. A frozen sample counts as fresh for two seconds and adds nothing, so the tracker remembers the GPS distance and ride time at the last new vehicle sample and backfills everything GPS saw since then the moment telemetry goes stale (and again on the first sample after a dropout). Nothing is lost in the stale window. The reading also records whether GPS was used at any point, so the trip summary can say GPS, a mix of the scooter and GPS, or nothing.
+- **Minimap.** A round map drawn from the route's own coordinates only. While riding it follows the rider with the heading up and shows a heading cone. Before and after a trip it shows the whole route inside the circle, north up. It uses no map tiles and no map data, so it needs no map credit and can sit next to Google tiles later (see Amendment 3 in the brief).
+- **Speed guard.** Above 8 km/h (off again below 5) the media controls and End trip need a deliberate press: a touch or mouse press must be held for 0.6 s (0.9 s for End trip). Each guarded control shows its feedback without relying on animation: a ring (media buttons) or a fill (End trip) that grows while held, plus a static held state and a caption ("Keep holding"). With reduced motion the ring and fill show complete at once. Keyboard and assistive technology activation goes straight through.
 - **End trip.** Takes the summary (distance, duration, average speed), stops the simulator, releases the wake lock (the hook is only enabled while riding) and stops the media: `useMockMedia(false)` pauses and rewinds the player, silences the tone engine and clears the Media Session metadata and handlers. **Start new trip** builds a fresh session and returns to the start state.
-- **Dev controls.** Playback speed (1x, 2x, 4x, 8x) and a "Lose scooter data" switch. Shown in development builds. In a production build they appear only when the address has `?dev=1`. At fast playback the HUD shows ride time, so arrival and time left are what the simulated rider would see at normal speed.
+- **Dev controls.** Playback speed (1x, 2x, 4x, 8x) and a "Lose scooter data" switch. Shown in development builds. In a production build they appear only when the address has `?dev=1`, and the credits strip shows a faint placeholder label only then too, so riders never see it. At fast playback the HUD shows ride time, so arrival and time left are what the simulated rider would see at normal speed.
 - **First render.** The server render and the first client render use a fixed empty snapshot and the clock shows `--:--` until mounted, so there is no hydration mismatch.
 
 ## Dependency rules

@@ -51,7 +51,7 @@ The simulation layer adds no dependencies. The filters, random number generator,
 
 ### Riding screen
 
-The riding screen adds no dependencies. Icons are original inline SVG drawn for Waylit, the minimap is plain SVG from the demo route's own coordinates, and mock weather is a fixed value. No map tiles or map data are used on the screen, so it needs no map credit. The credits strip is reserved for the 3D scene's attributions.
+The riding screen adds no dependencies. Icons are original inline SVG drawn for Waylit, the minimap is plain SVG from the demo route's own coordinates, and mock weather is a fixed value. No map tiles or map data are used on the screen, so it needs no map credit. The credits strip is reserved for the 3D scene's attributions. The HUD redesign (floating HUD, one joined dock, round minimap) added no dependencies either, and the screenshots in `docs/images` are original captures of the app taken with headless Chrome, with no third party content in them.
 
 ### Fonts
 
