@@ -35,6 +35,9 @@ importers:
 
   apps/web:
     dependencies:
+      '@cesium/core':
+        specifier: 0.1.1
+        version: 0.1.1
       '@cesium/engine':
         specifier: 26.5.0
         version: 26.5.0

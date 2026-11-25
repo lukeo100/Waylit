@@ -14,6 +14,7 @@
     "typecheck": "next typegen && tsc --noEmit"
   },
   "dependencies": {
+    "@cesium/core": "0.1.1",
     "@cesium/engine": "26.5.0",
     "@waylit/core": "workspace:*",
     "@waylit/map-provider": "workspace:*",

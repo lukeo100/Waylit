@@ -1,16 +1,18 @@
 import "@cesium/engine/Source/Widget/CesiumWidget.css";
 import {
   Cartesian3,
-  CesiumWidget,
   Clock,
   Color,
-  CustomShader,
   HeadingPitchRange,
-  Ion,
   JulianDate,
-  LightingModel,
   Matrix4,
   PerspectiveFrustum,
+} from "@cesium/core";
+import {
+  CesiumWidget,
+  CustomShader,
+  Ion,
+  LightingModel,
   PointPrimitiveCollection,
   RequestScheduler,
   SkyAtmosphere,
@@ -299,6 +301,13 @@ export class CesiumGoogleProvider extends BaseProvider {
     // moment the app is showing (the real time, or the developer time override).
     widget.clock.currentTime = JulianDate.fromDate(new Date(lighting.timestamp));
     widget.scene.backgroundColor = Color.fromCssColorString(params.sky.zenith);
+    // With no globe the atmosphere does not darken itself at night, so dim it by daylight.
+    const atmosphere = widget.scene.skyAtmosphere;
+    if (atmosphere) {
+      const dark = (1 - Math.min(1, Math.max(0, lighting.daylightFactor))) ** 2;
+      atmosphere.brightnessShift = -0.85 * dark;
+      atmosphere.saturationShift = -0.3 * dark;
+    }
     shader.setUniform("u_tint", new Cartesian3(params.tint[0], params.tint[1], params.tint[2]));
   }
 
