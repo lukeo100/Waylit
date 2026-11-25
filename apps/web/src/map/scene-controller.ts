@@ -1,6 +1,7 @@
-import { bearingDegrees, type LatLng } from "@waylit/core";
+import { bearingDegrees, type LatLng, type Route } from "@waylit/core";
 import {
   FollowCamera,
+  RouteGuide,
   type MapProvider,
   type ProviderActivity,
   type ProviderDiagnostics,
@@ -16,6 +17,9 @@ import {
  * navigation apart from rendering:
  *
  *   - the follow camera (pure maths) that is fed rider fixes and gives one pose per frame,
+ *   - the route guide (pure maths) that turns the route and that pose into what the hologram
+ *     layer draws: the corridor, the chevrons, the turn beacon with its countdown, the rider and
+ *     the heading marker,
  *   - the current provider, which draws and knows nothing about the route or the HUD,
  *   - the fallback rule: if the Cesium provider fails to start or fails while running, it is
  *     dropped once and the MapLibre fallback starts in its place, with a short note. It never
@@ -44,6 +48,8 @@ export interface SceneControllerOptions {
   readonly sceneElement: unknown;
   readonly creditsElement: unknown;
   readonly selection: ProviderSelection;
+  /** The route to guide along. Its corridor is drawn by whichever provider is running. */
+  readonly route: Route;
   readonly tuningFor: (id: ProviderId) => RenderTuning;
   readonly createProvider: (id: ProviderId, tuning: RenderTuning) => Promise<MapProvider>;
   /** Where the camera starts, before the first fix. */
@@ -62,6 +68,7 @@ export const NOTES = {
 export class MapSceneController {
   private readonly options: SceneControllerOptions;
   private readonly camera = new FollowCamera();
+  private readonly guide: RouteGuide;
   private provider: MapProvider | undefined;
   private removeFrame: (() => void) | undefined;
   private removeStatus: (() => void) | undefined;
@@ -73,6 +80,7 @@ export class MapSceneController {
 
   constructor(options: SceneControllerOptions) {
     this.options = options;
+    this.guide = new RouteGuide(options.route);
     this.camera.snapTo(options.startFix, options.now());
     this.state = {
       selection: options.selection,
@@ -114,6 +122,7 @@ export class MapSceneController {
   /** Put the camera back at the start, with no gliding. For a new trip. */
   resetCamera(fix: RiderFix): void {
     this.camera.snapTo(fix, this.options.now());
+    this.guide.reset();
   }
 
   setLighting(lighting: SceneLighting): void {
@@ -173,7 +182,11 @@ export class MapSceneController {
     this.provider = provider;
     this.removeFrame = provider.onFrame((nowMs) => {
       const pose = this.camera.step(nowMs);
-      if (pose) provider.setCamera(pose);
+      if (!pose) return;
+      provider.setCamera(pose);
+      // The rider and the guidance follow the same smoothed pose as the camera, so the rider
+      // stays put in the lower middle of the screen and the chevrons ahead stay on the road.
+      provider.setGuidance(this.guide.frame(pose.rider, pose.headingDegrees, nowMs));
     });
     this.removeStatus = provider.onStatus((status) => {
       // A failure while the provider is still starting is reported by mount() itself.
@@ -184,6 +197,7 @@ export class MapSceneController {
         this.publish({ status: "ready" });
       }
     });
+    provider.setRoute(this.guide.corridor);
     if (this.lighting) provider.setLighting(this.lighting);
     provider.setActivity(this.activity);
   }

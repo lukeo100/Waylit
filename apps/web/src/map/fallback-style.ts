@@ -1,4 +1,10 @@
-import type { LightingParameters, ProviderAttribution, ScenePalette } from "@waylit/map-provider";
+import type {
+  FxLevel,
+  LightingParameters,
+  ProviderAttribution,
+  ScenePalette,
+} from "@waylit/map-provider";
+import { holoBuildingLayers } from "./holo-style";
 import type { LightSpecification, SkySpecification, StyleSpecification } from "maplibre-gl";
 
 /**
@@ -39,7 +45,7 @@ export function fallbackAttributions(terrain: boolean): readonly ProviderAttribu
 
 type Paint = Record<string, unknown>;
 
-interface LayerDef {
+export interface LayerDef {
   readonly id: string;
   readonly type: "fill" | "line" | "fill-extrusion";
   readonly sourceLayer: string;
@@ -59,13 +65,13 @@ const ROAD_NOT_TUNNEL = ["!=", ["get", "brunnel"], "tunnel"];
  * is for about 52 degrees north, where a pixel at zoom 12 is about 19 m with 512 pixel tiles,
  * and is close enough elsewhere because the roads only have to look right, not measure right.
  */
-function groundWidth(metres: number): unknown {
+export function groundWidth(metres: number): unknown {
   const perPixelAtZoom12 = 19.1;
   const widthAtZoom12 = metres / perPixelAtZoom12;
   return ["interpolate", ["exponential", 2], ["zoom"], 12, widthAtZoom12, 22, widthAtZoom12 * 1024];
 }
 
-const LAYERS: readonly LayerDef[] = [
+const BASE_LAYERS: readonly LayerDef[] = [
   {
     id: "landuse",
     type: "fill",
@@ -163,15 +169,36 @@ const LAYERS: readonly LayerDef[] = [
   },
 ];
 
-/** The ids of the layers whose colours change with the light. Exposed for tests. */
-export const STYLE_LAYER_IDS: readonly string[] = ["background", ...LAYERS.map((l) => l.id)];
+/**
+ * The layers for a hologram level. At `off` the buildings are the plain extrusions above. At
+ * `low` and `high` the building layer is replaced by dark glass, a bright roof edge and a
+ * glowing footprint outline, and at `high` also faint floor lines (see holo-style.ts).
+ */
+export function layersFor(level: FxLevel): readonly LayerDef[] {
+  if (level === "off") return BASE_LAYERS;
+  const out: LayerDef[] = [];
+  for (const def of BASE_LAYERS) {
+    if (def.id === "building") out.push(...holoBuildingLayers(level));
+    else out.push(def);
+  }
+  return out;
+}
+
+/** The ids of the layers whose colours change with the light, for the plain look. */
+export const STYLE_LAYER_IDS: readonly string[] = ["background", ...BASE_LAYERS.map((l) => l.id)];
+
+/** The same ids for a hologram level. */
+export function styleLayerIds(level: FxLevel): readonly string[] {
+  return ["background", ...layersFor(level).map((l) => l.id)];
+}
 
 /** Every paint colour that changes with the light, as layer, property and value. */
 export function paletteColours(
   palette: ScenePalette,
+  level: FxLevel = "off",
 ): readonly { layer: string; property: string; value: string }[] {
   const out = [{ layer: "background", property: "background-color", value: palette.land }];
-  for (const def of LAYERS) {
+  for (const def of layersFor(level)) {
     for (const [property, value] of Object.entries(def.colours(palette))) {
       out.push({ layer: def.id, property, value });
     }
@@ -205,6 +232,8 @@ export function lightFor(params: LightingParameters): LightSpecification {
 export interface FallbackStyleOptions {
   /** Add the open terrain source and ground the camera on it. */
   readonly terrain: boolean;
+  /** The hologram look of the buildings: off (plain, the default), low or high. */
+  readonly holo?: FxLevel;
 }
 
 /** Builds the style for the first frame, painted for the given lighting. */
@@ -219,7 +248,7 @@ export function buildFallbackStyle(
       paint: { "background-color": params.palette.land },
     },
   ];
-  for (const def of LAYERS) {
+  for (const def of layersFor(options.holo ?? "off")) {
     layers.push({
       id: def.id,
       type: def.type,

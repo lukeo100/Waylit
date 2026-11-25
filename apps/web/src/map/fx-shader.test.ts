@@ -49,6 +49,22 @@ describe("fx shader source", () => {
     expect(fxFragmentShader(1)).not.toContain("sin(");
   });
 
+  it("has the scan band in both variants and the ground grid in the full variant only", () => {
+    expect(fxFragmentShader(1)).toContain("bandShape");
+    expect(fxFragmentShader(2)).toContain("bandShape");
+    expect(fxFragmentShader(2)).toContain("gridLine");
+    expect(fxFragmentShader(1)).not.toContain("gridLine");
+    expect(fxFragmentShader(1)).not.toContain("fwidth");
+  });
+
+  it("builds the grid and the band from screen coordinates, never from the scene", () => {
+    const source = fxFragmentShader(2);
+    expect(source).toContain("v_textureCoordinates");
+    // The only texture reads are the colour picture's own pixels.
+    expect(source.match(/texture\(/g)).toHaveLength(9);
+    expect(source).not.toMatch(/viewport|czm_|inverse|eye|world/i);
+  });
+
   it("uses no dash characters or non ASCII text", () => {
     for (const variant of [1, 2] as const) {
       // eslint-disable-next-line no-control-regex
@@ -67,6 +83,8 @@ describe("packFxUniforms", () => {
     expect(packed.u_shadow).toHaveLength(4);
     expect(packed.u_highlight).toHaveLength(4);
     expect(packed.u_haze).toHaveLength(3);
+    expect(packed.u_holo).toEqual([-1, p.scanHalfWidth, p.scanStrength, p.gridStrength]);
+    expect(packed.u_motion).toHaveLength(4);
     for (const name of FX_UNIFORMS) {
       for (const value of packed[name]) expect(Number.isFinite(value)).toBe(true);
     }

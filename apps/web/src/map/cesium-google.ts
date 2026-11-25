@@ -27,7 +27,9 @@ import {
   lightingParameters,
   longSideFovDegrees,
   type CameraPose,
+  type CorridorShape,
   type GroundHeightSource,
+  type GuidanceFrame,
   type ProviderAttribution,
   type ProviderCapabilities,
   type ProviderActivity,
@@ -39,6 +41,7 @@ import {
 import { BaseProvider } from "./base-provider";
 import { setCesiumBaseUrl } from "./cesium-setup";
 import { watchCreditsFit } from "./credits-fit-dom";
+import { CesiumHolo } from "./cesium-holo";
 import { CesiumFx } from "./fx-stage";
 import { createTileShader, setTileShaderLighting } from "./tile-shader";
 import { classifyFailure } from "./errors";
@@ -98,6 +101,8 @@ export class CesiumGoogleProvider extends BaseProvider {
   private tileset: Cesium3DTileset | undefined;
   private shader: CustomShader | undefined;
   private fx: CesiumFx | undefined;
+  private holo: CesiumHolo | undefined;
+  private corridor: CorridorShape | undefined;
   private governor: FxGovernor | undefined;
   private lastFxCheckMs = 0;
   private lastLighting: SceneLighting | undefined;
@@ -165,7 +170,9 @@ export class CesiumGoogleProvider extends BaseProvider {
       scene.backgroundColor = Color.fromCssColorString("#05070b");
 
       const preRender = (): void => {
-        this.emitFrame(performance.now());
+        const now = performance.now();
+        this.fx?.tick(now);
+        this.emitFrame(now);
       };
       const postRender = (): void => {
         const now = performance.now();
@@ -191,6 +198,17 @@ export class CesiumGoogleProvider extends BaseProvider {
       this.governor = new FxGovernor(this.tuning.fxLevel);
       if (this.lastLighting) this.fx.setLighting(this.lastLighting);
       this.removeListeners.push(() => this.fx?.destroy());
+
+      // The hologram layer: corridor, chevrons, beacon, heading marker and rider. Placed from the
+      // route and the ground height constant, never from the tiles (see cesium-holo.ts).
+      this.holo = new CesiumHolo(
+        scene,
+        sceneElement,
+        this.ground,
+        DEMO_ROUTE_GROUND_ELLIPSOID_METRES,
+      );
+      this.removeListeners.push(() => this.holo?.destroy());
+      if (this.corridor) this.holo.setRoute(this.corridor);
 
       this.watchVisibility();
 
@@ -331,6 +349,15 @@ export class CesiumGoogleProvider extends BaseProvider {
     if (this.shader) setTileShaderLighting(this.shader, params.tint, lighting.daylightFactor);
   }
 
+  setRoute(corridor: CorridorShape): void {
+    this.corridor = corridor;
+    this.holo?.setRoute(corridor);
+  }
+
+  setGuidance(frame: GuidanceFrame): void {
+    this.holo?.setGuidance(frame, performance.now());
+  }
+
   getDiagnostics(): ProviderDiagnostics {
     const tileset = this.tileset;
     const base = { rootRequests, fxLevel: this.fx?.currentLevel ?? "off" };
@@ -382,6 +409,7 @@ export class CesiumGoogleProvider extends BaseProvider {
     this.tileset = undefined;
     this.shader = undefined;
     this.marker = undefined;
+    this.holo = undefined;
     if (widget && !widget.isDestroyed()) widget.destroy();
   }
 

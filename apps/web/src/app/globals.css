@@ -322,6 +322,110 @@
   }
 
   /*
+   * Overlays on the 3D scene: the distance countdown over the turn beacon and the slow scan band
+   * of the holographic look. The overlay sits inside the scene, so it can never reach the credits
+   * strip. It takes no touches. Cyan is the one accent (see docs/DESIGN_SYSTEM.md).
+   */
+  .wl-scene-overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    overflow: hidden;
+    pointer-events: none;
+  }
+
+  .wl-beacon {
+    position: absolute;
+    top: 0;
+    left: 0;
+    display: flex;
+    align-items: center;
+    gap: 0.3em;
+    padding: 0.2em 0.6em 0.2em 0.45em;
+    border: 1px solid rgb(103 232 249 / 0.55);
+    border-radius: 999px;
+    background: rgb(4 20 31 / 0.72);
+    color: var(--wl-color-cyan);
+    font-size: clamp(0.95rem, 4dvh, 1.5rem);
+    font-weight: 600;
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.01em;
+    white-space: nowrap;
+    text-shadow: 0 0 0.6em rgb(103 232 249 / 0.55);
+    transition: opacity 0.25s linear;
+    will-change: transform;
+  }
+
+  .wl-beacon[data-phase="imminent"],
+  .wl-beacon[data-phase="now"] {
+    border-color: rgb(103 232 249 / 0.95);
+    color: #67e8f9;
+  }
+
+  .wl-beacon-arrow {
+    width: 1.15em;
+    height: 1.15em;
+    fill: none;
+    stroke: currentcolor;
+    stroke-width: 2.2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  .wl-beacon-unit {
+    font-size: 0.7em;
+    font-weight: 500;
+    opacity: 0.85;
+  }
+
+  /*
+   * The scan band on the MapLibre fallback: one soft band of cyan light that sweeps up the
+   * picture and then rests, the same rhythm as the CesiumJS effect (9 seconds, 78 percent of
+   * it sweeping). It moves with a transform, so it costs the compositor, not the page. It is
+   * off when the effect level is off and when the rider prefers reduced motion.
+   */
+  .wl-scanband {
+    position: absolute;
+    inset: -12% 0 auto 0;
+    height: 14%;
+    opacity: var(--wl-scan-strength, 0.3);
+    background: linear-gradient(
+      180deg,
+      rgb(103 232 249 / 0) 0%,
+      rgb(103 232 249 / 0.2) 55%,
+      rgb(103 232 249 / 0.34) 70%,
+      rgb(103 232 249 / 0) 100%
+    );
+    mix-blend-mode: screen;
+    transform: translateY(0);
+    animation: wl-scan 9s linear infinite;
+  }
+
+  .wl-scanband[data-level="off"] {
+    display: none;
+  }
+
+  @keyframes wl-scan {
+    0% {
+      transform: translateY(950%);
+      animation-timing-function: cubic-bezier(0.45, 0, 0.55, 1);
+    }
+    78% {
+      transform: translateY(-120%);
+    }
+    100% {
+      transform: translateY(-120%);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .wl-scanband {
+      display: none;
+    }
+  }
+
+  /*
    * Text drawn straight on the scene gets a small dark shadow, so it holds up on a bright sky
    * and sunlit ground. Flat and cheap: no blur filter.
    */

@@ -30,6 +30,8 @@ export const FX_UNIFORMS = [
   "u_edge",
   "u_edgeControl",
   "u_haze",
+  "u_holo",
+  "u_motion",
 ] as const;
 
 export type FxUniformName = (typeof FX_UNIFORMS)[number];
@@ -51,6 +53,10 @@ export function packFxUniforms(p: FxParameters): PackedFxUniforms {
     // edge gain, edge threshold, horizon height on screen, haze half width
     u_edgeControl: [p.edgeGain, p.edgeThreshold, p.horizonY, p.hazeWidth],
     u_haze: [...p.hazeColour],
+    // scan band centre (set every frame), band half height, band strength, grid strength
+    u_holo: [-1, p.scanHalfWidth, p.scanStrength, p.gridStrength],
+    // grid scroll (set every frame), unused, unused, unused
+    u_motion: [0, 0, 0, 0],
   };
 }
 
@@ -66,6 +72,8 @@ uniform vec4 u_highlight;
 uniform vec4 u_edge;
 uniform vec4 u_edgeControl;
 uniform vec3 u_haze;
+uniform vec4 u_holo;
+uniform vec4 u_motion;
 in vec2 v_textureCoordinates;
 
 float luma(vec3 c) {
@@ -98,6 +106,24 @@ const EDGE_SOBEL = `
 `;
 
 /**
+ * The holographic grid, full variant only. It is drawn from screen coordinates alone: below the
+ * horizon line a screen height stands for a distance over a flat ground plane, so equal steps in
+ * that distance and in the sideways direction make a grid in perspective. It reads nothing from
+ * the picture and nothing about the scene, and it scrolls toward the rider with the time.
+ */
+const GRID = `
+  // 6. Faint ground grid, from screen coordinates only, in perspective below the horizon.
+  float below = max(u_edgeControl.z - uv.y, 0.02);
+  float range = 0.05 / below;
+  vec2 cell = vec2((uv.x - 0.5) * range * 2.4, range - u_motion.x);
+  vec2 nearest = 0.5 - abs(fract(cell) - 0.5);
+  vec2 soften = fwidth(cell) * 1.3 + 0.004;
+  vec2 gridLine = 1.0 - smoothstep(vec2(0.0), soften, nearest);
+  float gridFade = smoothstep(0.03, 0.2, below) * smoothstep(0.0, 0.3, uv.y);
+  float gridCalm = 1.0 - smoothstep(0.35, 1.0, max(soften.x, soften.y));
+  c += u_edge.rgb * max(gridLine.x, gridLine.y) * gridFade * gridCalm * u_holo.w;`;
+
+/**
  * The fragment shader for a variant: 1 is the cheap one, 2 is the full one with the Sobel edge
  * detector and the scanline. Variant 0 (off) has no shader because the stage is not added.
  */
@@ -110,6 +136,7 @@ export function fxFragmentShader(variant: 1 | 2): string {
   float stripe = 0.5 + 0.5 * sin(gl_FragCoord.y * 2.0944);
   c *= 1.0 - u_highlight.w * stripe;`
       : "";
+  const grid = variant === 2 ? GRID : "";
   return `${HEADER}
 void main() {
   vec2 uv = v_textureCoordinates;
@@ -129,13 +156,20 @@ ${edges}
   float edge = smoothstep(u_edgeControl.y, u_edgeControl.y + 0.14, magnitude * u_edgeControl.x);
   c += u_edge.rgb * edge * u_edge.w;
 
-  // 3. Horizon haze: a soft band at the horizon, from screen height only.
+  // 3. Scan band: one soft band that sweeps up the picture, lifting the glow it passes over.
+  // The centre is a screen height, negative while the band rests between sweeps.
+  float bandOffset = (uv.y - u_holo.x) / u_holo.y;
+  float bandShape = exp(-bandOffset * bandOffset) * u_holo.z * step(0.0, u_holo.x);
+  c += u_edge.rgb * bandShape * (0.1 + edge * 1.4);
+
+  // 4. Horizon haze: a soft band at the horizon, from screen height only.
   float band = (uv.y - u_edgeControl.z) / u_edgeControl.w;
   c = mix(c, u_haze, exp(-band * band) * u_shadow.w);
 
-  // 4. Vignette, from the distance to the middle of the screen.
+  // 5. Vignette, from the distance to the middle of the screen.
   float edgeDistance = length((uv - 0.5) * vec2(1.0, 0.85));
   c *= 1.0 - u_grade.w * smoothstep(0.3, 0.85, edgeDistance);
+${grid}
 ${scan}
 
   out_FragColor = vec4(clamp(c, 0.0, 1.0), source.a);

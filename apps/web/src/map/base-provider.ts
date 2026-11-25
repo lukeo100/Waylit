@@ -1,6 +1,8 @@
 import { FrameLimiter, FrameStats } from "@waylit/map-provider";
 import type {
   CameraPose,
+  CorridorShape,
+  GuidanceFrame,
   FrameListener,
   FrameStatsSummary,
   MapProvider,
@@ -44,6 +46,8 @@ export abstract class BaseProvider implements MapProvider {
   abstract mount(target: ProviderMountTarget): Promise<void>;
   abstract setCamera(pose: CameraPose): void;
   abstract setLighting(lighting: SceneLighting): void;
+  abstract setRoute(corridor: CorridorShape): void;
+  abstract setGuidance(frame: GuidanceFrame): void;
   abstract getDiagnostics(): ProviderDiagnostics;
   /** Starts or resumes drawing. */
   protected abstract startRendering(): void;

@@ -35,6 +35,31 @@ const NIGHT: SceneLighting = {
   warmth: 0,
 };
 
+describe("fxParameters, holographic scan band and grid", () => {
+  it("has no band or grid when off", () => {
+    expect(FX_OFF.scanStrength).toBe(0);
+    expect(FX_OFF.gridStrength).toBe(0);
+  });
+
+  it("shows the band in both levels and the grid in the full level only", () => {
+    const high = fxParameters(NIGHT, "high");
+    const low = fxParameters(NIGHT, "low");
+    expect(high.scanStrength).toBeGreaterThan(0);
+    expect(low.scanStrength).toBeGreaterThan(0);
+    expect(high.gridStrength).toBeGreaterThan(0);
+    expect(low.gridStrength).toBe(0);
+    expect(low.scanStrength).toBeLessThan(high.scanStrength);
+  });
+
+  it("is quiet by day and clear at night", () => {
+    const day = fxParameters(DAY, "high");
+    const night = fxParameters(NIGHT, "high");
+    expect(night.scanStrength).toBeGreaterThan(day.scanStrength * 2);
+    expect(night.gridStrength).toBeGreaterThan(day.gridStrength * 2);
+    expect(night.scanStrength).toBeLessThan(1);
+  });
+});
+
 describe("fxParameters", () => {
   it("is exactly nothing when off", () => {
     expect(fxParameters(NIGHT, "off")).toBe(FX_OFF);

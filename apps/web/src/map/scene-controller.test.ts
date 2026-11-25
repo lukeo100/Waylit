@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import type {
   CameraPose,
+  CorridorShape,
   FrameListener,
+  GuidanceFrame,
   MapProvider,
   ProviderActivity,
   ProviderId,
@@ -11,6 +13,7 @@ import type {
   SceneLighting,
 } from "@waylit/map-provider";
 import { DEFAULT_TUNING, selectProvider } from "@waylit/map-provider";
+import { DEMO_ROUTE } from "@waylit/core";
 import { MapSceneController, NOTES, startFixOf, type SceneState } from "./scene-controller";
 
 class FakeProvider implements MapProvider {
@@ -25,6 +28,8 @@ class FakeProvider implements MapProvider {
   mounted = false;
   unmounted = 0;
   poses: CameraPose[] = [];
+  routes: CorridorShape[] = [];
+  guidance: GuidanceFrame[] = [];
   lightings: SceneLighting[] = [];
   activities: ProviderActivity[] = [];
   failMountWith: string | undefined;
@@ -45,6 +50,12 @@ class FakeProvider implements MapProvider {
   }
   setCamera(pose: CameraPose): void {
     this.poses.push(pose);
+  }
+  setRoute(corridor: CorridorShape): void {
+    this.routes.push(corridor);
+  }
+  setGuidance(frame: GuidanceFrame): void {
+    this.guidance.push(frame);
   }
   setLighting(l: SceneLighting): void {
     this.lightings.push(l);
@@ -103,6 +114,7 @@ function setup(search: string, token: string | undefined, nodeEnv = "production"
     sceneElement: {},
     creditsElement: {},
     selection: selectProvider({ search, token, nodeEnv }),
+    route: DEMO_ROUTE,
     tuningFor: (id): RenderTuning => DEFAULT_TUNING[id],
     createProvider: (id) => {
       if (refuse.has(id)) return Promise.reject(new Error("cannot load"));
@@ -269,5 +281,55 @@ describe("startFixOf", () => {
   it("copes with an empty or one point route", () => {
     expect(startFixOf([]).headingDegrees).toBe(0);
     expect(startFixOf([{ lat: 1, lng: 2 }]).headingDegrees).toBe(0);
+  });
+});
+
+describe("MapSceneController guidance", () => {
+  async function started(search = "") {
+    const made = setup(search, undefined);
+    await made.controller.start();
+    const provider = made.created[0]!;
+    return { ...made, provider };
+  }
+
+  it("gives the provider the corridor of the route as soon as it is attached", async () => {
+    const { provider } = await started();
+    expect(provider.routes).toHaveLength(1);
+    expect(provider.routes[0]!.centre).toEqual(DEMO_ROUTE.path);
+    expect(provider.routes[0]!.ribbon.length).toBe(DEMO_ROUTE.path.length * 2);
+  });
+
+  it("sends a guidance frame with the camera pose on every frame", async () => {
+    const { provider, controller } = await started();
+    controller.setRider({ position: DEMO_ROUTE.path[0]!, headingDegrees: 90 });
+    provider.frame(16);
+    provider.frame(48);
+    expect(provider.poses.length).toBe(2);
+    expect(provider.guidance.length).toBe(2);
+    const frame = provider.guidance[1]!;
+    const rider = frame.items.find((i) => i.kind === "rider")!;
+    expect(rider.position).toEqual(provider.poses[1]!.rider);
+    expect(rider.headingDegrees).toBe(provider.poses[1]!.headingDegrees);
+    expect(frame.items.some((i) => i.kind === "chevron")).toBe(true);
+  });
+
+  it("shows the turn beacon with a countdown when the rider nears a turn", async () => {
+    const { provider, controller } = await started();
+    // About 60 m before the first full left turn of the demo route.
+    const before = { lat: 52.47464, lng: 13.41053 };
+    controller.resetCamera({ position: before, headingDegrees: 0 });
+    provider.frame(16);
+    const frame = provider.guidance.at(-1)!;
+    expect(frame.beacon?.direction).toBe("left");
+    expect(frame.beacon?.label).toMatch(/^\d+ m$/);
+    expect(frame.beacon!.distanceMetres).toBeLessThan(80);
+  });
+
+  it("hands the same route to the fallback after Cesium fails and is replaced", async () => {
+    const made = setup("", "t");
+    made.failures.set("cesium-google", "no tiles");
+    await made.controller.start();
+    expect(made.created.map((p) => p.id)).toEqual(["cesium-google", "maplibre-fallback"]);
+    expect(made.created[1]!.routes).toHaveLength(1);
   });
 });

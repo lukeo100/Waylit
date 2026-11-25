@@ -79,6 +79,7 @@ export function MapScene({
       sceneElement: scene,
       creditsElement,
       selection,
+      route,
       tuningFor: (id) => resolveTuning(id, search, overrides),
       createProvider: (id, tuning) =>
         loadProvider(id, tuning, {

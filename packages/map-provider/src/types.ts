@@ -1,4 +1,4 @@
-import type { LatLng, SolarPhase } from "@waylit/core";
+import type { LatLng, SolarPhase, TurnDirection, TurnPhase } from "@waylit/core";
 
 /**
  * Map provider interface. Types only.
@@ -62,6 +62,70 @@ export interface SceneLighting {
   readonly daylightFactor: number;
   /** How warm and low the light is, from 0 to 1. Peaks at sunrise and sunset. */
   readonly warmth: number;
+}
+
+/**
+ * What the hologram layer draws, besides the map itself. Every item is placed from the
+ * route and the rider, never from the map content, so a provider can draw it at a ground height
+ * of its own choosing (a constant in Google mode, open terrain in the fallback).
+ *
+ *   rider    the holographic rider on the original kick scooter
+ *   heading  a ring and a cone on the ground at the rider's base
+ *   chevron  a floating arrow ahead on the route
+ *   beacon   a vertical light column at the next turn
+ */
+export type HoloKind = "rider" | "heading" | "chevron" | "beacon";
+
+export interface HoloItem {
+  readonly kind: HoloKind;
+  readonly position: LatLng;
+  /** Degrees clockwise from true north. For a chevron this is the direction of travel. */
+  readonly headingDegrees: number;
+  /** Uniform scale. 1 is the model's own size. */
+  readonly scale: number;
+  /** Overall opacity from 0 to 1. */
+  readonly alpha: number;
+  /** A 0 to 1 value that travels along the route, which the shader turns into a soft pulse. */
+  readonly pulse: number;
+  /** Metres above the provider's ground, so chevrons float. */
+  readonly liftMetres: number;
+}
+
+/** The turn beacon's state, for the countdown text the app draws next to the light column. */
+export interface BeaconState {
+  /** Where the column stands. */
+  readonly position: LatLng;
+  readonly direction: TurnDirection;
+  readonly phase: TurnPhase;
+  /** The countdown as text, for example "120 m". */
+  readonly label: string;
+  readonly distanceMetres: number;
+  /** Height of the top of the column above the ground, in metres. */
+  readonly heightMetres: number;
+}
+
+/** One frame of guidance: what to draw now. Built by `RouteGuide`, drawn by a provider. */
+export interface GuidanceFrame {
+  readonly nowMs: number;
+  /** Distance along the route of the rider, in metres. */
+  readonly alongMetres: number;
+  /** True when the rider is far from the route, so no chevrons or beacon are drawn. */
+  readonly offRoute: boolean;
+  readonly items: readonly HoloItem[];
+  readonly beacon: BeaconState | undefined;
+}
+
+/** The static route shape a provider draws as the glowing corridor. Built once per route. */
+export interface CorridorShape {
+  /** The route's own points, from start to end. */
+  readonly centre: readonly LatLng[];
+  readonly widthMetres: number;
+  /** The corridor's left and right edges, as lines. */
+  readonly leftRail: readonly LatLng[];
+  readonly rightRail: readonly LatLng[];
+  /** A closed ring that outlines the whole ribbon (left edge forward, right edge back). */
+  readonly ribbon: readonly LatLng[];
+  readonly railWidthMetres: number;
 }
 
 export interface ProviderCapabilities {
@@ -153,6 +217,10 @@ export interface MapProvider {
   setLighting(lighting: SceneLighting): void;
   /** Idle (start screen) draws slowly, riding at the target rate, paused draws nothing. */
   setActivity(activity: ProviderActivity): void;
+  /** The route to draw as a glowing corridor on the road. Called once, before or after mount. */
+  setRoute(corridor: CorridorShape): void;
+  /** What the hologram layer draws this frame: rider, heading marker, chevrons and beacon. */
+  setGuidance(frame: GuidanceFrame): void;
   /** Registers a callback that runs before each frame. Returns a function that removes it. */
   onFrame(listener: FrameListener): () => void;
   onStatus(listener: ProviderStatusListener): () => void;

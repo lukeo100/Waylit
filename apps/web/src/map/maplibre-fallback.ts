@@ -10,6 +10,8 @@ import {
   gradePalette,
   lightingParameters,
   type CameraPose,
+  type CorridorShape,
+  type GuidanceFrame,
   type LightingParameters,
   type ProviderAttribution,
   type ProviderCapabilities,
@@ -22,6 +24,7 @@ import { BaseProvider } from "./base-provider";
 import { mapPitchFromDepression, zoomForRange } from "./camera-math";
 import { renderCredits } from "./credits-dom";
 import { classifyFailure } from "./errors";
+import { MapLibreHolo } from "./maplibre-holo";
 import {
   buildFallbackStyle,
   fallbackAttributions,
@@ -78,6 +81,9 @@ export class MapLibreFallbackProvider extends BaseProvider {
   private pendingLight: LightingParameters | undefined;
   private requestCount = 0;
   private initialLighting: SceneLighting | undefined;
+  private holo: MapLibreHolo | undefined;
+  private corridor: CorridorShape | undefined;
+  private lastLighting: SceneLighting | undefined;
 
   constructor(options: MapLibreFallbackOptions) {
     super(options.tuning);
@@ -95,6 +101,7 @@ export class MapLibreFallbackProvider extends BaseProvider {
       this.lastLightKey = params.key;
       const style: StyleSpecification = buildFallbackStyle(params, {
         terrain: this.tuning.terrain,
+        holo: this.tuning.fxLevel,
       });
       const pixelRatio = effectivePixelRatio(window.devicePixelRatio, this.tuning.pixelRatioCap);
 
@@ -132,6 +139,12 @@ export class MapLibreFallbackProvider extends BaseProvider {
       });
       map.on("load", () => {
         this.styleReady = true;
+        // The hologram layer: corridor, grid, scan band, rider, chevrons and beacon.
+        const holo = new MapLibreHolo(map, sceneElement, this.tuning.fxLevel, this.tuning.terrain);
+        holo.install();
+        if (this.corridor) holo.setRoute(this.corridor);
+        if (this.lastLighting) holo.setLighting(this.lastLighting);
+        this.holo = holo;
         if (this.tuning.debugMarker) this.addDebugMarker(map);
         if (this.pendingLight) this.paint(this.pendingLight);
         this.emitStatus({ state: "ready" });
@@ -179,7 +192,18 @@ export class MapLibreFallbackProvider extends BaseProvider {
     return { ...params, palette: gradePalette(params.palette, lighting, level) };
   }
 
+  setRoute(corridor: CorridorShape): void {
+    this.corridor = corridor;
+    this.holo?.setRoute(corridor);
+  }
+
+  setGuidance(frame: GuidanceFrame): void {
+    this.holo?.setGuidance(frame);
+  }
+
   setLighting(lighting: SceneLighting): void {
+    this.lastLighting = lighting;
+    this.holo?.setLighting(lighting);
     const params = this.gradedParameters(lighting);
     if (params.key === this.lastLightKey) return;
     this.lastLightKey = params.key;
@@ -217,6 +241,8 @@ export class MapLibreFallbackProvider extends BaseProvider {
     this.stopRendering();
     this.removeCredits?.();
     this.removeCredits = undefined;
+    this.holo?.destroy();
+    this.holo = undefined;
     const map = this.map;
     this.map = undefined;
     if (map) map.remove();
@@ -282,7 +308,7 @@ export class MapLibreFallbackProvider extends BaseProvider {
     const map = this.map;
     if (!map) return;
     this.pendingLight = undefined;
-    for (const colour of paletteColours(params.palette)) {
+    for (const colour of paletteColours(params.palette, this.tuning.fxLevel)) {
       if (map.getLayer(colour.layer)) {
         map.setPaintProperty(colour.layer, colour.property as PaintProperty, colour.value);
       }

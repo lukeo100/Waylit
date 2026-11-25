@@ -3,6 +3,7 @@ import { PostProcessStage, type Scene } from "@cesium/engine";
 import {
   FX_OFF,
   fxParameters,
+  scanBandPosition,
   type FxLevel,
   type FxParameters,
   type SceneLighting,
@@ -34,6 +35,8 @@ export class CesiumFx {
     u_edge: new Cartesian4(),
     u_edgeControl: new Cartesian4(),
     u_haze: new Cartesian3(),
+    u_holo: new Cartesian4(-1, 0.07, 0, 0),
+    u_motion: new Cartesian4(),
   };
 
   constructor(
@@ -57,6 +60,16 @@ export class CesiumFx {
   setLighting(lighting: SceneLighting): void {
     this.lighting = lighting;
     this.refresh();
+  }
+
+  /**
+   * Moves the scan band and the grid scroll to the frame time. Cheap: two numbers. Call before
+   * each frame while the effect is on.
+   */
+  tick(nowMs: number): void {
+    if (this.stage === undefined) return;
+    this.vectors.u_holo.x = scanBandPosition(nowMs);
+    this.vectors.u_motion.x = ((nowMs / 1000) * 0.4) % 1;
   }
 
   /** Stops the effect while the tab is hidden or the ride has ended, and starts it again after. */
@@ -99,6 +112,11 @@ export class CesiumFx {
     set4(this.vectors.u_highlight, packed.u_highlight);
     set4(this.vectors.u_edge, packed.u_edge);
     set4(this.vectors.u_edgeControl, packed.u_edgeControl);
+    // The band position and the scroll belong to the frame time, so only the other numbers
+    // are taken from the daylight state.
+    this.vectors.u_holo.y = packed.u_holo[1] ?? 0.07;
+    this.vectors.u_holo.z = packed.u_holo[2] ?? 0;
+    this.vectors.u_holo.w = packed.u_holo[3] ?? 0;
     this.vectors.u_haze.x = packed.u_haze[0] ?? 0;
     this.vectors.u_haze.y = packed.u_haze[1] ?? 0;
     this.vectors.u_haze.z = packed.u_haze[2] ?? 0;
@@ -119,6 +137,8 @@ export class CesiumFx {
         u_edge: () => vectors.u_edge,
         u_edgeControl: () => vectors.u_edgeControl,
         u_haze: () => vectors.u_haze,
+        u_holo: () => vectors.u_holo,
+        u_motion: () => vectors.u_motion,
       },
     });
     this.scene.postProcessStages.add(stage);

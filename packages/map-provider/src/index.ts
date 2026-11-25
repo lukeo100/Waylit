@@ -1,7 +1,12 @@
 export type {
+  BeaconState,
   CameraPose,
+  CorridorShape,
   FrameListener,
   FrameStatsSummary,
+  GuidanceFrame,
+  HoloItem,
+  HoloKind,
   MapProvider,
   MapProviderConfig,
   MapProviderFactory,
@@ -60,3 +65,32 @@ export {
   resolveFxLevel,
 } from "./fx";
 export type { FxLevel, FxParameters } from "./fx";
+export {
+  CORRIDOR_RAIL_METRES,
+  CORRIDOR_WIDTH_METRES,
+  HOLO_CYAN,
+  HOLO_CYAN_BRIGHT,
+  HOLO_GLASS,
+  HOLO_RIBBON,
+  HOLO_RIBBON_ALPHA,
+  SCAN_PERIOD_MS,
+  SCAN_SWEEP_SHARE,
+  pulse01,
+  scanBandPosition,
+} from "./holo";
+export {
+  BEACON_HEIGHT_METRES,
+  SCOOTER_WHEEL_RADIUS,
+  buildBeaconMesh,
+  buildChevronMesh,
+  buildHeadingMesh,
+  buildRiderMesh,
+  meshFor,
+} from "./holo-model";
+export type { HoloMesh } from "./holo-model";
+export { RouteGuide, corridorShape, offsetPath } from "./guidance";
+export type { RouteGuideOptions } from "./guidance";
+export { groundGrid } from "./ground-grid";
+export type { GroundGrid, GroundGridOptions } from "./ground-grid";
+export { identity, modelMatrix, multiply, transformPoint } from "./mat4";
+export type { Mat4 } from "./mat4";

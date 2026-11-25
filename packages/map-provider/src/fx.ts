@@ -87,6 +87,12 @@ export interface FxParameters {
   readonly hazeWidth: number;
   /** Darkening toward the screen corners. */
   readonly vignette: number;
+  /** Half height of the scan band as a fraction of the screen. */
+  readonly scanHalfWidth: number;
+  /** How bright the scan band is, from 0 to 1. Strongest at night. */
+  readonly scanStrength: number;
+  /** How bright the faint ground grid is. Zero except in the full variant. */
+  readonly gridStrength: number;
   /** Strength of the faint scanline shimmer. Zero except in the full variant. */
   readonly scanline: number;
   /** Changes only when a rider could see a difference, so repeated updates can be skipped. */
@@ -128,6 +134,9 @@ export const FX_OFF: FxParameters = {
   horizonY: 0.72,
   hazeWidth: 0.12,
   vignette: 0,
+  scanHalfWidth: 0.07,
+  scanStrength: 0,
+  gridStrength: 0,
   scanline: 0,
   key: "off",
 };
@@ -176,6 +185,10 @@ export function fxParameters(lighting: SceneLighting, level: FxLevel): FxParamet
     horizonY: 0.72,
     hazeWidth: 0.12,
     vignette,
+    // The holographic scan band and ground grid are quiet by day and clear at night.
+    scanHalfWidth: 0.07,
+    scanStrength: lerp(0.18, 0.55, night) * (high ? 1 : 0.8),
+    gridStrength: high ? lerp(0.05, 0.16, night) : 0,
     scanline: high ? 0.018 : 0,
   };
   const key = [level, Math.round(f * 40), Math.round(w * 20)].join("|");
