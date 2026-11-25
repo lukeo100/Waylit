@@ -66,6 +66,8 @@ The riding screen itself adds no dependencies (the 3D scene is described below).
 
 The solar module (`packages/core/src/solar.ts`) adds no dependencies. It implements the NOAA solar position algorithm, a published procedure from the US National Oceanic and Atmospheric Administration, Global Monitoring Laboratory, itself based on Jean Meeus, "Astronomical Algorithms". The algorithm and its equations are public domain US government work, and equations and facts are not copyrightable. The code is an original implementation written from the published equations. No code was copied from SunCalc or any other library, and none is a dependency.
 
+The follow my clock mapping (`packages/core/src/sun-moment.ts`) and the futuristic effect (`packages/map-provider/src/fx.ts`, `apps/web/src/map/fx-shader.ts`) add no dependencies. The GLSL is original code written for Waylit (a luminance Sobel filter and a colour grade are standard image processing ideas, and nothing was copied from any shader library, example or other project). Their screenshots in `docs/images/fx-preview-*.png` show a procedural scene of boxes drawn by Waylit under the Cesium sky, not Google tiles.
+
 The reference values in `solar.test.ts` are numbers (sun positions and times), not code. They were generated once with PyEphem 4.2 (LGPL-3.0, using the VSOP87 theory), as an independent check, and PyEphem is not a dependency, is not installed by the project and is not shipped. The source of the values is stated in the test file.
 
 ### Fonts

@@ -92,7 +92,7 @@ Waylit has two map providers behind one interface. You do not need a key for eit
 
 **Photorealistic 3D (optional).** CesiumJS renders Google Photorealistic 3D Tiles through Cesium ion (asset 2275207).
 
-1. Create a Cesium ion account and an access token that can read that asset. Restrict the token to your site's origin in the Cesium ion dashboard, so a copy of it found in the browser bundle is of little use.
+1. Create a Cesium ion account and an access token with only the `assets:read` scope. Limit it to asset 2275207 (the Google Photorealistic 3D Tiles asset) and to the URLs your copy is deployed at, in the Cesium ion dashboard, so a copy of it found in the browser bundle is of little use. Tokens never expire, so rotate it if it leaks and watch its usage ([Cesium ion access tokens](https://cesium.com/learn/ion/cesium-ion-access-tokens/)).
 2. Put it in `NEXT_PUBLIC_CESIUM_ION_TOKEN` (in `apps/web/.env.local` locally, or in your host's build settings) and rebuild. The value is public in the bundle by design, which is why the restriction matters.
 3. Check the free allowance. Every page load that starts the 3D scene requests the root tileset once, and Cesium ion counts those. Check your plan's current limits and Google's and Cesium's terms before you share a deployment.
 
@@ -104,6 +104,16 @@ Which provider runs on a page load:
 | Token, production build | CesiumJS |
 | Token, development build (`pnpm dev`) | Fallback, to save the allowance. Add `?map=cesium` to the address to use CesiumJS |
 | `?map=fallback` | Fallback, on any build |
+
+### Terms, plans and limits you take on
+
+When you deploy your own copy you become the customer of Cesium ion and, through it, of Google. Waylit's maintainers are not a party to those agreements and cannot accept them for you. These points come from the mapping spike report (read on 2026-11-22). The pages below could not be fetched again when this section was written, so re-read them before you share a deployment, because plans and terms change.
+
+- **Non-commercial only on the free plan.** The Cesium ion Community plan is free for personal and non-commercial use, exploratory development and unfunded education. Commercial use, funded or government work, or going over the free limits needs a paid Cesium licence ([Cesium ion pricing](https://cesium.com/platform/cesium-ion/pricing/)).
+- **Small free allowance.** The Community plan includes about 1,000 Google Photorealistic 3D Tiles root tileset requests a month, as does Google's own free monthly cap for the Map Tiles API ([Cesium ion pricing](https://cesium.com/platform/cesium-ion/pricing/), [Google Maps Platform pricing](https://developers.google.com/maps/billing-and-pricing/pricing)). One root request allows up to three hours of tile streaming ([Map Tiles usage and billing](https://developers.google.com/maps/documentation/tile/usage-and-billing)), so a ride costs about one, but every page load that starts the 3D scene can cost one. Development builds default to the fallback map for this reason.
+- **Two sets of terms.** Using Google tiles through Cesium ion means you accept the [Cesium terms for Google content](https://cesium.com/legal/terms-for-google/), which repeat Google's rules, and Google's [Map Tiles API policies](https://developers.google.com/maps/documentation/tile/policies) and [Maps Platform terms](https://cloud.google.com/maps-platform/terms). They include: show the Google logo and data credits unmodified and uncovered, no caching or offline copies beyond what the HTTP headers allow, no creating content from Google data (Waylit never reads heights from the tiles), no use with or near a non-Google map, and no use in an app or device embedded in a vehicle. See [ARCHITECTURE.md](ARCHITECTURE.md) for how Waylit keeps to them.
+- **EEA billing addresses.** Google applies separate terms, including road safety requirements, to customers with a billing address in the European Economic Area ([Map Tiles API policies](https://developers.google.com/maps/documentation/tile/policies)). If you or your organisation are in the EEA, read those terms first.
+- **The visual effect on Google tiles is off by default.** Waylit can add a colour grade and edge glow to the 3D view (see [ARCHITECTURE.md](ARCHITECTURE.md), "Visual effects and the Google terms"). Because it changes how Google's tiles look, it stays off for Google tiles until you turn it on in your copy, and `?fx=off` always turns it off.
 
 If CesiumJS fails (bad token, no quota, network, no WebGL) the app tries once, then switches to the fallback and shows a small amber note on the riding screen. It does not retry in a loop.
 

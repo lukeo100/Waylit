@@ -10,7 +10,7 @@ The tokens live in [`packages/ui-tokens`](../packages/ui-tokens). `src/tokens.ts
 2. **Glanceable first.** The vehicle speed is the biggest thing on the screen, set as a bare number with tight letter spacing. Distance to the next turn is next. Secondary text is smaller and in muted grey.
 3. **One accent.** Soft cyan (`cyan`, `#5fc8e8`) is the only non-warning accent: the route on the minimap, progress, active states and the heading. It is never used as decoration.
 4. **Colour has a job.** Amber and red are allowed for warnings and errors (Amendment 6). Amber (`caution`, a muted amber that suits the dark theme) is for warnings: the telemetry lost note, the GPS fallback label, offline, low battery and safety notices. Red is for errors and for End trip, as a dark red fill, a muted red outline and soft red text. Green is only the small online dot. Never use amber or red as decoration.
-5. **No glow, no heavy blur.** HUD panels are flat, about 85 percent opaque, with a hairline border and no backdrop blur, so they stay cheap on a mid-range phone. Glow tokens are kept for the 3D scene's route and heading marker, and for the keyboard focus ring.
+5. **No glow, no heavy blur on the HUD.** HUD panels are flat, about 85 percent opaque, with a hairline border and no backdrop blur, so they stay cheap on a mid-range phone. Glow tokens are kept for the 3D scene's route and heading marker, and for the keyboard focus ring.
 6. **Large targets.** Anything touchable is at least 44 by 44 pixels (`touch.min`).
 7. **Respect reduced motion.** Ambient animation stops under `prefers-reduced-motion`. Motion that answers a rider's action may stay but should be short, and feedback must never depend on it.
 8. **Original identity.** No vehicle maker, car maker or map provider branding, colours or logos.
@@ -26,8 +26,8 @@ The tokens live in [`packages/ui-tokens`](../packages/ui-tokens). `src/tokens.ts
 | `cyan` | `--wl-color-cyan` | `cyan` | `#5fc8e8` | The one accent: route, progress, active states, heading |
 | `cyanSoft` | `--wl-color-cyan-soft` | `cyan-soft` | `#a5dff0` | Hover on accent buttons |
 | `text` | `--wl-color-text` | `text` | `#eef1f4` | Primary text and the speed number |
-| `textSecondary` | `--wl-color-text-secondary` | `text-secondary` | `#a4acb7` | Labels, street instruction |
-| `textMuted` | `--wl-color-text-muted` | `text-muted` | `#747d89` | Time and distance left, hints |
+| `textSecondary` | `--wl-color-text-secondary` | `text-secondary` | `#d3d9e0` | Labels, street instruction |
+| `textMuted` | `--wl-color-text-muted` | `text-muted` | `#b0b8c3` | Time and distance left, hints |
 | `caution` | `--wl-color-caution` | `caution` | `#e6b04f` | The warning amber: telemetry lost note, GPS fallback label, offline, low battery, safety notices |
 | `danger` | `--wl-color-danger` | `danger` | `#f0868f` | Errors, and End trip text |
 | `dangerBorder` | `--wl-color-danger-border` | `danger-border` | `rgba(200, 84, 96, 0.65)` | Error and End trip outline |
@@ -41,7 +41,7 @@ The tokens live in [`packages/ui-tokens`](../packages/ui-tokens). `src/tokens.ts
 
 The default Tailwind palette is switched off, so classes like `bg-red-500` do not exist. Use the token names above, for example `bg-night-950`, `text-text-secondary` or `border-glass-border`.
 
-Contrast on `night-950` (WCAG 2): `text` 17.8:1, `text-secondary` 8.8:1, `text-muted` 4.8:1, `cyan` 10.5:1, `caution` 10.3:1, `danger` 8.2:1. All pass AA for body text. On `night-800` panels `text-muted` drops to about 4.4:1, so keep it for hints there. Dark text on `cyan` buttons is 10.5:1.
+Contrast on `night-950` (WCAG 2): `text` 17.8:1, `text-secondary` 14.2:1, `text-muted` 10.1:1, `cyan` 10.5:1, `caution` 10.3:1, `danger` 8.2:1. On `night-800` panels they are 16.0, 12.8, 9.1, 9.4, 9.2 and 7.4. All pass AA for body text. Dark text on `cyan` buttons is 10.5:1. The secondary and muted greys were brightened (from `#a4acb7` and `#747d89`) after a device test showed them unreadable on a bright sky. Text drawn straight on the 3D scene is also held up by the top scrim and a text shadow, see "Text on the scene" below.
 
 ## Typography
 
@@ -100,6 +100,26 @@ The HUD uses no blur and no glow. The `.wl-glass` component class is a flat tran
 
 **Day and night.** The riding screen works out how much daylight there is from the sun's elevation at the rider's position and the time (see [ARCHITECTURE.md](ARCHITECTURE.md), "Day and night") and sets two CSS variables on its root: `--wl-daylight`, from 0 (dark) to 1 (full day), and `--wl-warmth`, from 0 to 1, which peaks when the sun is at the horizon. The factor rises smoothly from a sun elevation of -6 degrees (end of civil twilight) to +6 degrees (top of golden hour), so nothing switches at a fixed hour and a sunrise or sunset fades over about 25 minutes. In CSS, `[data-daylight]` sets `--wl-panel` to a `color-mix` of `glassDay` and `glassNight` weighted by `--wl-daylight`: panels are more solid in sunlight (94 percent), a little more see-through at night (78 percent), and in between at dawn and dusk (about 86 percent at sunrise). Browsers without `color-mix` fall back to `data-daylight="true"` or `"false"` and the two fixed fills. The placeholder scene gradient is tinted the same way, a touch lighter and bluer in the day and warmer at the bottom around sunrise and sunset. That tint is a stand in for the 3D lighting of task 8, which reads the same values from `useDaylight()`.
 
+## Text on the scene
+
+The speed, turn, time and temperature are bare text on the 3D scene, which can be a bright blue sky or sunlit pale ground. Three flat, cheap measures keep them readable. There is no blur and no filter, so they cost almost nothing on a mid range phone.
+
+| Token | CSS variable | Value | Use |
+|---|---|---|---|
+| `scrim.night` | `--wl-scrim-night` | `0.35` | Strength of the top scrim in the dark |
+| `scrim.day` | `--wl-scrim-day` | `0.75` | Strength in full daylight |
+| `scrim.solid` | `--wl-scrim-solid` | `46dvh` | The scrim is at full strength down to here |
+| `scrim.fade` | `--wl-scrim-fade` | `60dvh` | and fades to nothing here |
+| `shadow.text` | `--wl-shadow-text` | `0 1px 2px rgba(0, 0, 0, 0.85), 0 0 6px rgba(0, 0, 0, 0.55)` | A tight dark outline plus a soft halo on text over the scene |
+
+- **The scrim** (`.wl-scrim`, one element between the scene and the HUD) is a linear gradient from the `night950` colour to transparent behind the top of the screen. Its strength is `night + (day - night) * --wl-daylight`, so it is faintest in the dark and strongest in full sun, and it follows the sun through dawn and dusk. It is solid down to 46 percent of the screen height because the speed unit and GPS label sit at 41 to 44 percent. It passes touches through.
+- **The shadow** (`.wl-hud-text`) is on the top left navigation text and the top right status text. It is never used on panels.
+- **Contrast.** `apps/web/src/hud/contrast.test.ts` computes the WCAG ratio of every piece of top text, at its lowest edge, behind the scrim, against the day palette and sky colours from the scene lighting, a pale sunlit photographic ground, pure white and a cyan edge glow at night. Small text must reach 4.5:1 and large text (the speed and the turn distance) 3:1. The ground sample is an assumed worst case, and has not been measured on a real Google tile screenshot.
+
+## Futuristic look
+
+The 3D scene has a screen space colour grade and edge glow (see [ARCHITECTURE.md](ARCHITECTURE.md), "Visual effects and the Google terms"). It keeps the palette: deep navy and teal, controlled contrast, slight desaturation, with the cyan accent as the edge glow and nothing else coloured. Day is cooler and cleaner, sunset a warm magenta to cyan split tone, night deep blue with glowing cyan edges. It is a HUD-free effect on the scene only, the HUD palette does not change. Original screenshots from the procedural preview scene (not Google tiles): [noon](images/fx-preview-noon.png), [sunset](images/fx-preview-sunset.png), [night](images/fx-preview-night.png) and [night with the effect off](images/fx-preview-night-off.png).
+
 ## Motion
 
 | Token | Value | Use |
@@ -121,7 +141,7 @@ Built in `apps/web/src/app/ride/page.tsx` and `apps/web/src/hud/`. The scene fil
 |---|---|
 | Top left, no card | The vehicle speed as a bare, very large number (the biggest element, digits about 30 percent of the screen height). Under it, small: `km/h` and `GPS 17`, the GPS speed shown separately. Beside it: the next turn arrow, the distance to the turn in large type, the street instruction, then a smaller grey `9 min · 2.4 km` (time and distance left) and a small `Arrive 14:35` |
 | Top right | Local time and temperature (mock weather) as plain text, a small connectivity dot (green online, amber offline), and a round plain SVG minimap about 84 px across at 800 wide: route line, position dot and a heading cone. No tiles and no map data |
-| Centre | Clear for the 3D scene. A dark gradient until task 8. The start prompt appears low in the clear middle before a trip, and the dev controls (development and `?dev=1` only) sit below it. They are always one row of 44 px buttons, so nothing overlaps at any landscape size, and the Time button swaps that row for the time override page (Back, Live, Dawn, Noon, Sunset, Night, a time slider and a date field) |
+| Centre | Clear for the 3D scene. A dark gradient until task 8. The start prompt (the Start trip button, a "Light follows my clock" or "Real sun at the route" switch beside it, and a caption) appears low in the clear middle before a trip, and the dev controls (development and `?dev=1` only) sit below it. They are always one row of 44 px buttons, so nothing overlaps at any landscape size, and the Time button swaps that row for the time override page (Back, Live, Dawn, Noon, Sunset, Night, a time slider and a date field) |
 | Dock | One joined glass dock, 20 px corners, sized to its content and centred at the bottom with margin on both sides (never wider than 80 percent of the screen, or 42rem on small phones where the content needs it), with a hairline divider between two halves. Left: artwork tile, title and artist, previous, play or pause, next, and a thin progress line along the bottom of the half. Right: battery icon and percent, range, trip distance and time (`3.2 km · 12:40`), and End trip at the far right |
 | Credits strip | The reserved credits row below the dock: a darker band that nothing overlaps, holds the scene's attributions: the Google logo, data credits and Cesium ion logo with CesiumJS, or OpenFreeMap, OpenMapTiles and OpenStreetMap contributors with the fallback. The scene renders them into the strip and the HUD never covers it. Its minimum height follows the screen height (`clamp(1.5rem, 6.5dvh, 2rem)`) and grows with its content. A faint placeholder label shows only in development or with `?dev=1`, until the scene is ready |
 
@@ -135,7 +155,7 @@ Rules for this screen:
 - **Missing data shows dashes**, never zero. An amber note with a small icon under the speed says when GPS is standing in for the scooter, and the GPS speed label turns amber.
 - **Plain text, no cards.** The speed, turn, time and temperature have no panel behind them. Only the dock, the minimap and the dev controls are panels.
 - **Minimap.** Plain drawn route only. While riding it follows the rider with the heading up, shows a clear heading cone (a 34 unit wedge opening 32 degrees either side, a gradient fill from 80 to 20 percent cyan with an outline), and a small N on the rim. Before and after a trip it shows the whole route inside the circle, north up.
-- **Contrast.** The speed uses `text` (17.8:1 on `night-950`). The dock is more solid in daylight and fades smoothly with the sun. Sunlight readability on a real screen has not been tested yet, so the day fill is a first guess.
+- **Contrast.** The speed uses `text` (17.8:1 on `night-950`). The top text sits on the daylight driven scrim with a text shadow (see "Text on the scene"). The dock is more solid in daylight and fades smoothly with the sun. Sunlight readability on a real screen still needs a check on the phone.
 - **Fluid type.** Sizes use `clamp` with `dvh` and `vw` (see Typography). The dock values also scale with width, because the dock is the tightest row. The dock is sized to its content. The track title block has a fixed fluid width (about 15 percent of the screen width, at least 7.75 rem), so the dock does not change width from track to track, and at 667 by 375 the longest mock title still fits whole and a long artist line ends in an ellipsis. Neither pushes the media buttons or End trip off the screen, and nothing else clips.
 - **Reduced motion.** See hold feedback above. The offline pulse stops. Nothing else on this screen animates.
 - **Copy.** Sentence case, no emoji, no em dashes. Speed in km/h, distances under 1 km in metres rounded to 10 m, longer ones in km with one decimal, 24 hour time.
