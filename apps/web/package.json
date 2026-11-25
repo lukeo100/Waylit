@@ -13,10 +13,12 @@
     "typecheck": "next typegen && tsc --noEmit"
   },
   "dependencies": {
+    "@cesium/engine": "26.5.0",
     "@waylit/core": "workspace:*",
     "@waylit/map-provider": "workspace:*",
     "@waylit/ui-tokens": "workspace:*",
     "@waylit/vehicle": "workspace:*",
+    "maplibre-gl": "6.19.0",
     "next": "16.4.6",
     "react": "19.3.1",
     "react-dom": "19.3.1"
