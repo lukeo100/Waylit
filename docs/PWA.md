@@ -120,6 +120,8 @@ Build assets have content hashes in their names, so a saved copy is always the r
 
 `SafetyNotice` (root layout) shows once: Waylit is a navigation aid, not a safety system, follow local road rules, do not interact with the screen while riding, provided without warranty. The acknowledgement is stored in `localStorage` under `waylit:safety-notice-ack:v1`. Storage access is wrapped in try and catch. If storage is blocked, the notice is not shown again for the rest of that page session and nothing throws. Change the version suffix in the key if the wording changes enough that riders should read it again.
 
+The map settings (which map, how strong the hologram screen effect) are stored the same way under `waylit:map-settings:v1`, also inside try and catch. They are preferences only, so blocked storage means they are not remembered. The service worker and its caches are not affected: the map switch adds no files and no network requests of its own.
+
 ## Limits of a PWA
 
 Plan later phases around these.

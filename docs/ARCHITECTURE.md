@@ -199,6 +199,25 @@ apps/web/src/map/beacon-label.ts            DOM label for the turn beacon, clamp
 - **Beacon label.** A DOM element in `.wl-scene-overlay` inside the scene element (never in the credits strip), placed from the beacon's projected screen point and clamped to 10 to 90 percent across and 28 to 62 percent down the scene (`LABEL_BOUNDS`; the top limit keeps it below the top HUD).
 - **Not verified.** The previews run on procedural scenes under SwiftShader. The look on real Google tiles, `ClassificationPrimitive` on glTF reality mesh tiles and the frame rate on a Samsung A35 are not yet verified.
 
+### Map settings (map switch)
+
+A round 44 pixel button beside the minimap opens a small settings sheet with two choices: the **Map** (Google 3D tiles or the fallback map) and the **Hologram screen effect** (Off, Low, High).
+
+```
+apps/web/src/map/map-settings.ts        settings type, storage, store, the model the sheet shows
+apps/web/src/hud/MapSettings.tsx        the button (hold to press) and the sheet
+packages/map-provider/src/options.ts    selectProvider(preference), resolveTuning(storedFx)
+```
+
+- **Order of precedence.** The address (`?map=`, `?fx=`) wins, then the rider's saved choice, then the defaults (fallback in development, Google in production with a token, effect off on Google tiles and high on the fallback). A choice the address has made is shown as locked with a short note.
+- **Persistence.** One JSON value in localStorage under `waylit:map-settings:v1`, read and written inside try and catch, so a blocked store only means the choice is not remembered. Unknown values are dropped.
+- **Switching the map.** A new map choice starts a fresh `MapSceneController`, which runs the same selection and the same one-shot fallback to MapLibre with the amber note as at the start. The saved choice stays "Google" if Cesium failed, so the next visit tries again (as a reload does). An explicit choice of Google is honoured in development too.
+- **Switching the effect.** On a running Google scene `CesiumGoogleProvider.setFxLevel` changes the post process, the tile tint and the adaptive governor in place, so it does not start Google tiles again and costs no Cesium ion root request. On the fallback the scene starts again (the style is rebuilt), which costs nothing. A saved level counts as chosen, so the effect step down leaves it alone while the hologram detail step down still works.
+- **Quota.** The sheet says that Google 3D tiles use Cesium ion requests (about 1,000 root requests per month on the Community plan) and that each switch to Google uses one.
+- **No token.** The Google option is disabled with a plain sentence (this build has no Cesium ion token, so the fallback map is used). It is not an error and nothing is logged.
+- **Hold to press.** The button is a `HoldButton`: above the speed guard (8 km/h) it needs the same 600 ms hold as the media buttons, with the ring. The sheet closes by itself the moment the guard turns on. Inside the sheet the choices are plain buttons, at least 44 pixels tall, because the sheet can only be open when the guard is off.
+- **Layout.** The button sits in the right column beside the minimap and adds no height there. The sheet is a fixed panel on the right, at most 36 percent of the width, that stops above the credits strip (`--wl-credits-clearance`). `apps/web/scripts/layout-check.mjs` checks the button size, that the open sheet never covers the credits strip, and that it does not overlap the speed or turn text.
+
 ### Static assets and caching
 
 CesiumJS needs its workers and assets served as files. `apps/web/scripts/copy-map-assets.mjs` copies them from `@cesium/engine` into `apps/web/public/cesium` and the MapLibre worker into `apps/web/public/maplibre` before `dev` and `build`. Those folders are ignored by git. The app sets `CESIUM_BASE_URL` to `/cesium/`. The service worker bypasses `/cesium/`, `/maplibre/` and every cross origin request, so Google, Cesium ion, OpenFreeMap and Mapterhorn tiles are never cached by Waylit. No content security policy is shipped by the app. If you add one, allow the hosts listed in [DEPLOYING.md](DEPLOYING.md).

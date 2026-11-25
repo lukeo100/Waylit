@@ -104,6 +104,7 @@ Which provider runs on a page load:
 | Token, production build | CesiumJS |
 | Token, development build (`pnpm dev`) | Fallback, to save the allowance. Add `?map=cesium` to the address to use CesiumJS |
 | `?map=fallback` | Fallback, on any build |
+| Map button choice (saved on the device) | Used when the address has no `?map=`. Without a token the fallback runs and the Google option is disabled. Each switch to Google uses one Cesium ion root request |
 
 ### Terms, plans and limits you take on
 

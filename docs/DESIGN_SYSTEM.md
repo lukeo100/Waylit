@@ -133,6 +133,10 @@ The route is drawn as a hologram with one cyan accent. Amber and red are kept fo
 
 The ribbon is 3.4 m wide with 0.22 m rails. Chevrons float ahead of the rider and bend toward the next turn. The turn beacon is a vertical column with a pill label that shows the turn arrow, the distance countdown (for example "120 m") and a smaller unit, with a brighter tone when the turn is imminent. The rider is a scanline silhouette on an original stylised kick scooter with a ring and cone heading marker at the base. A single scan band sweeps up the scene every 9 seconds (the fallback DOM band is hidden with reduced motion). The label sits in `.wl-scene-overlay` inside the scene, so it never covers the credits strip. Original screenshots from the procedural preview: [MapLibre night](images/holo-preview-maplibre-night.png) and [CesiumJS night](images/holo-preview-cesium-night.png).
 
+## Map settings
+
+A quiet round control (44 pixels, a stacked layers icon, glass border) sits beside the minimap and turns cyan while its sheet is open. The sheet is the same dark glass as the dock, with two exclusive rows of 44 pixel choices: the checked one has a cyan border, a faint cyan fill and cyan text, the others are quiet grey. A disabled choice is dimmed and its reason is written under the row in muted text, never in red or amber, because having no token or an address override is not a fault. Above 8 km/h the button shows the hold ring like every other guarded control, and the sheet closes by itself. Screenshot from the procedural preview: [map settings sheet](images/map-settings-sheet-915x412.png).
+
 ## Motion
 
 | Token | Value | Use |
