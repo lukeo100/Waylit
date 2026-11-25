@@ -80,9 +80,17 @@ describe("selectProvider", () => {
 
 describe("resolveTuning", () => {
   it("returns the defaults when overrides are not allowed", () => {
-    expect(resolveTuning("cesium-google", "?sse=99&dpr=3&fps=60&ground=500", false)).toBe(
+    expect(resolveTuning("cesium-google", "?sse=99&dpr=3&fps=60&ground=500", false)).toEqual(
       DEFAULT_TUNING["cesium-google"],
     );
+  });
+
+  it("takes the effect level from the address in every build, and pins it", () => {
+    const tuned = resolveTuning("cesium-google", "?fx=low", false);
+    expect(tuned.fxLevel).toBe("low");
+    expect(tuned.fxPinned).toBe(true);
+    expect(resolveTuning("maplibre-fallback", "", false).fxPinned).toBe(false);
+    expect(resolveTuning("maplibre-fallback", "?fx=off", false).fxLevel).toBe("off");
   });
 
   it("applies and clamps overrides when allowed", () => {

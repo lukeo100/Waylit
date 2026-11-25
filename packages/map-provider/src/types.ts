@@ -113,6 +113,8 @@ export interface ProviderDiagnostics {
   /** Cesium ion root tileset requests made by this page since it loaded. */
   readonly rootRequests?: number;
   readonly detail?: string;
+  /** The futuristic effect level in use now: off, low or high (see fx.ts). */
+  readonly fxLevel?: string;
 }
 
 /** Frame timing over the last minute, in frames per second and milliseconds. */

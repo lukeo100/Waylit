@@ -48,3 +48,15 @@ export {
   constantGroundHeight,
 } from "./ground-height";
 export type { GroundHeightSource } from "./ground-height";
+export {
+  FX_LEVELS,
+  FX_OFF,
+  FxGovernor,
+  GOOGLE_FX_ON_BY_DEFAULT,
+  cheaperLevel,
+  fxLevelIsPinned,
+  fxParameters,
+  gradePalette,
+  resolveFxLevel,
+} from "./fx";
+export type { FxLevel, FxParameters } from "./fx";

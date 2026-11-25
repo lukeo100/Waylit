@@ -49,6 +49,7 @@ export function MapStats({
         if (diag.memoryMegabytes !== undefined)
           counts.push(`${diag.memoryMegabytes.toFixed(0)} MB`);
         if (diag.rootRequests !== undefined) counts.push(`${String(diag.rootRequests)} root`);
+        if (diag.fxLevel !== undefined) rows.push(`fx ${diag.fxLevel}`);
         if (counts.length > 0) rows.push(counts.join(" | "));
       }
       rows.push(

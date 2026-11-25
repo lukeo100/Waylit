@@ -1,3 +1,4 @@
+import { fxLevelIsPinned, resolveFxLevel, type FxLevel } from "./fx";
 import { readQuery } from "./query";
 import type { ProviderId } from "./types";
 
@@ -89,6 +90,10 @@ export interface RenderTuning {
    * must not read heights from their own content. Undefined means use the route's own value.
    */
   readonly groundHeightEllipsoidMetres: number | undefined;
+  /** The futuristic effect level to start at (`?fx=off`, `?fx=low`, `?fx=high`, see fx.ts). */
+  readonly fxLevel: FxLevel;
+  /** True when the address picked the level, so the adaptive governor leaves it alone. */
+  readonly fxPinned: boolean;
 }
 
 const MIB = 1024 * 1024;
@@ -105,6 +110,8 @@ export const DEFAULT_TUNING: Readonly<Record<ProviderId, RenderTuning>> = {
     terrain: false,
     debugMarker: false,
     groundHeightEllipsoidMetres: undefined,
+    fxLevel: resolveFxLevel("", "cesium-google"),
+    fxPinned: false,
   },
   "maplibre-fallback": {
     pixelRatioCap: 2,
@@ -117,6 +124,8 @@ export const DEFAULT_TUNING: Readonly<Record<ProviderId, RenderTuning>> = {
     terrain: true,
     debugMarker: false,
     groundHeightEllipsoidMetres: undefined,
+    fxLevel: resolveFxLevel("", "maplibre-fallback"),
+    fxPinned: false,
   },
 };
 
@@ -137,7 +146,8 @@ function numberParam(
  * The tuning for a provider. When `allowOverrides` is true (development builds and `?dev=1`),
  * the address can adjust it for testing on a device: `sse` (screen space error, 4 to 128),
  * `dpr` (pixel ratio cap, 0.5 to 3), `fps` (5 to 60), `ground` (ground height above the
- * ellipsoid in metres, -100 to 3000), `terrain` (0 or 1) and `marker` (1). Values are clamped,
+ * ellipsoid in metres, -100 to 3000), `terrain` (0 or 1) and `marker` (1). `fx` (off, low or high)
+ * works in every build. Values are clamped,
  * and anything that is not a number is ignored.
  */
 export function resolveTuning(
@@ -145,7 +155,12 @@ export function resolveTuning(
   search: string,
   allowOverrides: boolean,
 ): RenderTuning {
-  const base = DEFAULT_TUNING[id];
+  // The effect level can be chosen from the address anywhere, not only in development.
+  const fx = {
+    fxLevel: resolveFxLevel(search, id),
+    fxPinned: fxLevelIsPinned(search),
+  };
+  const base = { ...DEFAULT_TUNING[id], ...fx };
   if (!allowOverrides) return base;
   const params = readQuery(search);
   const sse = numberParam(params, "sse", 4, 128);

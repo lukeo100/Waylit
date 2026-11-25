@@ -7,6 +7,7 @@ import {
 } from "maplibre-gl";
 import {
   effectivePixelRatio,
+  gradePalette,
   lightingParameters,
   type CameraPose,
   type LightingParameters,
@@ -90,7 +91,7 @@ export class MapLibreFallbackProvider extends BaseProvider {
     this.emitStatus({ state: "loading" });
     try {
       const startLighting: SceneLighting = this.initialLighting ?? NIGHT_LIGHTING;
-      const params = lightingParameters(startLighting);
+      const params = this.gradedParameters(startLighting);
       this.lastLightKey = params.key;
       const style: StyleSpecification = buildFallbackStyle(params, {
         terrain: this.tuning.terrain,
@@ -166,8 +167,20 @@ export class MapLibreFallbackProvider extends BaseProvider {
     if (!this.running) this.applyPose();
   }
 
-  setLighting(lighting: SceneLighting): void {
+  /**
+   * The lighting parameters with the style colours graded for the futuristic look (deep navy and
+   * teal, cyan lifted roads at night), at the level from the address. Colours only, so it costs
+   * nothing per frame. See `gradePalette` and docs/ARCHITECTURE.md.
+   */
+  private gradedParameters(lighting: SceneLighting): LightingParameters {
     const params = lightingParameters(lighting);
+    const level = this.tuning.fxLevel;
+    if (level === "off") return params;
+    return { ...params, palette: gradePalette(params.palette, lighting, level) };
+  }
+
+  setLighting(lighting: SceneLighting): void {
+    const params = this.gradedParameters(lighting);
     if (params.key === this.lastLightKey) return;
     this.lastLightKey = params.key;
     if (this.map && this.styleReady) this.paint(params);
@@ -178,6 +191,7 @@ export class MapLibreFallbackProvider extends BaseProvider {
     const map = this.map;
     return {
       requests: this.requestCount,
+      fxLevel: this.tuning.fxLevel,
       detail: map
         ? `${map.loaded() ? "loaded" : "loading"}, zoom ${map.getZoom().toFixed(1)}, ${this.tuning.terrain ? "terrain" : "flat"}`
         : "starting",

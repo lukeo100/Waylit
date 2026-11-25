@@ -24,6 +24,7 @@ import {
 import {
   DEMO_ROUTE_GROUND_ELLIPSOID_METRES,
   constantGroundHeight,
+  FxGovernor,
   effectivePixelRatio,
   lightingParameters,
   longSideFovDegrees,
@@ -31,6 +32,7 @@ import {
   type GroundHeightSource,
   type ProviderAttribution,
   type ProviderCapabilities,
+  type ProviderActivity,
   type ProviderDiagnostics,
   type ProviderMountTarget,
   type RenderTuning,
@@ -39,6 +41,7 @@ import {
 import { BaseProvider } from "./base-provider";
 import { setCesiumBaseUrl } from "./cesium-setup";
 import { watchCreditsFit } from "./credits-fit-dom";
+import { CesiumFx } from "./fx-stage";
 import { classifyFailure } from "./errors";
 
 /**
@@ -95,6 +98,10 @@ export class CesiumGoogleProvider extends BaseProvider {
   private widget: CesiumWidget | undefined;
   private tileset: Cesium3DTileset | undefined;
   private shader: CustomShader | undefined;
+  private fx: CesiumFx | undefined;
+  private governor: FxGovernor | undefined;
+  private lastFxCheckMs = 0;
+  private lastLighting: SceneLighting | undefined;
   private marker: PointPrimitive | undefined;
   private lastLightKey: string | undefined;
   private pendingLighting: SceneLighting | undefined;
@@ -162,7 +169,9 @@ export class CesiumGoogleProvider extends BaseProvider {
         this.emitFrame(performance.now());
       };
       const postRender = (): void => {
-        this.stats.record(performance.now());
+        const now = performance.now();
+        this.stats.record(now);
+        this.adaptEffect(now);
       };
       const renderError = (): void => {
         this.stopRendering();
@@ -176,6 +185,13 @@ export class CesiumGoogleProvider extends BaseProvider {
         () => scene.postRender.removeEventListener(postRender),
         () => scene.renderError.removeEventListener(renderError),
       );
+
+      // The futuristic post process: one full screen pass, colour only. It starts at the level
+      // from the address or the default and steps down on its own if the frame rate is low.
+      this.fx = new CesiumFx(scene, this.tuning.fxLevel);
+      this.governor = new FxGovernor(this.tuning.fxLevel);
+      if (this.lastLighting) this.fx.setLighting(this.lastLighting);
+      this.removeListeners.push(() => this.fx?.destroy());
 
       this.watchVisibility();
 
@@ -205,10 +221,18 @@ export class CesiumGoogleProvider extends BaseProvider {
       // The tiles carry baked daylight. A tint multiplies it, so the scene can go dark at night.
       this.shader = new CustomShader({
         lightingModel: LightingModel.UNLIT,
-        uniforms: { u_tint: { type: UniformType.VEC3, value: new Cartesian3(1, 1, 1) } },
+        uniforms: {
+          u_tint: { type: UniformType.VEC3, value: new Cartesian3(1, 1, 1) },
+          // A faint warm lift on the brightest surfaces at night (pale roads and walls), so the
+          // dark scene keeps a street light feel. Zero by day. Colour only, from the tile's own
+          // colour, nothing about its shape or height.
+          u_lamp: { type: UniformType.VEC3, value: new Cartesian3(0, 0, 0) },
+        },
         fragmentShaderText: `
           void fragmentMain(FragmentInput fsInput, inout czm_modelMaterial material) {
-            material.diffuse = material.diffuse * u_tint;
+            vec3 photo = material.diffuse;
+            float bright = dot(photo, vec3(0.2126, 0.7152, 0.0722));
+            material.diffuse = photo * u_tint + u_lamp * bright * bright * bright;
           }`,
       });
       tileset.customShader = this.shader;
@@ -297,6 +321,8 @@ export class CesiumGoogleProvider extends BaseProvider {
   setLighting(lighting: SceneLighting): void {
     const widget = this.widget;
     const shader = this.shader;
+    this.lastLighting = lighting;
+    this.fx?.setLighting(lighting);
     if (!widget || !shader || widget.isDestroyed()) {
       this.pendingLighting = lighting;
       return;
@@ -317,11 +343,14 @@ export class CesiumGoogleProvider extends BaseProvider {
       atmosphere.saturationShift = -0.3 * dark;
     }
     shader.setUniform("u_tint", new Cartesian3(params.tint[0], params.tint[1], params.tint[2]));
+    // Warm street light lift, only once it is properly dark.
+    const night = (1 - Math.min(1, Math.max(0, lighting.daylightFactor))) ** 2;
+    shader.setUniform("u_lamp", new Cartesian3(0.62 * night, 0.44 * night, 0.21 * night));
   }
 
   getDiagnostics(): ProviderDiagnostics {
     const tileset = this.tileset;
-    const base = { rootRequests };
+    const base = { rootRequests, fxLevel: this.fx?.currentLevel ?? "off" };
     if (!tileset || tileset.isDestroyed()) return base;
     // Tileset statistics are marked private in the typings. They are read only, for the dev
     // overlay, and hold counts and byte sizes, not positions or heights.
@@ -334,17 +363,27 @@ export class CesiumGoogleProvider extends BaseProvider {
       requests: s.numberOfAttemptedRequests,
       memoryMegabytes: tileset.totalMemoryUsageInBytes / (1024 * 1024),
       detail: `sse ${String(this.tuning.maximumScreenSpaceError)}, asset ${String(ION_GOOGLE_ASSET_ID)}`,
+      fxLevel: this.fx?.currentLevel ?? "off",
     };
+  }
+
+  override setActivity(activity: ProviderActivity): void {
+    // A new ride is judged afresh, and the start screen's slow frame rate never counts.
+    if (activity === "riding" && this.activity !== "riding") this.governor?.reset();
+    super.setActivity(activity);
   }
 
   protected startRendering(): void {
     const widget = this.widget;
     if (widget && !widget.isDestroyed()) widget.useDefaultRenderLoop = true;
+    this.fx?.setSuspended(false);
   }
 
   protected stopRendering(): void {
     const widget = this.widget;
     if (widget && !widget.isDestroyed()) widget.useDefaultRenderLoop = false;
+    // A hidden tab or a finished ride runs no effect.
+    this.fx?.setSuspended(true);
   }
 
   protected applyFrameRate(fps: number): void {
@@ -361,6 +400,22 @@ export class CesiumGoogleProvider extends BaseProvider {
     this.shader = undefined;
     this.marker = undefined;
     if (widget && !widget.isDestroyed()) widget.destroy();
+  }
+
+  /**
+   * Steps the effect down (high, low, off) when the median frame rate while riding is below
+   * 30 fps. Skipped when the address pinned a level. See `FxGovernor`.
+   */
+  private adaptEffect(nowMs: number): void {
+    const governor = this.governor;
+    const fx = this.fx;
+    if (!governor || !fx || this.tuning.fxPinned || this.activity !== "riding") return;
+    if (governor.level === "off") return;
+    governor.recordFrame(nowMs);
+    if (nowMs - this.lastFxCheckMs < 1000) return;
+    this.lastFxCheckMs = nowMs;
+    const next = governor.evaluate(nowMs);
+    if (next !== undefined) fx.setLevel(next);
   }
 
   private fail(error: unknown, kind?: "network" | "render") {

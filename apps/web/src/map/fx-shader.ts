@@ -1,0 +1,149 @@
+import type { FxParameters } from "@waylit/map-provider";
+
+/**
+ * The GLSL for the futuristic post process, and the packing of its uniforms. Original code,
+ * written for Waylit. It runs as ONE full screen pass in CesiumJS (a `PostProcessStage`).
+ *
+ * Hard rules this file keeps (see docs/ARCHITECTURE.md, "Visual effects and the Google terms"):
+ *
+ *  - COLOUR ONLY. The only input is `colorTexture`, the picture rendered so far. There is no
+ *    `depthTexture`, no `czm_idTexture`, no picking and no depth based fog or edges, so nothing
+ *    is ever read about the height or shape of the Google tiles. The edge glow is a Sobel filter
+ *    on the picture's luminance, which finds edges in the colours, not in the geometry.
+ *  - It is a few texture reads: 3 in the cheap variant (the pixel and two neighbours) and 9 in
+ *    the full one (the pixel and its eight neighbours). Everything else is arithmetic on screen
+ *    coordinates.
+ *  - It never touches the credits strip or the Google and Cesium logos: those are DOM elements
+ *    outside the canvas, so a post process on the canvas cannot reach them.
+ *
+ * The look, in order: a colour grade (slight desaturation, controlled contrast, deep navy darks
+ * and cool lights, a warm magenta to cyan split at sunset), a cyan edge glow that traces the
+ * edges of buildings and roads and is strongest at night, a horizon haze band, a vignette and a
+ * very faint scanline shimmer. Strengths all come from `fxParameters` (the daylight state).
+ */
+
+/** The names of the uniforms the shader reads. */
+export const FX_UNIFORMS = [
+  "u_grade",
+  "u_shadow",
+  "u_highlight",
+  "u_edge",
+  "u_edgeControl",
+  "u_haze",
+] as const;
+
+export type FxUniformName = (typeof FX_UNIFORMS)[number];
+
+/** The uniform values as plain arrays, ready for `Cartesian4` or `Cartesian3`. */
+export type PackedFxUniforms = Readonly<Record<FxUniformName, readonly number[]>>;
+
+/** Packs the parameters into the shader's vectors. */
+export function packFxUniforms(p: FxParameters): PackedFxUniforms {
+  return {
+    // gradeMix, saturation, contrast, vignette
+    u_grade: [p.gradeMix, p.saturation, p.contrast, p.vignette],
+    // shadow tone rgb, haze strength
+    u_shadow: [...p.shadowTone, p.hazeStrength],
+    // highlight tone rgb, scanline strength
+    u_highlight: [...p.highlightTone, p.scanline],
+    // edge colour rgb, edge strength
+    u_edge: [...p.edgeColour, p.edgeStrength],
+    // edge gain, edge threshold, horizon height on screen, haze half width
+    u_edgeControl: [p.edgeGain, p.edgeThreshold, p.horizonY, p.hazeWidth],
+    u_haze: [...p.hazeColour],
+  };
+}
+
+/** The extra texture reads in the edge detector for a variant: 2 (cheap) or 8 (full). */
+const EDGE_READS = { 1: 2, 2: 8 } as const;
+
+const HEADER = `
+uniform sampler2D colorTexture;
+uniform vec2 colorTextureDimensions;
+uniform vec4 u_grade;
+uniform vec4 u_shadow;
+uniform vec4 u_highlight;
+uniform vec4 u_edge;
+uniform vec4 u_edgeControl;
+uniform vec3 u_haze;
+in vec2 v_textureCoordinates;
+
+float luma(vec3 c) {
+  return dot(c, vec3(0.2126, 0.7152, 0.0722));
+}
+`;
+
+/** Edge signal from the pixel and one step right and up: two extra reads, cheap. */
+const EDGE_CHEAP = `
+  vec2 px = 1.0 / colorTextureDimensions;
+  float lRight = luma(texture(colorTexture, uv + vec2(px.x, 0.0)).rgb);
+  float lUp = luma(texture(colorTexture, uv + vec2(0.0, px.y)).rgb);
+  float magnitude = length(vec2(lRight - l, lUp - l)) * 0.7;
+`;
+
+/** Sobel on luminance, eight extra reads. */
+const EDGE_SOBEL = `
+  vec2 px = 1.0 / colorTextureDimensions;
+  float tl = luma(texture(colorTexture, uv + vec2(-px.x,  px.y)).rgb);
+  float tc = luma(texture(colorTexture, uv + vec2( 0.0,   px.y)).rgb);
+  float tr = luma(texture(colorTexture, uv + vec2( px.x,  px.y)).rgb);
+  float ml = luma(texture(colorTexture, uv + vec2(-px.x,  0.0)).rgb);
+  float mr = luma(texture(colorTexture, uv + vec2( px.x,  0.0)).rgb);
+  float bl = luma(texture(colorTexture, uv + vec2(-px.x, -px.y)).rgb);
+  float bc = luma(texture(colorTexture, uv + vec2( 0.0,  -px.y)).rgb);
+  float br = luma(texture(colorTexture, uv + vec2( px.x, -px.y)).rgb);
+  float gx = (tr + 2.0 * mr + br) - (tl + 2.0 * ml + bl);
+  float gy = (tl + 2.0 * tc + tr) - (bl + 2.0 * bc + br);
+  float magnitude = length(vec2(gx, gy)) * 0.25;
+`;
+
+/**
+ * The fragment shader for a variant: 1 is the cheap one, 2 is the full one with the Sobel edge
+ * detector and the scanline. Variant 0 (off) has no shader because the stage is not added.
+ */
+export function fxFragmentShader(variant: 1 | 2): string {
+  const edges = variant === 2 ? EDGE_SOBEL : EDGE_CHEAP;
+  const scan =
+    variant === 2
+      ? `
+  // Faint scanline shimmer: a very slow, very low contrast stripe every three pixels.
+  float stripe = 0.5 + 0.5 * sin(gl_FragCoord.y * 2.0944);
+  c *= 1.0 - u_highlight.w * stripe;`
+      : "";
+  return `${HEADER}
+void main() {
+  vec2 uv = v_textureCoordinates;
+  vec4 source = texture(colorTexture, uv);
+  vec3 c = source.rgb;
+  float l = luma(c);
+
+  // 1. Colour grade: less saturated, more contrast, navy darks, cool lights.
+  vec3 g = mix(vec3(l), c, u_grade.y);
+  g = (g - 0.5) * u_grade.z + 0.5;
+  float lg = clamp(luma(g), 0.0, 1.0);
+  g = g * mix(vec3(1.0), u_highlight.rgb, lg) + u_shadow.rgb * (1.0 - lg);
+  c = mix(c, g, u_grade.x);
+
+  // 2. Cyan edge glow from the luminance edges of the picture.
+${edges}
+  float edge = smoothstep(u_edgeControl.y, u_edgeControl.y + 0.14, magnitude * u_edgeControl.x);
+  c += u_edge.rgb * edge * u_edge.w;
+
+  // 3. Horizon haze: a soft band at the horizon, from screen height only.
+  float band = (uv.y - u_edgeControl.z) / u_edgeControl.w;
+  c = mix(c, u_haze, exp(-band * band) * u_shadow.w);
+
+  // 4. Vignette, from the distance to the middle of the screen.
+  float edgeDistance = length((uv - 0.5) * vec2(1.0, 0.85));
+  c *= 1.0 - u_grade.w * smoothstep(0.3, 0.85, edgeDistance);
+${scan}
+
+  out_FragColor = vec4(clamp(c, 0.0, 1.0), source.a);
+}
+`;
+}
+
+/** How many `texture(` reads a variant makes per pixel, counting the pixel itself. */
+export function textureReadsFor(variant: 1 | 2): number {
+  return 1 + EDGE_READS[variant];
+}
