@@ -9,7 +9,7 @@ The tokens live in [`packages/ui-tokens`](../packages/ui-tokens). `src/tokens.ts
 1. **The world leads, the HUD supports.** The scene is the whole screen. The HUD is bare text and a few flat panels. If something competes with the road, make it smaller or quieter.
 2. **Glanceable first.** The vehicle speed is the biggest thing on the screen, set as a bare number with tight letter spacing. Distance to the next turn is next. Secondary text is smaller and in muted grey.
 3. **One accent.** Soft cyan (`cyan`, `#5fc8e8`) is the only accent: the route on the minimap, progress, active states and the heading. It is never used as decoration.
-4. **Colour has a job.** Amber is only for caution, offline and fallback notes. Red is only for End trip, as a dark red fill, a muted red outline and soft red text. Green is only the small online dot.
+4. **Colour has a job.** Amber is only for caution: offline, low battery and the safety notice. A lost scooter link is not amber, it is a quiet grey note with a small cyan icon. Red is only for End trip, as a dark red fill, a muted red outline and soft red text. Green is only the small online dot.
 5. **No glow, no heavy blur.** HUD panels are flat, about 85 percent opaque, with a hairline border and no backdrop blur, so they stay cheap on a mid-range phone. Glow tokens are kept for the 3D scene's route and heading marker, and for the keyboard focus ring.
 6. **Large targets.** Anything touchable is at least 44 by 44 pixels (`touch.min`).
 7. **Respect reduced motion.** Ambient animation stops under `prefers-reduced-motion`. Motion that answers a rider's action may stay but should be short, and feedback must never depend on it.
@@ -28,7 +28,7 @@ The tokens live in [`packages/ui-tokens`](../packages/ui-tokens). `src/tokens.ts
 | `text` | `--wl-color-text` | `text` | `#eef1f4` | Primary text and the speed number |
 | `textSecondary` | `--wl-color-text-secondary` | `text-secondary` | `#a4acb7` | Labels, street instruction |
 | `textMuted` | `--wl-color-text-muted` | `text-muted` | `#747d89` | Time and distance left, hints |
-| `caution` | `--wl-color-caution` | `caution` | `#e6b04f` | Offline, GPS fallback, low battery, safety notices |
+| `caution` | `--wl-color-caution` | `caution` | `#e6b04f` | Offline, low battery, safety notices |
 | `danger` | `--wl-color-danger` | `danger` | `#f0868f` | End trip text only |
 | `dangerBorder` | `--wl-color-danger-border` | `danger-border` | `rgba(200, 84, 96, 0.65)` | End trip outline |
 | `dangerFill` | `--wl-color-danger-fill` | `danger-fill` | `rgba(96, 22, 30, 0.7)` | End trip fill |
@@ -121,7 +121,7 @@ Built in `apps/web/src/app/ride/page.tsx` and `apps/web/src/hud/`. The scene fil
 |---|---|
 | Top left, no card | The vehicle speed as a bare, very large number (the biggest element, digits about 30 percent of the screen height). Under it, small: `km/h` and `GPS 17`, the GPS speed shown separately. Beside it: the next turn arrow, the distance to the turn in large type, the street instruction, then a smaller grey `9 min · 2.4 km` (time and distance left) and a small `Arrive 14:35` |
 | Top right | Local time and temperature (mock weather) as plain text, a small connectivity dot (green online, amber offline), and a round plain SVG minimap about 84 px across at 800 wide: route line, position dot and a heading cone. No tiles and no map data |
-| Centre | Clear for the 3D scene. A dark gradient until task 8. The start prompt appears low in the clear middle before a trip, and the dev controls (development and `?dev=1` only) sit below it. They are one row of 44 px buttons, and a Time button opens a second row with the time override (Live, Dawn, Noon, Sunset, Night, a time slider and a date field) |
+| Centre | Clear for the 3D scene. A dark gradient until task 8. The start prompt appears low in the clear middle before a trip, and the dev controls (development and `?dev=1` only) sit below it. They are always one row of 44 px buttons, so nothing overlaps at any landscape size, and the Time button swaps that row for the time override page (Back, Live, Dawn, Noon, Sunset, Night, a time slider and a date field) |
 | Dock | One joined glass dock, 20 px corners, inset from the screen edges, with a hairline divider between two halves. Left: artwork tile, title and artist, previous, play or pause, next, and a thin progress line along the bottom of the half. Right: battery icon and percent, range, trip distance and time (`3.2 km · 12:40`), and End trip at the far right |
 | Credits strip | The reserved credits row below the dock: a darker band that nothing overlaps, sized for real attributions later (Google, Cesium ion and OpenStreetMap contributors). Empty in production. A faint label shows only in development or with `?dev=1` |
 
@@ -131,7 +131,7 @@ Rules for this screen:
 - **Large targets.** Media buttons are round and at least 44 pixels across, and End trip is at least 44 pixels tall. End trip is the only red.
 - **Speed guard.** Above 8 km/h the media controls and End trip need a hold (0.6 s, and 0.9 s for End trip). The guard switches off below 5 km/h.
 - **Hold feedback that does not need animation.** While the guard is on, each media button shows a ring track that says a hold is needed. While a button is held the ring fills over the hold time, the button takes a cyan edge and a stronger fill, and the artist line says "Keep holding". End trip says "Hold to end", grows a red fill while held, and says "Keep holding". With reduced motion the ring and fill skip the growth and show complete as soon as the hold starts, so the filled state and the caption are still there.
-- **Missing data shows dashes**, never zero. An amber note under the speed says when GPS is standing in for the scooter, and GPS speed turns amber.
+- **Missing data shows dashes**, never zero. A quiet grey note with a small cyan icon under the speed says when GPS is standing in for the scooter, and the GPS speed turns cyan. Neither uses amber.
 - **Plain text, no cards.** The speed, turn, time and temperature have no panel behind them. Only the dock, the minimap and the dev controls are panels.
 - **Minimap.** Plain drawn route only. While riding it follows the rider with the heading up, shows a clear heading cone (a 34 unit wedge opening 32 degrees either side, a gradient fill from 80 to 20 percent cyan with an outline), and a small N on the rim. Before and after a trip it shows the whole route inside the circle, north up.
 - **Contrast.** The speed uses `text` (17.8:1 on `night-950`). The dock is more solid in daylight and fades smoothly with the sun. Sunlight readability on a real screen has not been tested yet, so the day fill is a first guess.

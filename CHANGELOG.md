@@ -39,6 +39,10 @@ All notable changes to this project are recorded here. The format follows [Keep 
 
 ### Fixed
 
+- The dev controls are now always one row tall (the Time button swaps the simulation row for the time page, and going back keeps the override), so with `?dev=1` the Start trip button, the arrival line and the dock no longer overlap at 915 by 412, 740 by 360, 667 by 375, 800 by 360 or 1280 by 720.
+- The dock gives the media half more room at small widths (a smaller artwork tile, tighter gaps and padding, and the same inset as the HUD above it), so a title such as "Low Battery Waltz" shows in full at 667 by 375 and a longer one ends in a clean ellipsis. Controls stay at least 44 px.
+- A scooter whose first sample arrives after GPS has already moved a few metres is no longer reported as a "mixed" trip. The first 50 m counted before the scooter's first sample are still added to the trip but do not count as GPS use; a scooter that never reports still reads as GPS, and any dropout afterwards still counts.
+- The "No scooter data" note and the GPS speed label are no longer amber. The note is quiet grey with a small cyan icon and the GPS label is cyan, so cyan stays the only accent. Amber is kept for offline, low battery and the safety notice.
 - The dock no longer squeezes the track title at 667 by 375: the vehicle half is sized to its content, the title fits and a long artist line ends in an ellipsis with all controls fully visible.
 - The dev buttons are 44 px instead of 32 px.
 - Trip distance and time no longer lose the stale window when scooter telemetry drops out. `TripTracker` remembers where GPS and the ride clock were at the last new vehicle sample and backfills from GPS when telemetry goes stale or returns.
