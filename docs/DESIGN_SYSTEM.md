@@ -120,6 +120,19 @@ The speed, turn, time and temperature are bare text on the 3D scene, which can b
 
 The 3D scene has a screen space colour grade and edge glow (see [ARCHITECTURE.md](ARCHITECTURE.md), "Visual effects and the Google terms"). It keeps the palette: deep navy and teal, controlled contrast, slight desaturation, with the cyan accent as the edge glow and nothing else coloured. Day is cooler and cleaner, sunset a warm magenta to cyan split tone, night deep blue with glowing cyan edges. It is a HUD-free effect on the scene only, the HUD palette does not change. Original screenshots from the procedural preview scene (not Google tiles): [noon](images/fx-preview-noon.png), [sunset](images/fx-preview-sunset.png), [night](images/fx-preview-night.png) and [night with the effect off](images/fx-preview-night-off.png).
 
+## Hologram guidance
+
+The route is drawn as a hologram with one cyan accent. Amber and red are kept for warnings and errors only.
+
+| Use | Value |
+|---|---|
+| Edge lines, floor lines, chevrons | `#5fc8e8` (`HOLO_CYAN`) |
+| Bright rails, beacon, label text | `#67e8f9` (`HOLO_CYAN_BRIGHT`) |
+| Route ribbon fill | `#38bdf8` at 0.22 alpha (`HOLO_RIBBON`) |
+| Dark glass | `#04141f` (`HOLO_GLASS`) |
+
+The ribbon is 3.4 m wide with 0.22 m rails. Chevrons float ahead of the rider and bend toward the next turn. The turn beacon is a vertical column with a pill label that shows the turn arrow, the distance countdown (for example "120 m") and a smaller unit, with a brighter tone when the turn is imminent. The rider is a scanline silhouette on an original stylised kick scooter with a ring and cone heading marker at the base. A single scan band sweeps up the scene every 9 seconds (the fallback DOM band is hidden with reduced motion). The label sits in `.wl-scene-overlay` inside the scene, so it never covers the credits strip. Original screenshots from the procedural preview: [MapLibre night](images/holo-preview-maplibre-night.png) and [CesiumJS night](images/holo-preview-cesium-night.png).
+
 ## Motion
 
 | Token | Value | Use |
