@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, type CSSProperties } from "react";
+import { useCallback, useEffect, useMemo, useState, type CSSProperties } from "react";
 import { DEMO_ROUTE } from "@waylit/core";
 import { parseTimeOverride } from "@/hud/dev-controls";
 import { DaylightProvider } from "@/hud/daylight-context";
@@ -24,6 +24,7 @@ import { VehiclePanel } from "@/hud/VehiclePanel";
 import { telemetryNote } from "@/hud/telemetry-note";
 import { useDevControls, useMinuteClock, useOnline, useSearch } from "@/hud/use-browser-state";
 import { useMockMedia } from "@/media/useMockMedia";
+import { browserFullscreenEnvironment, enterFullscreen, exitFullscreen } from "@/pwa/fullscreen";
 import { useWakeLock } from "@/pwa/use-wake-lock";
 import { useRide } from "@/ride/use-ride";
 
@@ -37,7 +38,9 @@ import { useRide } from "@/ride/use-ride";
  *   bottom        one joined glass dock: media player left, vehicle dashboard and End trip right
  *   bottom edge   a reserved, darker strip for map and data credits that nothing overlaps
  *
- * The screen stays awake while a trip is running and is released when it ends. Daylight comes
+ * The screen stays awake and fullscreen while a trip is running (so the phone's status and
+ * navigation bars are hidden and the app draws its own top strip), and both are released when it
+ * ends. Daylight comes
  * from the sun at the rider's position and the time (see `useDaylight`), and the dock is a
  * little more solid in daylight and more see-through at night, fading smoothly through dawn
  * and dusk.
@@ -47,6 +50,20 @@ export default function RidePage() {
   const riding = snapshot.phase === "riding";
   const summary = snapshot.phase === "summary";
   const wakeLock = useWakeLock(riding);
+  // Go fullscreen from the Start trip tap (a user gesture), so the phone's system bars hide while
+  // riding. It does nothing when the installed app is already fullscreen, and fails silently.
+  const { start } = actions;
+  const startTrip = useCallback(() => {
+    void enterFullscreen(browserFullscreenEnvironment());
+    start();
+  }, [start]);
+  // Leave fullscreen when the trip ends, or when the rider leaves the screen.
+  useEffect(() => {
+    if (!riding) return undefined;
+    return () => {
+      void exitFullscreen(browserFullscreenEnvironment());
+    };
+  }, [riding]);
   // Media runs on the start screen and during the trip. Ending the trip stops it.
   const media = useMockMedia(!summary);
   const online = useOnline();
@@ -124,7 +141,7 @@ export default function RidePage() {
                 </div>
 
                 <div className="pointer-events-none absolute inset-x-0 bottom-[1.5dvh] flex flex-col items-center gap-[1.2dvh]">
-                  {snapshot.phase === "idle" ? <StartPrompt onStart={actions.start} /> : null}
+                  {snapshot.phase === "idle" ? <StartPrompt onStart={startTrip} /> : null}
                   {devControls ? (
                     <DevControls
                       playbackSpeed={snapshot.playbackSpeed}
@@ -144,7 +161,7 @@ export default function RidePage() {
           </div>
 
           {summary ? null : (
-            <div className="row-start-2 pt-[1dvh] pr-[max(var(--wl-safe-right),clamp(0.5rem,2vw,2.5rem))] pb-[clamp(0.25rem,1.6dvh,0.75rem)] pl-[max(var(--wl-safe-left),clamp(0.5rem,2vw,2.5rem))]">
+            <div className="row-start-2 flex justify-center pt-[1dvh] pr-[max(var(--wl-safe-right),clamp(0.5rem,2vw,2.5rem))] pb-[clamp(0.25rem,1.6dvh,0.75rem)] pl-[max(var(--wl-safe-left),clamp(0.5rem,2vw,2.5rem))]">
               <Dock
                 media={
                   <MediaPanel

@@ -12,7 +12,7 @@ export function TripSummary({ summary, onStartNew }: TripSummaryProps) {
   const average = Math.round(summary.averageSpeedKmh);
 
   return (
-    <div className="absolute inset-0 z-30 grid place-items-center px-6">
+    <div className="absolute inset-0 z-30 grid place-items-center pt-[var(--wl-safe-top)] pr-[max(1.5rem,var(--wl-safe-right))] pb-[var(--wl-safe-bottom)] pl-[max(1.5rem,var(--wl-safe-left))]">
       <section
         role="dialog"
         aria-modal="true"

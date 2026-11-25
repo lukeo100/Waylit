@@ -36,7 +36,7 @@ export function AttributionSlot({ showPlaceholder = false }: AttributionSlotProp
       data-testid="attribution-slot"
       data-slot="attribution"
       aria-label="Map and data credits"
-      className="row-start-3 flex min-h-[clamp(1.25rem,5.2dvh,1.75rem)] items-center bg-credits px-[max(0.75rem,var(--wl-safe-left))] text-hud-sm text-text-muted"
+      className="row-start-3 flex min-h-[clamp(1.25rem,5.2dvh,1.75rem)] items-center bg-credits pr-[max(0.75rem,var(--wl-safe-right))] pb-[var(--wl-safe-bottom)] pl-[max(0.75rem,var(--wl-safe-left))] text-hud-sm text-text-muted"
     >
       {showPlaceholder ? <span className="opacity-60">Credits area (dev only)</span> : null}
     </footer>

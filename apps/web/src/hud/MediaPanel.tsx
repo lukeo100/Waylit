@@ -52,7 +52,7 @@ export function MediaPanel({ state, controls, guarded }: MediaPanelProps) {
         className="size-[clamp(2rem,min(12.5dvh,4.6vw),4rem)] shrink-0 rounded-tile border border-glass-border bg-cover bg-center"
         style={{ backgroundImage: `url("${artworkDataUri(state.track.artwork)}")` }}
       />
-      <div className="min-w-0 flex-1">
+      <div className="w-[clamp(7.75rem,14.6vw,13rem)] min-w-0 shrink">
         <p
           data-testid="track-title"
           className="truncate text-hud-dock leading-snug font-semibold text-text"
