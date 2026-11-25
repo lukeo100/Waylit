@@ -23,8 +23,13 @@ All notable changes to this project are recorded here. The format follows [Keep 
 - Fluid riding screen type sizes (`speed`, `hudTurn`, `hudLg`, `hudDock`, `hudMd`, `hudSm`), a `tight:` variant for very short landscape screens, and new original screenshots of the HUD in `docs/images`.
 - Hold to press feedback that does not rely on animation: a ring track and a filled held state with a "Keep holding" caption on every guarded control, which also work with reduced motion.
 
+- Solar module in `@waylit/core` (NOAA solar position algorithm, original code, no dependencies): `getSolarState` for sun elevation, azimuth and phase (day, golden hour, civil and nautical twilight, night), `getSunTimes` for solar noon, sunrise, sunset and civil and nautical dawn and dusk with polar day and polar night handled, and `daylightFactor`. Independent of the machine time zone. Tested against reference values for five places, both solstices, the equator and the polar cases.
+- Dev time override for the riding screen (development builds and `?dev=1`): a Time row with Live, Dawn, Noon, Sunset and Night presets, a time of day slider and a date field, and `?time=` in the address, so day, sunset and night can be shown on demand (success criterion 5). The clock and arrival time follow the override.
+- `useDaylight()` and `DaylightProvider` expose the sun, phase, a smooth daylight factor and a warmth value for the 3D lighting task. New screenshots at dawn, noon, sunset and night in `docs/images`.
+
 ### Changed
 
+- Daylight is now computed from the sun at the rider's position and the time instead of the fixed 07:00 to 19:00 rule. The dock fill and the placeholder scene fade smoothly through sunrise and sunset.
 - Design tokens: near black surfaces, soft cyan (`#5fc8e8`) as the only accent, muted greys, a dark red set used only by End trip, and flat translucent panels about 85 percent opaque with night and daylight fills. The second blue (`volt`), the glass sheen, the blue glows, `glassStrong` and `displaySm` are removed, and the minimum touch target is 44 px. The home page and offline page follow the new palette. The app icon keeps its own brand colours.
 - The credits strip no longer shows placeholder text to riders. It stays empty in production, with a faint label only in development builds or with `?dev=1`.
 - The ride screen now keeps the screen awake only while a trip is running, and releases it on End trip.
@@ -34,6 +39,8 @@ All notable changes to this project are recorded here. The format follows [Keep 
 
 ### Fixed
 
+- The dock no longer squeezes the track title at 667 by 375: the vehicle half is sized to its content, the title fits and a long artist line ends in an ellipsis with all controls fully visible.
+- The dev buttons are 44 px instead of 32 px.
 - Trip distance and time no longer lose the stale window when scooter telemetry drops out. `TripTracker` remembers where GPS and the ride clock were at the last new vehicle sample and backfills from GPS when telemetry goes stale or returns.
 - The trip summary note says whether distance came from GPS, from a mix of the scooter and GPS, or only from the scooter, using the whole trip instead of the last source.
 - The minimap heading cone was nearly invisible. It is now a wedge with a gradient fill and an outline.

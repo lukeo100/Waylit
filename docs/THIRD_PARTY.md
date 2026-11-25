@@ -53,6 +53,12 @@ The simulation layer adds no dependencies. The filters, random number generator,
 
 The riding screen adds no dependencies. Icons are original inline SVG drawn for Waylit, the minimap is plain SVG from the demo route's own coordinates, and mock weather is a fixed value. No map tiles or map data are used on the screen, so it needs no map credit. The credits strip is reserved for the 3D scene's attributions. The HUD redesign (floating HUD, one joined dock, round minimap) added no dependencies either, and the screenshots in `docs/images` are original captures of the app taken with headless Chrome, with no third party content in them.
 
+### Sun and daylight
+
+The solar module (`packages/core/src/solar.ts`) adds no dependencies. It implements the NOAA solar position algorithm, a published procedure from the US National Oceanic and Atmospheric Administration, Global Monitoring Laboratory, itself based on Jean Meeus, "Astronomical Algorithms". The algorithm and its equations are public domain US government work, and equations and facts are not copyrightable. The code is an original implementation written from the published equations. No code was copied from SunCalc or any other library, and none is a dependency.
+
+The reference values in `solar.test.ts` are numbers (sun positions and times), not code. They were generated once with PyEphem 4.2 (LGPL-3.0, using the VSOP87 theory), as an independent check, and PyEphem is not a dependency, is not installed by the project and is not shipped. The source of the values is stated in the test file.
+
 ### Fonts
 
 None. The app uses the platform's system UI font, so no font files are bundled or downloaded.
