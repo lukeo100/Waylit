@@ -88,6 +88,8 @@ export default function RidePage() {
   const devControls = useDevControls();
   // The credits strip is where the 3D scene draws its required credits and logos.
   const [creditsElement, setCreditsElement] = useState<HTMLElement | null>(null);
+  // The dev overlay is drawn in the right column under the minimap, away from the turn text.
+  const [statsSlot, setStatsSlot] = useState<HTMLElement | null>(null);
   // The first run safety notice sits above the credits strip (it reads the strip's height), and
   // the 3D scene does not start until it has been acknowledged, so no tile credits are ever on
   // screen behind an open notice. The server snapshot says acknowledged, like the notice itself.
@@ -166,7 +168,9 @@ export default function RidePage() {
           heading={riding ? snapshot.heading : undefined}
           daylight={daylight}
           devOverlay={devControls}
+          statsSlot={statsSlot}
         />
+        <div aria-hidden="true" data-testid="scrim" className="wl-scrim" />
 
         <div className="relative z-10 grid h-full grid-rows-[minmax(0,1fr)_auto_auto]">
           <div className="relative row-start-1 min-h-0 pt-[max(0.75rem,var(--wl-safe-top),2.4dvh)] pr-[max(0.75rem,var(--wl-safe-right),2vw)] pl-[max(0.75rem,var(--wl-safe-left),2vw)]">
@@ -190,6 +194,7 @@ export default function RidePage() {
                       heading={riding ? snapshot.heading : undefined}
                       nextTurnAt={riding ? snapshot.progress.nextInstruction?.at : undefined}
                     />
+                    <div ref={setStatsSlot} className="flex flex-col items-end gap-1" />
                   </div>
                 </div>
 

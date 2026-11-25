@@ -38,6 +38,7 @@ import {
 } from "@waylit/map-provider";
 import { BaseProvider } from "./base-provider";
 import { setCesiumBaseUrl } from "./cesium-setup";
+import { watchCreditsFit } from "./credits-fit-dom";
 import { classifyFailure } from "./errors";
 
 /**
@@ -236,6 +237,13 @@ export class CesiumGoogleProvider extends BaseProvider {
       this.removeListeners.push(() => tileset.initialTilesLoaded.removeEventListener(initial));
 
       scene.primitives.add(tileset);
+      // One line of credits. When the text does not fit it moves behind Cesium's "Data
+      // attribution" link, which Google allows. The Google and Cesium ion logos stay on screen.
+      this.removeListeners.push(
+        watchCreditsFit(creditsElement, (mode) => {
+          if (!tileset.isDestroyed()) tileset.showCreditsOnScreen = mode === "inline";
+        }),
+      );
       if (this.tuning.debugMarker) {
         const points = scene.primitives.add(new PointPrimitiveCollection());
         this.marker = points.add({

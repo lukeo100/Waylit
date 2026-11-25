@@ -321,6 +321,37 @@
     outline: none;
   }
 
+  /*
+   * Text drawn straight on the scene gets a small dark shadow, so it holds up on a bright sky
+   * and sunlit ground. Flat and cheap: no blur filter.
+   */
+  .wl-hud-text {
+    text-shadow: var(--wl-shadow-text);
+  }
+
+  /*
+   * The top scrim: a dark linear gradient behind the top of the screen, solid down to
+   * --wl-scrim-solid and gone by --wl-scrim-fade. Its strength follows the daylight factor
+   * (--wl-daylight, 0 to 1), from --wl-scrim-night to --wl-scrim-day, because a bright sky and
+   * sunlit ground need the most. One flat gradient, no blur. It sits above the scene and below
+   * the HUD, and passes touches through.
+   */
+  .wl-scrim {
+    --wl-scrim-alpha: calc(
+      var(--wl-scrim-night) + (var(--wl-scrim-day) - var(--wl-scrim-night)) * var(--wl-daylight, 0)
+    );
+    position: absolute;
+    inset: 0 0 auto 0;
+    height: var(--wl-scrim-fade);
+    pointer-events: none;
+    background: linear-gradient(
+      180deg,
+      rgb(5 7 11 / var(--wl-scrim-alpha)) 0%,
+      rgb(5 7 11 / var(--wl-scrim-alpha)) var(--wl-scrim-solid),
+      rgb(5 7 11 / 0) 100%
+    );
+  }
+
   .wl-credits {
     display: flex;
     min-width: 0;
@@ -332,6 +363,8 @@
   .wl-credits .cesium-widget-credits {
     position: static;
     display: flex;
+    min-width: 0;
+    max-width: 100%;
     flex-wrap: nowrap;
     align-items: center;
     gap: 0.6rem;
@@ -346,6 +379,26 @@
     display: inline-flex;
     align-items: center;
     gap: 0.5rem;
+  }
+
+  /*
+   * One line. The logos never shrink or hide. The credit text stays on a single line and is
+   * clipped only as a last resort for the instant before the text has moved behind the "Data
+   * attribution" link (see credits-fit.ts). The link itself never shrinks.
+   */
+  .wl-credits .cesium-credit-logoContainer {
+    flex: none;
+  }
+
+  .wl-credits .cesium-credit-textContainer {
+    min-width: 0;
+    flex: 0 1 auto;
+    overflow: hidden;
+    white-space: nowrap;
+  }
+
+  .wl-credits .cesium-credit-expand-link {
+    flex: none;
   }
 
   .wl-credits .cesium-credit-logoContainer img {

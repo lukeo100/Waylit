@@ -8,7 +8,8 @@
  *     (this is what the Google and Cesium terms need: logo and credits never obscured), or
  *   - the safety notice's rectangle overlaps the strip's rectangle, or
  *   - the dev stats overlay overlaps the speed, turn, status or minimap text, or
- *   - the credits strip is taller than one line of credits where one line fits.
+ *   - with FAKE_CREDITS=1, the credits (drawn like Cesium draws them) are on more than one line or
+ *     a logo is hidden. That run also adds a 640 pixel wide size.
  *
  * Usage (after `pnpm build`, with the app running: `pnpm --filter @waylit/web start`):
  *   node apps/web/scripts/layout-check.mjs [baseUrl]    default http://localhost:3000
@@ -21,6 +22,7 @@ import { launchChrome, sleep } from "./cdp.mjs";
 
 const base = process.argv[2] ?? "http://localhost:3000";
 const SIZES = [
+  ...(process.env.FAKE_CREDITS === "1" ? [[640, 360]] : []),
   [915, 412],
   [740, 360],
   [667, 375],
@@ -52,7 +54,20 @@ const MEASURE = `(() => {
     const credits = strip.querySelector('[data-testid="map-credit-mount"]');
     out.creditsHeight = credits ? credits.getBoundingClientRect().height : 0;
   }
-  const ids = ['speed-value','speed-unit','speed-source','telemetry-note','turn-distance','turn-instruction','stat-remaining','stat-eta','local-time','weather','minimap','map-note'];
+  const ids = ['speed-value','speed-unit','speed-source','telemetry-note','turn-distance','turn-instruction','stat-remaining','stat-eta','local-time','weather','minimap','map-note','start-prompt','dev-controls','dock'];
+  // Credits as Cesium draws them, with the long Google data line, to check the strip stays on one
+  // line and the logos stay visible. Only when the page asks for it.
+  if (window.__fakeCredits) {
+    const mount = strip && strip.querySelector('[data-testid="map-credit-mount"]');
+    if (mount) {
+      mount.innerHTML = '<div class="cesium-widget-credits"><div class="cesium-credit-logoContainer"><img alt="Google" style="height:17px;width:60px;background:#888"><img alt="Cesium ion" style="height:17px;width:70px;background:#888"></div><div class="cesium-credit-textContainer"><span>Data SIO, NOAA, U.S. Navy, NGA, GEBCO | Landsat / Copernicus | Imagery 2026 Airbus, CNES / Airbus, Maxar Technologies, Vexcel Imaging US Inc</span><a class="cesium-credit-expand-link" href="#">Data attribution</a></div></div>';
+      const r = strip.getBoundingClientRect();
+      const logos = [...mount.querySelectorAll('img')].map((i) => i.getBoundingClientRect());
+      out.logosVisible = logos.every((l) => l.width > 0 && l.right <= r.right && l.left >= r.left);
+      out.stripHeight = r.height;
+      out.textClipped = (() => { const t = mount.querySelector('.cesium-credit-textContainer'); return t.scrollWidth > t.clientWidth + 1; })();
+    }
+  }
   const stats = document.querySelector('[data-testid="map-stats"]');
   out.stats = stats ? rect(stats) : null;
   out.hud = {};
@@ -80,6 +95,9 @@ try {
             ? `localStorage.setItem("${NOTICE_KEY}", "1")`
             : `localStorage.removeItem("${NOTICE_KEY}")`,
         });
+        await page.call("Page.addScriptToEvaluateOnNewDocument", {
+          source: `window.__fakeCredits = ${process.env.FAKE_CREDITS === "1"}`,
+        });
         await page.navigate(`${base}/ride${dev ? "?dev=1" : ""}`);
         await sleep(1200);
         const m = await page.evaluate(MEASURE);
@@ -92,10 +110,22 @@ try {
           problems.push("notice overlaps the strip");
         if (acknowledged && m.notice) problems.push("notice still shown after acknowledging");
         if (!acknowledged && !m.notice) problems.push("notice missing");
-        if (m.stats) {
-          for (const [id, r] of Object.entries(m.hud)) {
-            if (r.w > 0 && r.h > 0 && intersects(m.stats, r))
-              problems.push(`stats overlay overlaps ${id}`);
+        if (m.stripHeight !== undefined) {
+          if (!m.logosVisible) problems.push("a credit logo is hidden or outside the strip");
+          if (m.stripHeight > 40)
+            problems.push(`credits strip is ${m.stripHeight}px tall (more than one line)`);
+        }
+        // Nothing on the HUD may sit on top of anything else: the stats overlay, the note, the
+        // start prompt, the dev controls, the dock and every piece of text.
+        const all = { ...m.hud, ...(m.stats ? { "map-stats": m.stats } : {}) };
+        const names = Object.keys(all);
+        for (let i = 0; i < names.length; i++) {
+          for (let j = i + 1; j < names.length; j++) {
+            const a = all[names[i]];
+            const b = all[names[j]];
+            if (a.w > 0 && a.h > 0 && b.w > 0 && b.h > 0 && intersects(a, b)) {
+              problems.push(`${names[i]} overlaps ${names[j]}`);
+            }
           }
         }
         if (process.env.SHOTS_DIR) {

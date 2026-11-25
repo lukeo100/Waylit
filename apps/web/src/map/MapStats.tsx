@@ -8,7 +8,8 @@ import type { MapSceneController } from "./scene-controller";
  * Development overlay: the frame rate now, the median over the last minute and the 1 percent
  * low, the frame time, and what the provider can say about its tiles. It exists so the first
  * real frame rate on a phone can be read off the screen. Shown in development builds and with
- * `?dev=1`. It never shows the token, only whether one is set.
+ * `?dev=1`. It never shows the token, only whether one is set. It is drawn in the right hand
+ * column under the minimap (the page passes a slot), so it can never sit on the speed or turn text.
  */
 export function MapStats({
   controllerRef,
@@ -25,35 +26,33 @@ export function MapStats({
       const stats = controller.getFrameStats();
       const diag = controller.getDiagnostics();
       const rows: string[] = [];
-      rows.push(
-        `${state.providerId ?? "none"} | ${state.status} | ${state.selection.reason} | token ${cesiumIonToken ? "set" : "not set"}`,
-      );
+      rows.push(`${state.providerId ?? "none"} ${state.status}`);
+      // On a development screen the amber note is a row here, so the two never stack.
+      if (state.note !== undefined) rows.push(state.warning ? "amber note shown" : "note shown");
       if (stats && stats.sampleCount > 0) {
         rows.push(
-          `fps ${stats.currentFps.toFixed(0)} now | ${stats.onePercentLowFps.toFixed(0)} 1% low | ${stats.lastFrameMs.toFixed(1)} ms`,
+          `fps ${stats.currentFps.toFixed(0)} | low ${stats.onePercentLowFps.toFixed(0)} | ${stats.lastFrameMs.toFixed(0)} ms`,
         );
         rows.push(
-          `median ${stats.medianFps.toFixed(1)} 60s | ${stats.median5MinFps.toFixed(1)} 5min | ${stats.medianRideFps.toFixed(1)} ride (${formatRideTime(stats.rideSeconds)})`,
+          `60s ${stats.medianFps.toFixed(1)} | 5m ${stats.median5MinFps.toFixed(1)} | ride ${stats.medianRideFps.toFixed(1)}`,
         );
+        rows.push(`ride time ${formatRideTime(stats.rideSeconds)}`);
       } else {
-        rows.push("fps waiting for frames");
+        rows.push("fps waiting");
       }
       if (diag) {
-        const parts: string[] = [];
+        const counts: string[] = [];
         if (diag.tilesLoaded !== undefined) {
-          parts.push(
-            `tiles ${String(diag.tilesLoaded)} loaded, ${String(diag.tilesPending ?? 0)} pending, ${String(diag.tilesTotal ?? 0)} total`,
-          );
+          counts.push(`${String(diag.tilesLoaded)}/${String(diag.tilesTotal ?? 0)} tiles`);
         }
-        if (diag.requests !== undefined) parts.push(`${String(diag.requests)} requests`);
-        if (diag.memoryMegabytes !== undefined) parts.push(`${diag.memoryMegabytes.toFixed(0)} MB`);
-        if (diag.rootRequests !== undefined)
-          parts.push(`${String(diag.rootRequests)} root request(s)`);
-        if (diag.detail) parts.push(diag.detail);
-        if (parts.length > 0) rows.push(parts.join(" | "));
+        if (diag.requests !== undefined) counts.push(`${String(diag.requests)} req`);
+        if (diag.memoryMegabytes !== undefined)
+          counts.push(`${diag.memoryMegabytes.toFixed(0)} MB`);
+        if (diag.rootRequests !== undefined) counts.push(`${String(diag.rootRequests)} root`);
+        if (counts.length > 0) rows.push(counts.join(" | "));
       }
       rows.push(
-        `dpr ${window.devicePixelRatio.toFixed(2)} | ${String(window.innerWidth)}x${String(window.innerHeight)}`,
+        `dpr ${window.devicePixelRatio.toFixed(2)} ${String(window.innerWidth)}x${String(window.innerHeight)} ${cesiumIonToken ? "token" : "no token"}`,
       );
       setLines(rows);
     };
@@ -69,7 +68,7 @@ export function MapStats({
     <pre
       data-testid="map-stats"
       aria-hidden="true"
-      className="pointer-events-none absolute top-[max(0.4rem,var(--wl-safe-top))] left-1/2 z-20 max-w-[60vw] -translate-x-1/2 rounded bg-black/70 px-2 py-1 font-mono text-[10px] leading-tight whitespace-pre-wrap text-text-secondary"
+      className="pointer-events-none w-[min(18vw,13rem)] rounded bg-black/70 px-1.5 py-1 font-mono text-[8px] leading-[1.15] break-words whitespace-pre-wrap text-text-secondary"
     >
       {lines.join("\n")}
     </pre>

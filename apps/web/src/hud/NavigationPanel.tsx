@@ -56,7 +56,7 @@ export function NavigationPanel({
     <section
       aria-label="Navigation"
       data-testid="navigation-panel"
-      className="flex min-w-0 items-start gap-[clamp(0.75rem,3.2vw,2.75rem)]"
+      className="flex min-w-0 items-start gap-[clamp(0.75rem,3.2vw,2.75rem)] wl-hud-text"
     >
       <div className="flex shrink-0 flex-col">
         <span

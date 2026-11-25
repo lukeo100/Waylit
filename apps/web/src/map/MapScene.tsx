@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import type { LatLng, Route } from "@waylit/core";
 import { resolveTuning, selectProvider, type ProviderActivity } from "@waylit/map-provider";
 import { cesiumIonToken } from "@/config";
@@ -23,6 +24,11 @@ interface MapSceneProps {
   readonly daylight: DaylightState;
   /** Show the frame rate overlay and the provider details. Development and `?dev=1`. */
   readonly devOverlay: boolean;
+  /**
+   * Where the quiet note and the dev overlay are drawn: the right hand column under the minimap,
+   * which nothing else uses, so they can never sit on the speed or turn text.
+   */
+  readonly statsSlot?: HTMLElement | null;
 }
 
 const ACTIVITY: Record<RidePhase, ProviderActivity> = {
@@ -48,6 +54,7 @@ export function MapScene({
   heading,
   daylight,
   devOverlay,
+  statsSlot = null,
 }: MapSceneProps) {
   const sceneRef = useRef<HTMLDivElement>(null);
   const controllerRef = useRef<MapSceneController | null>(null);
@@ -143,20 +150,23 @@ export function MapScene({
             position: relative, which would collapse an absolutely positioned container. */}
         <div ref={sceneRef} className="h-full w-full" />
       </div>
-      {noteVisible ? (
-        <p
-          role="status"
-          data-testid="map-note"
-          className={`pointer-events-none absolute left-1/2 z-20 -translate-x-1/2 rounded-full bg-glass px-3 py-1 text-hud-sm ${
-            devOverlay
-              ? "top-[max(4.2rem,var(--wl-safe-top))]"
-              : "top-[max(0.4rem,var(--wl-safe-top))]"
-          } ${state?.warning ? "text-caution" : "text-text-secondary"}`}
-        >
-          {note}
-        </p>
-      ) : null}
-      {devOverlay ? <MapStats controllerRef={controllerRef} /> : null}
+      {noteVisible && !devOverlay && statsSlot
+        ? createPortal(
+            <p
+              role="status"
+              data-testid="map-note"
+              className={`pointer-events-none max-w-[22vw] rounded-md bg-glass px-2 py-1 text-right text-hud-sm leading-snug ${
+                state?.warning ? "text-caution" : "text-text-secondary"
+              }`}
+            >
+              {note}
+            </p>,
+            statsSlot,
+          )
+        : null}
+      {devOverlay && statsSlot
+        ? createPortal(<MapStats controllerRef={controllerRef} />, statsSlot)
+        : null}
     </>
   );
 }

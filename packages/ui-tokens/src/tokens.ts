@@ -19,8 +19,8 @@ export const color = {
   cyanSoft: "#a5dff0",
   /** Text. Greys carry secondary information. */
   text: "#eef1f4",
-  textSecondary: "#a4acb7",
-  textMuted: "#747d89",
+  textSecondary: "#d3d9e0",
+  textMuted: "#b0b8c3",
   /**
    * Status. Caution is a muted amber for warnings: safety notices, offline, GPS fallback, low
    * battery. Danger is red for errors and for End trip. Cyan stays the only other accent.
@@ -137,6 +137,25 @@ export const glow = {
   focus: "0 0 0 3px rgba(95, 200, 232, 0.6)",
 } as const;
 
+/**
+ * Readability of the HUD text drawn straight on the 3D scene. A flat dark scrim (a linear
+ * gradient, no blur) sits behind the top of the screen. Its strength follows the daylight
+ * factor: `night` at 0 and `day` at 1, because a bright sky and sunlit ground need the most.
+ * It is solid down to `solid` and fades to nothing at `fade`, both measured from the top.
+ * Text over the scene also gets a small dark shadow (`shadow.text`). No blur, so it is cheap.
+ */
+export const scrim = {
+  night: "0.35",
+  day: "0.75",
+  solid: "46dvh",
+  fade: "60dvh",
+} as const;
+
+export const shadow = {
+  /** A tight dark outline plus a soft halo. For text on the scene, never on panels. */
+  text: "0 1px 2px rgba(0, 0, 0, 0.85), 0 0 6px rgba(0, 0, 0, 0.55)",
+} as const;
+
 export const motion = {
   fast: "120ms",
   base: "200ms",
@@ -160,6 +179,8 @@ export const tokens = {
   radius,
   blur,
   glow,
+  scrim,
+  shadow,
   motion,
   touch,
 } as const;

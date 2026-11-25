@@ -17,7 +17,7 @@ export function StatusCluster({ nowMs, online }: StatusClusterProps) {
     <section
       aria-label="Status"
       data-testid="status-cluster"
-      className="flex items-center gap-[clamp(0.5rem,1.2vw,0.9rem)] leading-none"
+      className="flex items-center gap-[clamp(0.5rem,1.2vw,0.9rem)] leading-none wl-hud-text"
     >
       <p data-testid="local-time" className="text-hud-lg font-medium text-text tabular-nums">
         {formatClockTime(nowMs)}

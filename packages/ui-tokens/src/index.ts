@@ -9,6 +9,8 @@ export {
   lineHeight,
   motion,
   radius,
+  scrim,
+  shadow,
   space,
   tokens,
   touch,
