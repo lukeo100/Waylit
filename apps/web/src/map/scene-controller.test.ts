@@ -64,7 +64,16 @@ class FakeProvider implements MapProvider {
     return {};
   }
   getFrameStats() {
-    return { currentFps: 0, medianFps: 0, onePercentLowFps: 0, lastFrameMs: 0, sampleCount: 0 };
+    return {
+      currentFps: 0,
+      medianFps: 0,
+      onePercentLowFps: 0,
+      lastFrameMs: 0,
+      sampleCount: 0,
+      median5MinFps: 0,
+      medianRideFps: 0,
+      rideSeconds: 0,
+    };
   }
   frame(nowMs: number): void {
     for (const l of [...this.frames]) l(nowMs);
