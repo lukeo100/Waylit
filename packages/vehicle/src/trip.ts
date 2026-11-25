@@ -9,6 +9,15 @@ export type TripFallbackReason =
   | "vehicle-telemetry-stale"
   | "vehicle-distance-invalid";
 
+/**
+ * GPS distance counted before the scooter's first sample of a trip that is not yet treated as
+ * GPS use, in metres. The scooter link takes a moment to come up, and GPS has usually moved a
+ * few metres by then. That is a normal start, not a trip that ran on GPS. The distance is still
+ * added to the trip, it just does not make the summary say GPS or mixed. About seven seconds at
+ * the 25 km/h limit.
+ */
+export const START_GPS_GRACE_METRES = 50;
+
 export interface TripReading {
   /** Distance of the trip so far, in metres. */
   readonly distanceMetres: number;
@@ -67,6 +76,10 @@ export class TripTracker {
   private duration = 0;
   private gpsCounted = 0;
   private usedGps = false;
+  /** True once the vehicle has reported a usable trip distance in this trip. */
+  private vehicleSeen = false;
+  /** GPS distance counted before the first vehicle distance, which has its own grace. */
+  private startGps = 0;
   private lastGpsDistance: number | undefined;
   private lastRideElapsed: number | undefined;
   private lastVehicleDistance: number | undefined;
@@ -110,9 +123,11 @@ export class TripTracker {
           this.distance += Math.max(vehicleDistance - this.lastVehicleDistance, 0);
         } else {
           // The first sample of the trip, or the first after a dropout. Nothing is known about
-          // the gap before it, so GPS covers it.
+          // the gap before it, so GPS covers it. At the very start of a trip a small gap is
+          // normal and is not counted as GPS use (see `START_GPS_GRACE_METRES`).
           this.addGps(gpsSinceAnchor);
         }
+        this.vehicleSeen = true;
         this.lastVehicleDistance = vehicleDistance;
         this.anchorGps = gpsNow;
       }
@@ -165,6 +180,8 @@ export class TripTracker {
     this.duration = 0;
     this.gpsCounted = 0;
     this.usedGps = false;
+    this.vehicleSeen = false;
+    this.startGps = 0;
     this.lastGpsDistance = undefined;
     this.lastRideElapsed = undefined;
     this.lastVehicleDistance = undefined;
@@ -175,11 +192,20 @@ export class TripTracker {
     this.latest = EMPTY_READING;
   }
 
-  /** Adds GPS distance to the trip and notes that GPS was used. Returns what it added. */
+  /**
+   * Adds GPS distance to the trip and records it in `gpsCounted`. It also notes that GPS was
+   * used, except that before the vehicle has reported anything the first
+   * `START_GPS_GRACE_METRES` do not count as use. Returns what it added.
+   */
   private addGps(metres: number): number {
     this.distance += metres;
     this.gpsCounted += metres;
-    if (metres > 0) this.usedGps = true;
+    if (this.vehicleSeen) {
+      if (metres > 0) this.usedGps = true;
+    } else {
+      this.startGps += metres;
+      if (this.startGps > START_GPS_GRACE_METRES) this.usedGps = true;
+    }
     return metres;
   }
 }

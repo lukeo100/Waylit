@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { TripTracker } from "./trip";
+import { START_GPS_GRACE_METRES, TripTracker } from "./trip";
 import type { VehicleTelemetry } from "./types";
 
 const sample = (
@@ -261,6 +261,127 @@ describe("TripTracker", () => {
       nowMs: 2000,
     });
     expect(after.distanceMetres).toBe(100);
+  });
+
+  describe("a normal start", () => {
+    it("does not count a first sample that arrives after GPS has moved as GPS use", () => {
+      const trip = new TripTracker();
+      // GPS has moved 12 m by the time the scooter's first sample arrives.
+      const first = trip.update({
+        vehicle: sample(2_000, 0, 0),
+        gpsDistanceMetres: 12,
+        rideElapsedSeconds: 2,
+        nowMs: 2_000,
+      });
+      expect(first.usedGps).toBe(false);
+      expect(first.distanceSource).toBe("vehicle");
+      // The metres are still in the trip, so the figure is not short.
+      expect(first.distanceMetres).toBeCloseTo(12, 6);
+      const later = trip.update({
+        vehicle: sample(3_000, 9, 3),
+        gpsDistanceMetres: 21,
+        rideElapsedSeconds: 3,
+        nowMs: 3_000,
+      });
+      expect(later.usedGps).toBe(false);
+      expect(later.distanceMetres).toBeCloseTo(21, 6);
+    });
+
+    it("does not count a short wait for the first sample as GPS use", () => {
+      const trip = new TripTracker();
+      for (let t = 0; t < 3_000; t += 250) {
+        trip.update({
+          gpsDistanceMetres: (t / 1000) * 7,
+          rideElapsedSeconds: t / 1000,
+          nowMs: t,
+        });
+      }
+      const first = trip.update({
+        vehicle: sample(3_000, 0, 0),
+        gpsDistanceMetres: 21,
+        rideElapsedSeconds: 3,
+        nowMs: 3_000,
+      });
+      expect(first.usedGps).toBe(false);
+      expect(first.distanceMetres).toBeCloseTo(21, 6);
+    });
+
+    it("reports GPS once the wait for the first sample is longer than the grace", () => {
+      const trip = new TripTracker();
+      const metres = START_GPS_GRACE_METRES + 10;
+      const first = trip.update({
+        vehicle: sample(10_000, 0, 0),
+        gpsDistanceMetres: metres,
+        rideElapsedSeconds: 10,
+        nowMs: 10_000,
+      });
+      expect(first.usedGps).toBe(true);
+      expect(first.gpsDistanceMetres).toBeCloseTo(metres, 6);
+    });
+
+    it("reports GPS when the scooter never reports at all", () => {
+      const trip = new TripTracker();
+      let reading = trip.reading;
+      for (let t = 0; t <= 20_000; t += 250) {
+        reading = trip.update({
+          gpsDistanceMetres: (t / 1000) * 7,
+          rideElapsedSeconds: t / 1000,
+          nowMs: t,
+        });
+      }
+      expect(reading.usedGps).toBe(true);
+      expect(reading.distanceSource).toBe("gps");
+    });
+
+    it("still reports GPS for a short dropout after the scooter has reported", () => {
+      const trip = new TripTracker();
+      trip.update({
+        vehicle: sample(0, 0, 0),
+        gpsDistanceMetres: 0,
+        rideElapsedSeconds: 0,
+        nowMs: 0,
+      });
+      trip.update({
+        vehicle: sample(1_000, 7, 1),
+        gpsDistanceMetres: 7,
+        rideElapsedSeconds: 1,
+        nowMs: 1_000,
+      });
+      expect(trip.reading.usedGps).toBe(false);
+      // The scooter goes quiet for a few seconds. Even a few metres of GPS counts as use now.
+      const stale = trip.update({
+        vehicle: sample(1_000, 7, 1),
+        gpsDistanceMetres: 14,
+        rideElapsedSeconds: 2,
+        nowMs: 3_500,
+      });
+      expect(stale.distanceSource).toBe("gps");
+      expect(stale.usedGps).toBe(true);
+    });
+
+    it("gives the next trip a fresh grace after a reset", () => {
+      const trip = new TripTracker();
+      trip.update({
+        vehicle: sample(0, 0, 0),
+        gpsDistanceMetres: 0,
+        rideElapsedSeconds: 0,
+        nowMs: 0,
+      });
+      trip.update({
+        vehicle: sample(1_000, 7, 1),
+        gpsDistanceMetres: 7,
+        rideElapsedSeconds: 1,
+        nowMs: 1_000,
+      });
+      trip.reset();
+      const first = trip.update({
+        vehicle: sample(5_000, 0, 0),
+        gpsDistanceMetres: 12,
+        rideElapsedSeconds: 2,
+        nowMs: 5_000,
+      });
+      expect(first.usedGps).toBe(false);
+    });
   });
 
   it("starts again from zero after a reset", () => {

@@ -22,5 +22,5 @@ export {
   selectSpeed,
 } from "./speed-selection";
 export type { SelectedSpeed, SelectSpeedInput, SpeedFallbackReason } from "./speed-selection";
-export { TripTracker } from "./trip";
+export { START_GPS_GRACE_METRES, TripTracker } from "./trip";
 export type { TripFallbackReason, TripReading, TripUpdate } from "./trip";
