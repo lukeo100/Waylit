@@ -16,7 +16,7 @@ export type InstallHint = "installed" | "ios" | "generic";
 
 export interface InstallHintInput {
   readonly userAgent: string;
-  /** True when running as an installed app (display-mode standalone, or iOS standalone). */
+  /** True when running as an installed app (display-mode standalone or fullscreen, or iOS standalone). */
   readonly standalone: boolean;
 }
 
@@ -100,7 +100,13 @@ export function createInstallPromptStore(): InstallPromptStore {
 export function isStandalone(): boolean {
   if (typeof window === "undefined") return false;
   const iosStandalone = (navigator as Navigator & { standalone?: boolean }).standalone === true;
-  return iosStandalone || window.matchMedia("(display-mode: standalone)").matches;
+  // The manifest asks for fullscreen with standalone as the fallback, so an installed app runs
+  // in either mode. Some browsers only match the mode that is actually applied.
+  return (
+    iosStandalone ||
+    window.matchMedia("(display-mode: standalone)").matches ||
+    window.matchMedia("(display-mode: fullscreen)").matches
+  );
 }
 
 /** The one store the app uses. Attached once, near the root, so an early event is not lost. */

@@ -13,9 +13,14 @@ export function InstallPromptCapture() {
 }
 
 function subscribeStandalone(onChange: () => void): () => void {
-  const query = window.matchMedia("(display-mode: standalone)");
-  query.addEventListener("change", onChange);
-  return () => query.removeEventListener("change", onChange);
+  const queries = [
+    window.matchMedia("(display-mode: standalone)"),
+    window.matchMedia("(display-mode: fullscreen)"),
+  ];
+  for (const query of queries) query.addEventListener("change", onChange);
+  return () => {
+    for (const query of queries) query.removeEventListener("change", onChange);
+  };
 }
 
 /**

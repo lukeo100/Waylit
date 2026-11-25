@@ -17,7 +17,10 @@ export default function manifest(): MetadataRoute.Manifest {
     lang: "en",
     start_url: "/?source=pwa",
     scope: "/",
-    display: "standalone",
+    // Fullscreen hides the phone's status bar and navigation bar, so the riding screen draws its
+    // own top strip. Browsers that cannot do fullscreen fall back to standalone.
+    display: "fullscreen",
+    display_override: ["fullscreen", "standalone"],
     orientation: "landscape",
     background_color: color.night950,
     theme_color: color.night950,

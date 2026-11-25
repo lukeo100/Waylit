@@ -15,9 +15,10 @@ function pngSize(path: string): { width: number; height: number } {
 describe("web app manifest", () => {
   const m = manifest();
 
-  it("describes a standalone landscape app", () => {
+  it("describes a fullscreen landscape app that falls back to standalone", () => {
     expect(m.name).toBe("Waylit");
-    expect(m.display).toBe("standalone");
+    expect(m.display).toBe("fullscreen");
+    expect(m.display_override).toEqual(["fullscreen", "standalone"]);
     expect(m.orientation).toBe("landscape");
     expect(m.start_url).toBeTruthy();
     expect(m.scope).toBe("/");
