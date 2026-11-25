@@ -10,15 +10,13 @@ import {
 } from "@cesium/core";
 import {
   CesiumWidget,
-  CustomShader,
   Ion,
-  LightingModel,
   PointPrimitiveCollection,
   RequestScheduler,
   SkyAtmosphere,
-  UniformType,
   createGooglePhotorealistic3DTileset,
   type Cesium3DTileset,
+  type CustomShader,
   type PointPrimitive,
 } from "@cesium/engine";
 import {
@@ -42,6 +40,7 @@ import { BaseProvider } from "./base-provider";
 import { setCesiumBaseUrl } from "./cesium-setup";
 import { watchCreditsFit } from "./credits-fit-dom";
 import { CesiumFx } from "./fx-stage";
+import { createTileShader, setTileShaderLighting } from "./tile-shader";
 import { classifyFailure } from "./errors";
 
 /**
@@ -218,24 +217,11 @@ export class CesiumGoogleProvider extends BaseProvider {
       }
       this.tileset = tileset;
 
-      // The tiles carry baked daylight. A tint multiplies it, so the scene can go dark at night.
-      this.shader = new CustomShader({
-        lightingModel: LightingModel.UNLIT,
-        uniforms: {
-          u_tint: { type: UniformType.VEC3, value: new Cartesian3(1, 1, 1) },
-          // A faint warm lift on the brightest surfaces at night (pale roads and walls), so the
-          // dark scene keeps a street light feel. Zero by day. Colour only, from the tile's own
-          // colour, nothing about its shape or height.
-          u_lamp: { type: UniformType.VEC3, value: new Cartesian3(0, 0, 0) },
-        },
-        fragmentShaderText: `
-          void fragmentMain(FragmentInput fsInput, inout czm_modelMaterial material) {
-            vec3 photo = material.diffuse;
-            float bright = dot(photo, vec3(0.2126, 0.7152, 0.0722));
-            material.diffuse = photo * u_tint + u_lamp * bright * bright * bright;
-          }`,
-      });
-      tileset.customShader = this.shader;
+      // The tiles carry baked daylight. With the visual effect on, a tint multiplies it so the
+      // scene can go dark at night. With the effect off (the default in Google mode) there is no
+      // custom shader at all and the tiles are drawn as Google supplies them.
+      this.shader = createTileShader(this.tuning.fxLevel);
+      if (this.shader) tileset.customShader = this.shader;
 
       // Tile requests that fail before any tile has loaded mean the token or the network is bad.
       // Report it once, so the app can fall back, and never retry.
@@ -320,10 +306,9 @@ export class CesiumGoogleProvider extends BaseProvider {
 
   setLighting(lighting: SceneLighting): void {
     const widget = this.widget;
-    const shader = this.shader;
     this.lastLighting = lighting;
     this.fx?.setLighting(lighting);
-    if (!widget || !shader || widget.isDestroyed()) {
+    if (!widget || !this.tileset || widget.isDestroyed()) {
       this.pendingLighting = lighting;
       return;
     }
@@ -342,10 +327,8 @@ export class CesiumGoogleProvider extends BaseProvider {
       atmosphere.brightnessShift = -0.85 * dark;
       atmosphere.saturationShift = -0.3 * dark;
     }
-    shader.setUniform("u_tint", new Cartesian3(params.tint[0], params.tint[1], params.tint[2]));
-    // Warm street light lift, only once it is properly dark.
-    const night = (1 - Math.min(1, Math.max(0, lighting.daylightFactor))) ** 2;
-    shader.setUniform("u_lamp", new Cartesian3(0.62 * night, 0.44 * night, 0.21 * night));
+    // The tile tint and the warm lift exist only when the visual effect is on.
+    if (this.shader) setTileShaderLighting(this.shader, params.tint, lighting.daylightFactor);
   }
 
   getDiagnostics(): ProviderDiagnostics {
