@@ -76,6 +76,7 @@ export class MapSceneController {
   private mounting: MapProvider | undefined;
   private activity: ProviderActivity = "idle";
   private lighting: SceneLighting | undefined;
+  private sessionAlong: number | undefined;
   private state: SceneState;
 
   constructor(options: SceneControllerOptions) {
@@ -119,10 +120,20 @@ export class MapSceneController {
     this.camera.setFix(fix, this.options.now());
   }
 
+  /**
+   * The ride session's distance along the route, in metres: the same number the HUD counts the
+   * next turn from. The turn beacon uses it so its countdown and the HUD's never disagree.
+   * Pass undefined when there is no ride, and the beacon falls back to the rider's position.
+   */
+  setProgress(alongMetres: number | undefined): void {
+    this.sessionAlong = alongMetres;
+  }
+
   /** Put the camera back at the start, with no gliding. For a new trip. */
   resetCamera(fix: RiderFix): void {
     this.camera.snapTo(fix, this.options.now());
     this.guide.reset();
+    this.sessionAlong = undefined;
   }
 
   setLighting(lighting: SceneLighting): void {
@@ -186,7 +197,9 @@ export class MapSceneController {
       provider.setCamera(pose);
       // The rider and the guidance follow the same smoothed pose as the camera, so the rider
       // stays put in the lower middle of the screen and the chevrons ahead stay on the road.
-      provider.setGuidance(this.guide.frame(pose.rider, pose.headingDegrees, nowMs));
+      provider.setGuidance(
+        this.guide.frame(pose.rider, pose.headingDegrees, nowMs, this.sessionAlong),
+      );
     });
     this.removeStatus = provider.onStatus((status) => {
       // A failure while the provider is still starting is reported by mount() itself.

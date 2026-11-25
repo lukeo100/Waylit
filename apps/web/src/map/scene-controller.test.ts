@@ -13,7 +13,13 @@ import type {
   SceneLighting,
 } from "@waylit/map-provider";
 import { DEFAULT_TUNING, selectProvider } from "@waylit/map-provider";
-import { DEMO_ROUTE } from "@waylit/core";
+import {
+  DEMO_ROUTE,
+  computeProgress,
+  createProgressModel,
+  formatDistance,
+  nextTurn,
+} from "@waylit/core";
 import { MapSceneController, NOTES, startFixOf, type SceneState } from "./scene-controller";
 
 class FakeProvider implements MapProvider {
@@ -323,6 +329,34 @@ describe("MapSceneController guidance", () => {
     expect(frame.beacon?.direction).toBe("left");
     expect(frame.beacon?.label).toMatch(/^\d+ m$/);
     expect(frame.beacon!.distanceMetres).toBeLessThan(80);
+  });
+
+  it("counts the beacon from the ride session's distance, the same number the HUD uses", async () => {
+    const { provider, controller } = await started();
+    const model = createProgressModel(DEMO_ROUTE);
+    const first = nextTurn(model, 0)!;
+    const along = first.atMetres - 30;
+    // The camera is still at the start (a smoothed pose can trail the session by a few metres).
+    controller.resetCamera({ position: DEMO_ROUTE.path[0]!, headingDegrees: 90 });
+    controller.setProgress(along);
+    provider.frame(16);
+    const beacon = provider.guidance.at(-1)!.beacon!;
+    const hud = computeProgress(model, { distanceAlongMetres: along, nowMs: 0 });
+    const shown = formatDistance(hud.distanceToNextMetres!);
+    expect(hud.nextInstruction).toBe(first.instruction);
+    expect(beacon.label).toBe(`${shown.value} ${shown.unit}`);
+    expect(beacon.label).toBe("30 m");
+  });
+
+  it("forgets the session distance on a reset, then counts from the rider's position", async () => {
+    const { provider, controller } = await started();
+    const model = createProgressModel(DEMO_ROUTE);
+    const first = nextTurn(model, 0)!;
+    controller.setProgress(first.atMetres - 30);
+    controller.resetCamera({ position: DEMO_ROUTE.path[0]!, headingDegrees: 90 });
+    provider.frame(16);
+    // The reset forgot the session distance, so the rider at the start is far from any turn.
+    expect(provider.guidance.at(-1)!.beacon).toBeUndefined();
   });
 
   it("hands the same route to the fallback after Cesium fails and is replaced", async () => {

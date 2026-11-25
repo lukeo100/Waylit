@@ -21,6 +21,11 @@ interface MapSceneProps {
   /** The simulated rider, once the trip has started. */
   readonly position: LatLng | undefined;
   readonly heading: number | undefined;
+  /**
+   * The ride session's distance along the route in metres, the number the HUD counts the next
+   * turn from. The turn beacon uses it so the beacon and the HUD show the same distance.
+   */
+  readonly alongMetres?: number | undefined;
   readonly daylight: DaylightState;
   /** Show the frame rate overlay and the provider details. Development and `?dev=1`. */
   readonly devOverlay: boolean;
@@ -52,6 +57,7 @@ export function MapScene({
   phase,
   position,
   heading,
+  alongMetres,
   daylight,
   devOverlay,
   statsSlot = null,
@@ -114,6 +120,11 @@ export function MapScene({
     if (position === undefined) return;
     controllerRef.current?.setRider({ position, headingDegrees: heading });
   }, [position, heading]);
+
+  // The session's distance along the route, for the turn beacon's countdown.
+  useEffect(() => {
+    controllerRef.current?.setProgress(alongMetres);
+  }, [alongMetres]);
 
   useEffect(() => {
     controllerRef.current?.setActivity(ACTIVITY[phase]);

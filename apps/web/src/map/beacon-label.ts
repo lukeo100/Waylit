@@ -21,6 +21,12 @@ export interface ScreenPoint {
   readonly y: number;
 }
 
+/**
+ * Where the label may sit, as a share of the scene's width and height. The top limit keeps it
+ * from sliding under the top HUD (the turn arrow and distance, the clock and the minimap).
+ */
+export const LABEL_BOUNDS = { minX: 0.1, maxX: 0.9, minY: 0.28, maxY: 0.62 } as const;
+
 /** Keeps the label where it can be read: off the very top and bottom, and inside the sides. */
 export function clampLabel(
   point: ScreenPoint,
@@ -31,8 +37,8 @@ export function clampLabel(
     return undefined;
   }
   return {
-    x: Math.min(width * 0.9, Math.max(width * 0.1, point.x)),
-    y: Math.min(height * 0.62, Math.max(height * 0.16, point.y)),
+    x: Math.min(width * LABEL_BOUNDS.maxX, Math.max(width * LABEL_BOUNDS.minX, point.x)),
+    y: Math.min(height * LABEL_BOUNDS.maxY, Math.max(height * LABEL_BOUNDS.minY, point.y)),
   };
 }
 

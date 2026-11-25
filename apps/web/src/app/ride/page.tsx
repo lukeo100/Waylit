@@ -166,6 +166,7 @@ export default function RidePage() {
           phase={snapshot.phase}
           position={riding ? snapshot.position : undefined}
           heading={riding ? snapshot.heading : undefined}
+          alongMetres={riding ? snapshot.progress.distanceAlongMetres : undefined}
           daylight={daylight}
           devOverlay={devControls}
           statsSlot={statsSlot}
