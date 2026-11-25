@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { DEMO_ROUTE, createRouteIndex, locateAlongRoute } from "@waylit/core";
 import {
+  HEADING_CONE,
   MINIMAP_VIEW,
   createMinimapRoute,
   followTransform,
+  headingConePath,
   overviewTransform,
   pointsAttribute,
   splitRoute,
@@ -55,15 +57,25 @@ describe("minimap geometry", () => {
     expect(t).toContain("translate(-10 -20)");
   });
 
-  it("fits the whole route in the box for the overview", () => {
+  it("fits the whole route inside the round map for the overview", () => {
     const { scale } = overviewTransform(route);
     const xs = route.points.map((p) => p.x);
     const ys = route.points.map((p) => p.y);
-    const width = (Math.max(...xs) - Math.min(...xs)) * scale;
-    const height = (Math.max(...ys) - Math.min(...ys)) * scale;
-    expect(width).toBeLessThanOrEqual(MINIMAP_VIEW.width);
-    expect(height).toBeLessThanOrEqual(
-      MINIMAP_VIEW.height * (1 - 2 * MINIMAP_VIEW.overviewMargin) + 0.5,
-    );
+    const centreX = (Math.min(...xs) + Math.max(...xs)) / 2;
+    const centreY = (Math.min(...ys) + Math.max(...ys)) / 2;
+    for (const p of route.points) {
+      const distance = Math.hypot(p.x - centreX, p.y - centreY) * scale;
+      expect(distance).toBeLessThanOrEqual(MINIMAP_VIEW.radius * MINIMAP_VIEW.overviewFill + 0.5);
+    }
+  });
+
+  it("draws a heading cone that opens upward and is wide enough to see", () => {
+    const path = headingConePath();
+    expect(path.startsWith("M0 0 L-")).toBe(true);
+    // 34 units long and 32 degrees either side, so about 36 units across at the far edge.
+    expect(path).toContain("L-18 -28.8");
+    expect(path).toContain("A34 34 0 0 1 18 -28.8");
+    expect(HEADING_CONE.length).toBeGreaterThanOrEqual(24);
+    expect(HEADING_CONE.halfAngleDegrees).toBeGreaterThanOrEqual(25);
   });
 });

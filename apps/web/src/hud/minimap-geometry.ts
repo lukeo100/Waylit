@@ -14,18 +14,40 @@ export interface LocalPoint {
   readonly y: number;
 }
 
-/** The minimap's SVG view box and where the rider sits in it. */
+/**
+ * The minimap's SVG view box and where the rider sits in it. The minimap is a circle, so the
+ * box is square and the corners are never seen.
+ */
 export const MINIMAP_VIEW = {
-  width: 250,
+  width: 100,
   height: 100,
-  /** The rider sits low in the box so more of the road ahead shows. */
-  riderX: 125,
-  riderY: 74,
-  /** Scale while following the rider, in SVG units per metre. 0.3 shows about 800 m across. */
-  unitsPerMetre: 0.3,
-  /** Space kept free around the route in the overview, as a fraction of the box. */
-  overviewMargin: 0.14,
+  /** The rider sits a little below the centre so more of the road ahead shows. */
+  riderX: 50,
+  riderY: 60,
+  /** Scale while following the rider, in SVG units per metre. 0.22 shows about 450 m across. */
+  unitsPerMetre: 0.22,
+  /** Radius of the visible circle, in SVG units. */
+  radius: 50,
+  /** Part of the circle's radius the whole route may fill in the overview. */
+  overviewFill: 0.84,
 } as const;
+
+/** The heading cone: how far it reaches from the rider and how wide it opens, in SVG units. */
+export const HEADING_CONE = { length: 34, halfAngleDegrees: 32 } as const;
+
+/**
+ * Path for the heading cone: a wedge with its point at the origin, opening straight up. The
+ * map is turned so the heading is up, so the wedge always shows where the rider faces.
+ */
+export function headingConePath(
+  length: number = HEADING_CONE.length,
+  halfAngleDegrees: number = HEADING_CONE.halfAngleDegrees,
+): string {
+  const a = (halfAngleDegrees * Math.PI) / 180;
+  const dx = round1(length * Math.sin(a));
+  const dy = round1(-length * Math.cos(a));
+  return `M0 0 L${-dx} ${dy} A${length} ${length} 0 0 1 ${dx} ${dy} Z`;
+}
 
 export interface MinimapRoute {
   readonly origin: LatLng;
@@ -102,23 +124,19 @@ export interface OverviewView {
   readonly scale: number;
 }
 
-/** A north-up view that fits the whole route in the box, for the start and summary screens. */
+/**
+ * A north-up view that fits the whole route inside the circle, for the start and summary
+ * screens. It fits by the furthest point from the middle, so a corner of the route's bounding
+ * box can never fall outside the round map.
+ */
 export function overviewTransform(route: MinimapRoute): OverviewView {
-  const { width, height, overviewMargin } = MINIMAP_VIEW;
+  const { width, height, radius, overviewFill } = MINIMAP_VIEW;
   const xs = route.points.map((p) => p.x);
   const ys = route.points.map((p) => p.y);
-  const minX = Math.min(...xs);
-  const maxX = Math.max(...xs);
-  const minY = Math.min(...ys);
-  const maxY = Math.max(...ys);
-  const spanX = Math.max(maxX - minX, 1);
-  const spanY = Math.max(maxY - minY, 1);
-  const scale = Math.min(
-    (width * (1 - 2 * overviewMargin)) / spanX,
-    (height * (1 - 2 * overviewMargin)) / spanY,
-  );
-  const centreX = (minX + maxX) / 2;
-  const centreY = (minY + maxY) / 2;
+  const centreX = (Math.min(...xs) + Math.max(...xs)) / 2;
+  const centreY = (Math.min(...ys) + Math.max(...ys)) / 2;
+  const reach = Math.max(...route.points.map((p) => Math.hypot(p.x - centreX, p.y - centreY)), 1);
+  const scale = (radius * overviewFill) / reach;
   return {
     scale,
     transform: `translate(${width / 2} ${height / 2}) scale(${round4(scale)}) translate(${round1(-centreX)} ${round1(-centreY)})`,
