@@ -23,6 +23,7 @@ import { TripSummary } from "@/hud/TripSummary";
 import { VehiclePanel } from "@/hud/VehiclePanel";
 import { telemetryNote } from "@/hud/telemetry-note";
 import { useDevControls, useMinuteClock, useOnline, useSearch } from "@/hud/use-browser-state";
+import { MapScene } from "@/map/MapScene";
 import { useMockMedia } from "@/media/useMockMedia";
 import { browserFullscreenEnvironment, enterFullscreen, exitFullscreen } from "@/pwa/fullscreen";
 import { useWakeLock } from "@/pwa/use-wake-lock";
@@ -69,6 +70,8 @@ export default function RidePage() {
   const online = useOnline();
   const realNowMs = useMinuteClock();
   const devControls = useDevControls();
+  // The credits strip is where the 3D scene draws its required credits and logos.
+  const [creditsElement, setCreditsElement] = useState<HTMLElement | null>(null);
 
   // A developer can override the date and time (see DevControls). The override only exists
   // while the dev controls are shown, so riders can never end up on a frozen clock.
@@ -114,6 +117,15 @@ export default function RidePage() {
         className="fixed inset-0 overflow-hidden bg-night-950 text-text select-none"
       >
         <ScenePlaceholder />
+        <MapScene
+          creditsElement={creditsElement}
+          route={DEMO_ROUTE}
+          phase={snapshot.phase}
+          position={riding ? snapshot.position : undefined}
+          heading={riding ? snapshot.heading : undefined}
+          daylight={daylight}
+          devOverlay={devControls}
+        />
 
         <div className="relative z-10 grid h-full grid-rows-[minmax(0,1fr)_auto_auto]">
           <div className="relative row-start-1 min-h-0 pt-[max(0.75rem,var(--wl-safe-top),2.4dvh)] pr-[max(0.75rem,var(--wl-safe-right),2vw)] pl-[max(0.75rem,var(--wl-safe-left),2vw)]">
@@ -183,7 +195,7 @@ export default function RidePage() {
             </div>
           )}
 
-          <AttributionSlot showPlaceholder={devControls} />
+          <AttributionSlot showPlaceholder={devControls} creditsRef={setCreditsElement} />
         </div>
 
         {summary && snapshot.summary ? (

@@ -305,6 +305,74 @@
   }
 
   /*
+   * The 3D scene and its credits. The scene fills the screen behind the HUD, with the
+   * provider's canvas inside it. The credits strip holds what the provider must show: Google
+   * and Cesium ion logos and credit text from Cesium, or OpenFreeMap, OpenMapTiles and
+   * OpenStreetMap text from the fallback. They stay on one line at a size that keeps the Google
+   * logo between 16 and 19 pixels high, are never hidden, and nothing is drawn over them.
+   */
+  .wl-map {
+    background: transparent;
+    touch-action: none;
+  }
+
+  .wl-map canvas {
+    display: block;
+    outline: none;
+  }
+
+  .wl-credits {
+    display: flex;
+    min-width: 0;
+    flex: 1 1 auto;
+    align-items: center;
+    color: var(--wl-color-text-secondary);
+  }
+
+  .wl-credits .cesium-widget-credits {
+    position: static;
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0;
+    color: inherit;
+    font-size: inherit;
+    text-shadow: none;
+  }
+
+  .wl-credits .cesium-credit-logoContainer,
+  .wl-credits .cesium-credit-textContainer {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .wl-credits .cesium-credit-logoContainer img {
+    height: 17px;
+    width: auto;
+    vertical-align: middle;
+  }
+
+  .wl-credits a,
+  .wl-credits .cesium-credit-expand-link {
+    color: inherit;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+
+  .wl-credit-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0 0.5rem;
+  }
+
+  /* The dev label only shows while nothing real is in the strip. */
+  .wl-credits:not(:empty) ~ .wl-credits-placeholder {
+    display: none;
+  }
+
+  /*
    * Panel fill by daylight. The riding screen sets --wl-daylight from the sun's elevation,
    * smoothly from 0 (dark) to 1 (day). The fill blends from the night fill to the more solid
    * day fill, so the dock stays readable in the sun and is a little see-through at night.

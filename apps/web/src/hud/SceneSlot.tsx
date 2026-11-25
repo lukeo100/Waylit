@@ -16,6 +16,11 @@ export function ScenePlaceholder() {
 
 interface AttributionSlotProps {
   /**
+   * Called with the element the 3D scene draws its credits and logos into, and with null when
+   * it goes away. The provider owns what is inside it. Nothing else is drawn there.
+   */
+  readonly creditsRef?: (element: HTMLDivElement | null) => void;
+  /**
    * Show a faint label in the strip. Only for development builds and `?dev=1`, so a layout
    * check can see where the strip is. Riders never see it: in production the strip is empty
    * until real credits are mounted into it.
@@ -29,16 +34,19 @@ interface AttributionSlotProps {
  * (Google, Cesium ion and OpenStreetMap contributors), which the 3D scene's attribution
  * control mounts into. The scene must not draw over it.
  */
-export function AttributionSlot({ showPlaceholder = false }: AttributionSlotProps) {
+export function AttributionSlot({ showPlaceholder = false, creditsRef }: AttributionSlotProps) {
   return (
     <footer
       id="attribution-slot"
       data-testid="attribution-slot"
       data-slot="attribution"
       aria-label="Map and data credits"
-      className="row-start-3 flex min-h-[clamp(1.25rem,5.2dvh,1.75rem)] items-center bg-credits pr-[max(0.75rem,var(--wl-safe-right))] pb-[var(--wl-safe-bottom)] pl-[max(0.75rem,var(--wl-safe-left))] text-hud-sm text-text-muted"
+      className="row-start-3 flex min-h-[clamp(1.5rem,6.5dvh,2rem)] items-center bg-credits pr-[max(0.75rem,var(--wl-safe-right))] pb-[var(--wl-safe-bottom)] pl-[max(0.75rem,var(--wl-safe-left))] text-hud-sm text-text-muted"
     >
-      {showPlaceholder ? <span className="opacity-60">Credits area (dev only)</span> : null}
+      <div ref={creditsRef} data-testid="map-credit-mount" className="wl-credits" />
+      {showPlaceholder ? (
+        <span className="wl-credits-placeholder opacity-60">Credits area (dev only)</span>
+      ) : null}
     </footer>
   );
 }
