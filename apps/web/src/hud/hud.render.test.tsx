@@ -70,9 +70,9 @@ describe("riding screen components", () => {
     );
     expect(html).toContain('data-fallback="true"');
     expect(html).toContain("No scooter data. Trip distance from GPS.");
-    // Cyan and grey, not a second accent: no amber on the GPS label or the note.
-    expect(html).not.toContain("text-caution");
-    expect(html).toContain("text-cyan");
+    // Amber is the warning colour: the GPS label and the note use it, and cyan is not used here.
+    expect(html).toContain("text-caution");
+    expect(html).not.toContain("text-cyan");
   });
 
   it("only says there is no scooter data while riding and when telemetry is missing", () => {
@@ -208,6 +208,38 @@ describe("riding screen components", () => {
     expect(html.indexOf("left")).toBeLessThan(html.indexOf("dock-divider"));
     expect(html.indexOf("dock-divider")).toBeLessThan(html.indexOf("right"));
     expect(html).toContain("wl-glass");
+  });
+
+  it("dock is sized to its content, capped at 80 percent of the screen width (42rem on small phones)", () => {
+    const html = renderToStaticMarkup(<Dock media={<i>left</i>} vehicle={<i>right</i>} />);
+    expect(html).toContain("w-fit");
+    expect(html).toContain("max-w-[min(100%,max(80vw,42rem))]");
+    expect(html).not.toContain("w-full");
+  });
+
+  it("uses amber for the GPS fallback label and the telemetry note, and not for normal GPS", () => {
+    const lost = ridingSnapshot(true).snapshot;
+    const fallback = renderToStaticMarkup(
+      <NavigationPanel
+        speed={lost.speed}
+        gpsSpeedMps={lost.gpsSpeedMps}
+        progress={lost.progress}
+        riding
+        note={telemetryNote(lost.telemetry, lost.trip, true)}
+      />,
+    );
+    expect(fallback).toMatch(/data-testid="speed-source"[^>]*class="[^"]*text-caution/);
+    expect(fallback).toMatch(/data-testid="telemetry-note"[^>]*class="[^"]*text-caution/);
+    const live = ridingSnapshot().snapshot;
+    const normal = renderToStaticMarkup(
+      <NavigationPanel
+        speed={live.speed}
+        gpsSpeedMps={live.gpsSpeedMps}
+        progress={live.progress}
+        riding
+      />,
+    );
+    expect(normal).not.toContain("text-caution");
   });
 
   it("status cluster is plain text with a connectivity dot", () => {

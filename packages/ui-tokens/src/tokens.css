@@ -37,7 +37,7 @@
   --wl-font-size-speed: min(43dvh, 21vw);
   --wl-font-size-hud-turn: clamp(1.5rem, 9.5dvh, 3.5rem);
   --wl-font-size-hud-lg: clamp(0.875rem, 4dvh, 1.3rem);
-  --wl-font-size-hud-dock: clamp(0.8rem, min(3.8dvh, 2.1vw), 1.3rem);
+  --wl-font-size-hud-dock: clamp(0.8rem, min(3.5dvh, 1.9vw), 1.2rem);
   --wl-font-size-hud-md: clamp(0.75rem, 3.3dvh, 1.05rem);
   --wl-font-size-hud-sm: clamp(0.6875rem, 2.7dvh, 0.875rem);
   --wl-line-height-tight: 1.1;

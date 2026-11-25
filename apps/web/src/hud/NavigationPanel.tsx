@@ -14,7 +14,7 @@ interface NavigationPanelProps {
   readonly gpsSpeedMps: number | undefined;
   readonly progress: NavigationProgress;
   readonly riding: boolean;
-  /** Shown under the speed, in quiet grey with a small icon, when the scooter has stopped sending data. */
+  /** Shown under the speed, in amber with a small icon, when the scooter has stopped sending data. */
   readonly note?: string | undefined;
   /**
    * The overridden time, only while the dev time override is on. The arrival time is then the
@@ -73,7 +73,7 @@ export function NavigationPanel({
           <span
             data-testid="speed-source"
             data-fallback={fallback}
-            className={fallback ? "font-semibold text-cyan" : "text-text-muted"}
+            className={fallback ? "font-semibold text-caution" : "text-text-muted"}
           >
             GPS {gpsValue.value}
           </span>
@@ -81,9 +81,9 @@ export function NavigationPanel({
         {note ? (
           <p
             data-testid="telemetry-note"
-            className="mt-[1dvh] flex max-w-[18ch] items-start gap-[0.4em] text-hud-sm leading-snug text-text-secondary"
+            className="mt-[1dvh] flex max-w-[18ch] items-start gap-[0.4em] text-hud-sm leading-snug text-caution"
           >
-            <span className="mt-[0.15em] size-[1.1em] shrink-0 text-cyan">
+            <span className="mt-[0.15em] size-[1.1em] shrink-0">
               <OfflineIcon size="100%" />
             </span>
             <span>{note}</span>

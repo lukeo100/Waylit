@@ -21,7 +21,10 @@ export const color = {
   text: "#eef1f4",
   textSecondary: "#a4acb7",
   textMuted: "#747d89",
-  /** Status. Caution is for safety, offline and fallback notes. Danger is for End trip only. */
+  /**
+   * Status. Caution is a muted amber for warnings: safety notices, offline, GPS fallback, low
+   * battery. Danger is red for errors and for End trip. Cyan stays the only other accent.
+   */
   caution: "#e6b04f",
   danger: "#f0868f",
   dangerBorder: "rgba(200, 84, 96, 0.65)",
@@ -67,7 +70,7 @@ export const fontSize = {
   /** Street instruction, clock and temperature. */
   hudLg: "clamp(0.875rem, 4dvh, 1.3rem)",
   /** Values in the dock. Also scaled by width, because the dock is the tightest row. */
-  hudDock: "clamp(0.8rem, min(3.8dvh, 2.1vw), 1.3rem)",
+  hudDock: "clamp(0.8rem, min(3.5dvh, 1.9vw), 1.2rem)",
   /** Secondary figures: time left, dock labels, clock. */
   hudMd: "clamp(0.75rem, 3.3dvh, 1.05rem)",
   /** Units, captions and credits. */

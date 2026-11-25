@@ -42,6 +42,29 @@ describe("design tokens", () => {
     expect(alpha(color.glass)).toBeCloseTo(0.85, 2);
   });
 
+  it("has a muted warning amber that reads on the dark background, and a separate red", () => {
+    const rgb = (hex: string): [number, number, number] => [
+      Number.parseInt(hex.slice(1, 3), 16),
+      Number.parseInt(hex.slice(3, 5), 16),
+      Number.parseInt(hex.slice(5, 7), 16),
+    ];
+    const luminance = (hex: string): number => {
+      const [r = 0, g = 0, b = 0] = rgb(hex).map((c) => {
+        const v = c / 255;
+        return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
+      });
+      return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+    };
+    const [r, g, b] = rgb(color.caution);
+    // Amber: red high, green a little lower, blue much lower.
+    expect(r).toBeGreaterThan(g);
+    expect(g).toBeGreaterThan(b + 40);
+    expect(r - g).toBeLessThan(80);
+    const contrast = (luminance(color.caution) + 0.05) / (luminance(color.night950) + 0.05);
+    expect(contrast).toBeGreaterThanOrEqual(4.5);
+    expect(color.caution).not.toBe(color.danger);
+  });
+
   it("keeps touch targets at 44 pixels or more", () => {
     expect(Number.parseInt(touch.min, 10)).toBeGreaterThanOrEqual(44);
   });
