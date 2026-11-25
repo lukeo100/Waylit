@@ -1,7 +1,9 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
+import type { SunClockMode } from "@waylit/core";
 import { devControlsEnabled } from "./dev-controls";
+import { DEFAULT_SUN_MODE, createSunModeStore } from "./sun-mode";
 
 /** True while the browser says it has a network connection. */
 export function useOnline(): boolean {
@@ -57,4 +59,27 @@ export function useSearch(): string {
     () => window.location.search,
     () => "",
   );
+}
+
+function browserStorage(): Storage | null {
+  try {
+    return window.localStorage;
+  } catch {
+    return null;
+  }
+}
+
+const sunModeStore = createSunModeStore(() => window.location.search, browserStorage);
+
+/**
+ * How the scene's light is chosen: following the device clock (default) or the real sun at the
+ * route. Remembered between visits, and `?sun=clock` or `?sun=real` in the address overrides it.
+ */
+export function useSunMode(): readonly [SunClockMode, (mode: SunClockMode) => void] {
+  const mode = useSyncExternalStore(
+    sunModeStore.subscribe,
+    sunModeStore.get,
+    () => DEFAULT_SUN_MODE,
+  );
+  return [mode, sunModeStore.set];
 }

@@ -303,7 +303,9 @@ describe("riding screen components", () => {
   });
 
   it("start prompt and trip summary have the buttons the brief asks for", () => {
-    expect(renderToStaticMarkup(<StartPrompt onStart={noop} />)).toContain("Start trip");
+    expect(
+      renderToStaticMarkup(<StartPrompt onStart={noop} sunMode="follow-clock" onSunMode={noop} />),
+    ).toContain("Start trip");
     const html = renderToStaticMarkup(
       <TripSummary
         summary={{
@@ -411,7 +413,7 @@ describe("riding screen components", () => {
   it("uses no em dashes or emoji in any copy", () => {
     const { snapshot } = ridingSnapshot();
     const html = [
-      renderToStaticMarkup(<StartPrompt onStart={noop} />),
+      renderToStaticMarkup(<StartPrompt onStart={noop} sunMode="follow-clock" onSunMode={noop} />),
       renderToStaticMarkup(
         <NavigationPanel
           speed={snapshot.speed}

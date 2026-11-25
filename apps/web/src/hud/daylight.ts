@@ -33,8 +33,17 @@ export interface DaylightState {
   readonly warmth: number;
   /** True when the light is more day than night (`factor` of one half or more). */
   readonly isDay: boolean;
-  /** The moment this describes, milliseconds since the Unix epoch. */
+  /**
+   * The moment the sun was worked out for, milliseconds since the Unix epoch. In simulation
+   * this can differ from the device clock (see `sunMoment`), and it is what the 3D scene's sky
+   * and sun use.
+   */
   readonly nowMs: number;
+  /**
+   * The device clock instant that the HUD shows as the time of day (or the developer override).
+   * Equal to `nowMs` unless the sun follows the device clock at the simulated place.
+   */
+  readonly clockMs: number;
   /** The place this describes. */
   readonly position: LatLng;
   /** True when a developer time override is in force instead of the real time. */
@@ -45,11 +54,16 @@ export interface DaylightState {
 const WARM_PEAK_DEGREES = -1;
 const WARM_SPREAD_DEGREES = 7;
 
-/** The daylight state at a place and moment. */
+/**
+ * The daylight state at a place and moment. `nowMs` is the instant the sun is worked out for.
+ * `clockMs` is the device clock reading the HUD shows, and is `nowMs` unless the sun follows the
+ * device clock (see `sunMoment` in `@waylit/core`).
+ */
 export function computeDaylight(
   position: LatLng,
   nowMs: number,
   overridden = false,
+  clockMs: number = nowMs,
 ): DaylightState {
   const solar = getSolarState(position.lat, position.lng, new Date(nowMs));
   const factor = daylightFactor(solar.elevationDegrees);
@@ -57,7 +71,7 @@ export function computeDaylight(
     0,
     1 - Math.abs(solar.elevationDegrees - WARM_PEAK_DEGREES) / WARM_SPREAD_DEGREES,
   );
-  return { solar, factor, warmth, isDay: factor >= 0.5, nowMs, position, overridden };
+  return { solar, factor, warmth, isDay: factor >= 0.5, nowMs, clockMs, position, overridden };
 }
 
 /**
@@ -77,6 +91,7 @@ export function unknownDaylight(position: LatLng): DaylightState {
     warmth: 0,
     isDay: false,
     nowMs: 0,
+    clockMs: 0,
     position,
     overridden: false,
   };

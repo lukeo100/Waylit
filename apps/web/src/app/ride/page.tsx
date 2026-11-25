@@ -8,7 +8,7 @@ import {
   useSyncExternalStore,
   type CSSProperties,
 } from "react";
-import { DEMO_ROUTE } from "@waylit/core";
+import { DEMO_ROUTE, sunMoment, utcOffsetMinutesAt } from "@waylit/core";
 import { parseTimeOverride } from "@/hud/dev-controls";
 import { DaylightProvider } from "@/hud/daylight-context";
 import {
@@ -29,8 +29,15 @@ import { StatusCluster } from "@/hud/StatusCluster";
 import { TripSummary } from "@/hud/TripSummary";
 import { VehiclePanel } from "@/hud/VehiclePanel";
 import { telemetryNote } from "@/hud/telemetry-note";
+import { POSITION_SOURCE } from "@/hud/sun-mode";
 import { useCreditsClearance } from "@/hud/use-credits-clearance";
-import { useDevControls, useMinuteClock, useOnline, useSearch } from "@/hud/use-browser-state";
+import {
+  useDevControls,
+  useMinuteClock,
+  useOnline,
+  useSearch,
+  useSunMode,
+} from "@/hud/use-browser-state";
 import { MapScene } from "@/map/MapScene";
 import { useMockMedia } from "@/media/useMockMedia";
 import { browserFullscreenEnvironment, enterFullscreen, exitFullscreen } from "@/pwa/fullscreen";
@@ -113,14 +120,30 @@ export default function RidePage() {
   const sunPosition = roundPosition(
     riding ? (snapshot.position ?? DEFAULT_SUN_POSITION) : DEFAULT_SUN_POSITION,
   );
+  // Which moment the sun is worked out for. The HUD clock above always shows the device's own
+  // time. In simulation the sun follows that clock by default, applied at the route's place, and
+  // a developer override (a real instant at the place) wins over both modes. With real GPS
+  // (POSITION_SOURCE "gps") the real time is used as it is.
+  const [sunMode, setSunMode] = useSunMode();
+  const sunMs =
+    timeOverrideMs ??
+    (realNowMs === undefined
+      ? undefined
+      : sunMoment({
+          mode: sunMode,
+          positionSource: POSITION_SOURCE,
+          deviceNowMs: realNowMs,
+          deviceUtcOffsetMinutes: utcOffsetMinutesAt(realNowMs),
+          position: sunPosition,
+        }));
   const daylight = useMemo(
     () =>
-      nowMs === undefined
+      sunMs === undefined || nowMs === undefined
         ? unknownDaylight(sunPosition)
-        : computeDaylight(sunPosition, nowMs, timeOverrideMs !== undefined),
+        : computeDaylight(sunPosition, sunMs, timeOverrideMs !== undefined, nowMs),
     // The position is rebuilt each render, so depend on its two numbers.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [sunPosition.lat, sunPosition.lng, nowMs, timeOverrideMs],
+    [sunPosition.lat, sunPosition.lng, sunMs, nowMs, timeOverrideMs],
   );
 
   return (
@@ -171,7 +194,9 @@ export default function RidePage() {
                 </div>
 
                 <div className="pointer-events-none absolute inset-x-0 bottom-[1.5dvh] flex flex-col items-center gap-[1.2dvh]">
-                  {snapshot.phase === "idle" ? <StartPrompt onStart={startTrip} /> : null}
+                  {snapshot.phase === "idle" ? (
+                    <StartPrompt onStart={startTrip} sunMode={sunMode} onSunMode={setSunMode} />
+                  ) : null}
                   {devControls ? (
                     <DevControls
                       playbackSpeed={snapshot.playbackSpeed}

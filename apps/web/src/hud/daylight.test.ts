@@ -131,3 +131,14 @@ describe("local time helpers", () => {
     expect(roundPosition({ lat: 52.47094, lng: 13.40806 })).toEqual({ lat: 52.471, lng: 13.408 });
   });
 });
+
+describe("device clock and sun moment", () => {
+  it("keeps the device clock reading apart from the instant the sun is worked out for", () => {
+    const sunMs = Date.UTC(2026, 10, 25, 22, 4);
+    const clockMs = Date.UTC(2026, 10, 25, 11, 4);
+    const state = computeDaylight(DEFAULT_SUN_POSITION, sunMs, false, clockMs);
+    expect(state.nowMs).toBe(sunMs);
+    expect(state.clockMs).toBe(clockMs);
+    expect(computeDaylight(DEFAULT_SUN_POSITION, sunMs).clockMs).toBe(sunMs);
+  });
+});

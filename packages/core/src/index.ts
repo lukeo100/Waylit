@@ -86,3 +86,11 @@ export {
   solarPhaseFromElevation,
 } from "./solar";
 export type { PolarCondition, SolarPhase, SolarState, SunTimes } from "./solar";
+export {
+  SUN_CLOCK_MODES,
+  followClockInstant,
+  parseSunClockMode,
+  sunMoment,
+  utcOffsetMinutesAt,
+} from "./sun-moment";
+export type { PositionSource, SunClockMode, SunMomentInput } from "./sun-moment";

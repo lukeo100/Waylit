@@ -176,7 +176,7 @@ export function DevControls({
             />
           </label>
           <span data-testid="time-readout" className="shrink-0 text-text tabular-nums">
-            {formatClockTime(daylight.nowMs === 0 ? undefined : daylight.nowMs)} ·{" "}
+            {formatClockTime(daylight.clockMs === 0 ? undefined : daylight.clockMs)} ·{" "}
             {PHASE_LABEL[daylight.solar.phase]} · sun {Math.round(daylight.solar.elevationDegrees)}°
           </span>
         </div>
