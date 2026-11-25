@@ -69,7 +69,7 @@ export function MapStats({
     <pre
       data-testid="map-stats"
       aria-hidden="true"
-      className="pointer-events-none w-[min(18vw,13rem)] rounded bg-black/70 px-1.5 py-1 font-mono text-[8px] leading-[1.15] break-words whitespace-pre-wrap text-text-secondary"
+      className="wl-plate pointer-events-none min-h-0 w-[min(18vw,13rem)] shrink overflow-hidden rounded-sm px-1.5 py-1 font-mono text-[8px] leading-[1.15] break-words whitespace-pre-wrap text-text-secondary"
     >
       {lines.join("\n")}
     </pre>

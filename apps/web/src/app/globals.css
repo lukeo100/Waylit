@@ -426,34 +426,63 @@
   }
 
   /*
-   * Text drawn straight on the scene gets a small dark shadow, so it holds up on a bright sky
-   * and sunlit ground. Flat and cheap: no blur filter.
+   * Readability over the scene, see docs/DESIGN_SYSTEM.md, "Text on the scene". There is no
+   * screen wide scrim, gradient or vignette. Each group of HUD text sits on its own small plate of
+   * dark glass, only as big as the text, so the scene stays clear everywhere else. The plate's
+   * opacity follows the daylight factor from --wl-plate-night to --wl-plate-day, and its floor
+   * keeps every text colour used on it above WCAG AA even over pure white (readability.ts). One
+   * flat fill, no blur, no gradient.
    */
+  .wl-plate {
+    --wl-plate-alpha: calc(
+      var(--wl-plate-night) + (var(--wl-plate-day) - var(--wl-plate-night)) * var(--wl-daylight, 0)
+    );
+    background: rgb(5 7 11 / var(--wl-plate-alpha));
+    border: 1px solid var(--wl-color-glass-border);
+  }
+
+  /* A tight dark edge on the glyphs, at most two pixels, so text stays crisp in glare. */
   .wl-hud-text {
     text-shadow: var(--wl-shadow-text);
   }
 
   /*
-   * The top scrim: a dark linear gradient behind the top of the screen, solid down to
-   * --wl-scrim-solid and gone by --wl-scrim-fade. Its strength follows the daylight factor
-   * (--wl-daylight, 0 to 1), from --wl-scrim-night to --wl-scrim-day, because a bright sky and
-   * sunlit ground need the most. One flat gradient, no blur. It sits above the scene and below
-   * the HUD, and passes touches through.
+   * The turn arrow turns cyan when the turn is close (imminent or now), the one moment the
+   * accent is worth spending on it.
    */
-  .wl-scrim {
-    --wl-scrim-alpha: calc(
-      var(--wl-scrim-night) + (var(--wl-scrim-day) - var(--wl-scrim-night)) * var(--wl-daylight, 0)
-    );
-    position: absolute;
-    inset: 0 0 auto 0;
-    height: var(--wl-scrim-fade);
-    pointer-events: none;
-    background: linear-gradient(
-      180deg,
-      rgb(5 7 11 / var(--wl-scrim-alpha)) 0%,
-      rgb(5 7 11 / var(--wl-scrim-alpha)) var(--wl-scrim-solid),
-      rgb(5 7 11 / 0) 100%
-    );
+  .wl-turn-arrow {
+    color: var(--wl-color-text);
+    transition: color var(--wl-motion-base) var(--wl-motion-ease-out);
+  }
+
+  .wl-turn-arrow[data-phase="imminent"],
+  .wl-turn-arrow[data-phase="now"] {
+    color: var(--wl-color-cyan);
+  }
+
+  /*
+   * HUD groups settle in when a screen appears: a short fade and a 6 pixel rise. Answers no
+   * action, so it is off with reduced motion.
+   */
+  .wl-enter {
+    animation: wl-enter var(--wl-motion-slow) var(--wl-motion-ease-out) both;
+  }
+
+  .wl-enter-late {
+    animation-delay: 80ms;
+  }
+
+  @keyframes wl-enter {
+    from {
+      opacity: 0;
+      transform: translateY(6px);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .wl-enter {
+      animation: none;
+    }
   }
 
   .wl-credits {

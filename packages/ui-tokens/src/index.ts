@@ -9,7 +9,7 @@ export {
   lineHeight,
   motion,
   radius,
-  scrim,
+  plate,
   shadow,
   space,
   tokens,

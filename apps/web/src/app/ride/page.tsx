@@ -20,6 +20,7 @@ import {
 } from "@/hud/daylight";
 import { DevControls } from "@/hud/DevControls";
 import { Dock } from "@/hud/Dock";
+import { HudFrame } from "@/hud/HudFrame";
 import { MediaPanel } from "@/hud/MediaPanel";
 import { Minimap } from "@/hud/Minimap";
 import { NavigationPanel } from "@/hud/NavigationPanel";
@@ -50,11 +51,11 @@ import { useWakeLock } from "@/pwa/use-wake-lock";
 import { useRide } from "@/ride/use-ride";
 
 /**
- * The riding screen. It runs one simulated ride. The scene fills the whole screen (a dark
- * gradient until the 3D view lands in task 8) and the HUD floats on it, with no solid bars:
+ * The riding screen. It runs one simulated ride. The 3D scene fills the whole screen with
+ * nothing darkening it, and the HUD floats on it as a few small glass objects (see HudFrame):
  *
- *   top left      vehicle speed as a huge bare number, GPS speed under it, next turn beside it
- *   top right     time, temperature, a connectivity dot and a round minimap
+ *   top left      speed and next turn on one small plate
+ *   top right     a status chip (time, temperature, connectivity), map settings and the minimap
  *   centre        left clear for the 3D scene
  *   bottom        one joined glass dock: media player left, vehicle dashboard and End trip right
  *   bottom edge   a reserved, darker strip for map and data credits that nothing overlaps
@@ -183,65 +184,63 @@ export default function RidePage() {
           devOverlay={devControls}
           statsSlot={statsSlot}
         />
-        <div aria-hidden="true" data-testid="scrim" className="wl-scrim" />
-
-        <div className="relative z-10 grid h-full grid-rows-[minmax(0,1fr)_auto_auto]">
-          <div className="relative row-start-1 min-h-0 pt-[max(0.75rem,var(--wl-safe-top),2.4dvh)] pr-[max(0.75rem,var(--wl-safe-right),2vw)] pl-[max(0.75rem,var(--wl-safe-left),2vw)]">
-            {summary ? null : (
+        <HudFrame
+          navigation={
+            summary ? undefined : (
+              <NavigationPanel
+                speed={snapshot.speed}
+                gpsSpeedMps={riding ? snapshot.gpsSpeedMps : undefined}
+                progress={snapshot.progress}
+                riding={riding}
+                note={telemetryNote(snapshot.telemetry, snapshot.trip, riding)}
+                simulatedNowMs={timeOverrideMs}
+              />
+            )
+          }
+          status={summary ? undefined : <StatusCluster nowMs={nowMs} online={online} />}
+          mapControls={
+            summary ? undefined : (
               <>
-                <div className="flex items-start justify-between gap-[2vw]">
-                  <NavigationPanel
-                    speed={snapshot.speed}
-                    gpsSpeedMps={riding ? snapshot.gpsSpeedMps : undefined}
-                    progress={snapshot.progress}
-                    riding={riding}
-                    note={telemetryNote(snapshot.telemetry, snapshot.trip, riding)}
-                    simulatedNowMs={timeOverrideMs}
-                  />
-                  <div className="flex shrink-0 flex-col items-end gap-[clamp(0.4rem,2.2dvh,0.9rem)]">
-                    <StatusCluster nowMs={nowMs} online={online} />
-                    <div className="flex items-end gap-[clamp(0.4rem,1vw,0.75rem)]">
-                      <MapSettings
-                        model={mapModel}
-                        guarded={snapshot.guarded}
-                        onChange={setMapSettings}
-                      />
-                      <Minimap
-                        route={DEMO_ROUTE}
-                        alongMetres={snapshot.progress.distanceAlongMetres}
-                        position={riding ? snapshot.position : undefined}
-                        heading={riding ? snapshot.heading : undefined}
-                        nextTurnAt={riding ? snapshot.progress.nextInstruction?.at : undefined}
-                      />
-                    </div>
-                    <div ref={setStatsSlot} className="flex flex-col items-end gap-1" />
-                  </div>
-                </div>
-
-                <div className="pointer-events-none absolute inset-x-0 bottom-[1.5dvh] flex flex-col items-center gap-[1.2dvh]">
-                  {snapshot.phase === "idle" ? (
-                    <StartPrompt onStart={startTrip} sunMode={sunMode} onSunMode={setSunMode} />
-                  ) : null}
-                  {devControls ? (
-                    <DevControls
-                      playbackSpeed={snapshot.playbackSpeed}
-                      telemetryLost={snapshot.telemetryLost}
-                      onPlaybackSpeed={actions.setPlaybackSpeed}
-                      onTelemetryLost={actions.setTelemetryLost}
-                      daylight={daylight}
-                      realNowMs={realNowMs}
-                      position={sunPosition}
-                      timeOverrideMs={timeOverrideMs}
-                      onTimeOverride={setTimeOverride}
-                    />
-                  ) : null}
-                </div>
+                <MapSettings
+                  model={mapModel}
+                  guarded={snapshot.guarded}
+                  onChange={setMapSettings}
+                />
+                <Minimap
+                  route={DEMO_ROUTE}
+                  alongMetres={snapshot.progress.distanceAlongMetres}
+                  position={riding ? snapshot.position : undefined}
+                  heading={riding ? snapshot.heading : undefined}
+                  nextTurnAt={riding ? snapshot.progress.nextInstruction?.at : undefined}
+                />
               </>
-            )}
-          </div>
-
-          {summary ? null : (
-            <div className="row-start-2 flex justify-center pt-[1dvh] pr-[max(var(--wl-safe-right),clamp(0.5rem,2vw,2.5rem))] pb-[clamp(0.25rem,1.6dvh,0.75rem)] pl-[max(var(--wl-safe-left),clamp(0.5rem,2vw,2.5rem))]">
+            )
+          }
+          statsSlotRef={setStatsSlot}
+          centre={
+            summary ? undefined : (
+              <>
+                {snapshot.phase === "idle" ? (
+                  <StartPrompt onStart={startTrip} sunMode={sunMode} onSunMode={setSunMode} />
+                ) : null}
+                {devControls ? (
+                  <DevControls
+                    playbackSpeed={snapshot.playbackSpeed}
+                    telemetryLost={snapshot.telemetryLost}
+                    onPlaybackSpeed={actions.setPlaybackSpeed}
+                    onTelemetryLost={actions.setTelemetryLost}
+                    daylight={daylight}
+                    realNowMs={realNowMs}
+                    position={sunPosition}
+                    timeOverrideMs={timeOverrideMs}
+                    onTimeOverride={setTimeOverride}
+                  />
+                ) : null}
+              </>
+            )
+          }
+          dock={
+            summary ? undefined : (
               <Dock
                 media={
                   <MediaPanel
@@ -260,11 +259,10 @@ export default function RidePage() {
                   />
                 }
               />
-            </div>
-          )}
-
-          <AttributionSlot showPlaceholder={devControls} creditsRef={setCreditsElement} />
-        </div>
+            )
+          }
+          credits={<AttributionSlot showPlaceholder={devControls} creditsRef={setCreditsElement} />}
+        />
 
         {summary && snapshot.summary ? (
           <TripSummary summary={snapshot.summary} onStartNew={actions.reset} />

@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import { devControlsEnabled } from "@/hud/dev-controls";
+import type { TimePreset } from "@/hud/daylight";
+import { PreviewHud } from "./PreviewHud";
 
 /**
  * A development page for looking at the hologram layer without Google tiles or any network. It
@@ -9,6 +11,7 @@ import { devControlsEnabled } from "@/hud/dev-controls";
  *
  *   /dev/holo-preview?dev=1&engine=cesium|maplibre&time=noon|dawn|sunset|night&fx=off|low|high
  *                    &along=<metres>   hold the rider at a distance along the route
+ *                    &hud=1            draw the real riding HUD on top, with fixed mock values
  *
  * Cesium draws pale boxes under the Cesium sky, with the real post process stage, chevrons,
  * beacon, heading marker and rider. The corridor is stood in for by a flat strip, because a
@@ -21,6 +24,7 @@ import { devControlsEnabled } from "@/hud/dev-controls";
 export default function HoloPreviewPage() {
   const host = useRef<HTMLDivElement>(null);
   const [message, setMessage] = useState("Loading");
+  const [hud, setHud] = useState<{ preset: TimePreset; along: number } | undefined>(undefined);
 
   useEffect(() => {
     const element = host.current;
@@ -37,6 +41,14 @@ export default function HoloPreviewPage() {
       if (cancelled) return;
       destroy = startHoloPreview(element, window.location.search);
       setMessage("");
+      const params = new URLSearchParams(window.location.search);
+      if (params.get("hud") === "1") {
+        const along = Number(params.get("along") ?? "NaN");
+        setHud({
+          preset: (params.get("time") ?? "night") as TimePreset,
+          along: Number.isFinite(along) ? along : 60,
+        });
+      }
     });
     return () => {
       cancelled = true;
@@ -47,6 +59,7 @@ export default function HoloPreviewPage() {
   return (
     <main className="fixed inset-0 bg-night-950 text-text">
       <div ref={host} className="absolute inset-0" />
+      {hud ? <PreviewHud preset={hud.preset} along={hud.along} /> : null}
       {message ? <p className="absolute top-2 left-2 text-sm">{message}</p> : null}
     </main>
   );

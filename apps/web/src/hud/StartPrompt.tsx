@@ -10,7 +10,8 @@ interface StartPromptProps {
 
 /**
  * Shown before a trip, low in the clear middle of the screen so it stays off the speed and the
- * turn and above the dock. The page places it. It is the only thing over the scene area.
+ * turn and above the dock. The page places it. It is the only thing over the scene area, and
+ * its caption sits on a small plate so it reads on a bright scene.
  *
  * Beside the start button is the light switch: "Light follows my clock" (the default, so the
  * scene is bright when it is day on your phone and dark when it is night) or "Real sun at the
@@ -39,12 +40,12 @@ export function StartPrompt({ onStart, sunMode, onSunMode }: StartPromptProps) {
           onClick={() => {
             onSunMode(otherSunMode(sunMode));
           }}
-          className="inline-flex min-h-11 items-center rounded-md border border-glass-border bg-glass px-4 text-hud-sm font-medium text-text-secondary transition-colors duration-200 ease-out hover:text-text"
+          className="wl-plate inline-flex min-h-11 items-center rounded-md px-4 text-hud-sm font-medium text-text-secondary transition-colors duration-200 ease-out hover:text-text"
         >
           {SUN_MODE_LABEL[sunMode]}
         </button>
       </div>
-      <p className="text-hud-sm leading-snug text-text-secondary">
+      <p className="wl-plate wl-hud-text rounded-pill px-3 py-1 text-hud-sm leading-snug text-text-secondary">
         Simulated ride on a demo route. Nothing here controls your scooter.
       </p>
     </div>

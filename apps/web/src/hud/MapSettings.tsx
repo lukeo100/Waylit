@@ -99,8 +99,8 @@ interface SheetProps {
 /**
  * The settings sheet: the map (Google 3D tiles or the fallback map) and the hologram screen
  * effect (off, low, high). Glass like the dock, one cyan accent, nothing red. It is a fixed panel
- * on the right that stops above the credits strip (it reads `--wl-credits-clearance`), so it can
- * never cover the credits.
+ * on the right, only as tall as its content, and never taller than the space above the credits
+ * strip (it reads `--wl-credits-clearance`), so it can never cover the credits.
  */
 export function MapSettingsSheet({ model, onChange, onClose, id }: SheetProps) {
   const titleId = useId();
@@ -117,7 +117,7 @@ export function MapSettingsSheet({ model, onChange, onClose, id }: SheetProps) {
       aria-modal="false"
       aria-labelledby={titleId}
       data-testid="map-settings-sheet"
-      className="wl-glass pointer-events-auto fixed top-[max(0.75rem,var(--wl-safe-top),2.4dvh)] right-[max(0.75rem,var(--wl-safe-right),2vw)] bottom-[calc(var(--wl-credits-clearance,2rem)+0.5rem)] z-30 flex w-[min(21rem,36vw)] flex-col gap-3 overflow-y-auto p-3 wl-hud-text"
+      className="wl-glass pointer-events-auto fixed top-[max(0.6rem,var(--wl-safe-top),2.2dvh)] right-[max(0.6rem,var(--wl-safe-right),1.6vw)] z-30 flex max-h-[calc(100dvh-var(--wl-credits-clearance,2rem)-0.5rem-max(0.6rem,var(--wl-safe-top),2.2dvh))] w-[min(21rem,36vw)] flex-col gap-3 overflow-y-auto p-3"
     >
       <div className="flex items-center justify-between gap-2">
         <h2 id={titleId} className="text-hud-md leading-none font-semibold text-text">
@@ -181,8 +181,8 @@ interface MapSettingsProps {
 }
 
 /**
- * The map settings control for the riding screen: one round 44 pixel button under the minimap
- * that opens the sheet. Above the guard speed the button needs a hold like every other control,
+ * The map settings control for the riding screen: one round 44 pixel button beside the minimap
+ * that opens the sheet. It sits on its own small glass plate so the icon reads on a bright sky. Above the guard speed the button needs a hold like every other control,
  * and the sheet closes by itself when the guard turns on. The button never sits over the credits
  * strip or the top text.
  */
@@ -217,7 +217,7 @@ export function MapSettings({ model, guarded, onChange }: MapSettingsProps) {
         onActivate={() => {
           setOpen((current) => !current);
         }}
-        className={`size-11 shrink-0 rounded-full border bg-white/5 transition-colors duration-200 ease-out hover:border-cyan data-[holding=true]:border-cyan data-[holding=true]:bg-cyan/25 ${
+        className={`wl-plate size-11 shrink-0 rounded-full border transition-colors duration-200 ease-out hover:border-cyan data-[holding=true]:border-cyan data-[holding=true]:bg-cyan/25 ${
           open ? "border-cyan text-cyan" : "border-glass-border text-text-secondary"
         }`}
         data-testid="map-settings-button"

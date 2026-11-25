@@ -62,11 +62,12 @@ export const fontSize = {
   /**
    * The riding screen sizes scale with the viewport so the HUD fits every landscape size without
    * clipping. `speed` is the vehicle speed: the biggest thing on the screen, with digits about
-   * 30 percent of the screen height on a phone held sideways.
+   * 15 percent of the screen height on a phone held sideways, large enough for a glance and small
+   * enough to leave the scene clear.
    */
-  speed: "min(43dvh, 21vw)",
+  speed: "clamp(3rem, 20dvh, 6.5rem)",
   /** Distance to the next turn. */
-  hudTurn: "clamp(1.5rem, 9.5dvh, 3.5rem)",
+  hudTurn: "clamp(1.25rem, 8dvh, 2.5rem)",
   /** Street instruction, clock and temperature. */
   hudLg: "clamp(0.875rem, 4dvh, 1.3rem)",
   /** Values in the dock. Also scaled by width, because the dock is the tightest row. */
@@ -138,22 +139,23 @@ export const glow = {
 } as const;
 
 /**
- * Readability of the HUD text drawn straight on the 3D scene. A flat dark scrim (a linear
- * gradient, no blur) sits behind the top of the screen. Its strength follows the daylight
- * factor: `night` at 0 and `day` at 1, because a bright sky and sunlit ground need the most.
- * It is solid down to `solid` and fades to nothing at `fade`, both measured from the top.
- * Text over the scene also gets a small dark shadow (`shadow.text`). No blur, so it is cheap.
+ * Readability of the HUD over the 3D scene. There is no screen wide scrim, gradient or vignette:
+ * each group of HUD text sits on its own small plate of dark glass, sized to the text, so the
+ * scene stays clear everywhere else. The plate's opacity follows the daylight factor, from
+ * `night` at 0 to `day` at 1, and its floor is high enough that every text colour used on a plate
+ * passes WCAG AA even over pure white (see `apps/web/src/hud/readability.ts` and its test).
  */
-export const scrim = {
-  night: "0.35",
-  day: "0.75",
-  solid: "46dvh",
-  fade: "60dvh",
+export const plate = {
+  night: "0.74",
+  day: "0.84",
 } as const;
 
 export const shadow = {
-  /** A tight dark outline plus a soft halo. For text on the scene, never on panels. */
-  text: "0 1px 2px rgba(0, 0, 0, 0.85), 0 0 6px rgba(0, 0, 0, 0.55)",
+  /**
+   * A tight dark edge on the glyphs of text on a plate, so it stays crisp in glare. It reaches
+   * two pixels at most and is never used as a backdrop.
+   */
+  text: "0 0 1px rgba(0, 0, 0, 0.9), 0 1px 2px rgba(0, 0, 0, 0.6)",
 } as const;
 
 export const motion = {
@@ -179,7 +181,7 @@ export const tokens = {
   radius,
   blur,
   glow,
-  scrim,
+  plate,
   shadow,
   motion,
   touch,

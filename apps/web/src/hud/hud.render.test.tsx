@@ -14,6 +14,7 @@ import { StatusCluster } from "./StatusCluster";
 import { TripSummary } from "./TripSummary";
 import { VehiclePanel } from "./VehiclePanel";
 import { HoldButton } from "./HoldButton";
+import { HudFrame } from "./HudFrame";
 import { telemetryNote } from "./telemetry-note";
 import { formatClockTime } from "./time";
 import { DevControls } from "./DevControls";
@@ -52,8 +53,9 @@ describe("riding screen components", () => {
     expect(html).toContain('data-testid="stat-remaining"');
     expect(html).toMatch(/\d+ min\s*(<!-- -->)?\s*<span[^>]*> \u00b7 <\/span>/);
     expect(html).toContain("Arrive ");
-    // No card: the speed is bare text, not inside a glass panel.
+    // The speed and turn sit on one small plate sized to the text, not a dock style panel.
     expect(html).not.toContain("wl-glass");
+    expect(html).toContain("wl-plate");
     expect(html).toContain("text-speed");
   });
 
@@ -426,5 +428,89 @@ describe("riding screen components", () => {
     ].join("");
     expect(html).not.toMatch(new RegExp(`[${String.fromCharCode(0x2013, 0x2014)}]`));
     expect(html).not.toMatch(/\p{Extended_Pictographic}/u);
+  });
+});
+
+describe("HUD redesign: local readability, no screen wide backdrop", () => {
+  const progressAt = (distanceToNextMetres: number) => ({
+    nextInstruction: {
+      manoeuvre: "turn-left" as const,
+      text: "Turn left",
+      at: DEMO_ROUTE.path[0]!,
+    },
+    distanceToNextMetres,
+    distanceAlongMetres: 100,
+    remainingDistanceMetres: 2000,
+    remainingDurationSeconds: 400,
+    arrived: false,
+  });
+  const speed = { speedMps: 5, source: "vehicle" as const };
+
+  it("turns the turn arrow cyan only when the turn is imminent", () => {
+    const far = renderToStaticMarkup(
+      <NavigationPanel speed={speed} gpsSpeedMps={5} progress={progressAt(400)} riding />,
+    );
+    const near = renderToStaticMarkup(
+      <NavigationPanel speed={speed} gpsSpeedMps={5} progress={progressAt(40)} riding />,
+    );
+    expect(far).toMatch(/data-testid="turn-arrow" data-phase="far"/);
+    expect(near).toMatch(/data-testid="turn-arrow" data-phase="imminent"/);
+    expect(near).toContain("wl-turn-arrow");
+    // Before a trip the arrow stays quiet whatever the distance.
+    const idle = renderToStaticMarkup(
+      <NavigationPanel speed={speed} gpsSpeedMps={5} progress={progressAt(5)} riding={false} />,
+    );
+    expect(idle).toMatch(/data-testid="turn-arrow" data-phase="far"/);
+  });
+
+  it("keeps the time left and the arrival on one quiet line in secondary text", () => {
+    const html = renderToStaticMarkup(
+      <NavigationPanel speed={speed} gpsSpeedMps={5} progress={progressAt(400)} riding />,
+    );
+    expect(html).toContain('data-testid="stat-remaining"');
+    expect(html).toContain('data-testid="stat-eta"');
+    // Muted grey is for panels only. Text over the scene is primary, secondary or amber.
+    expect(html).not.toContain("text-text-muted");
+  });
+
+  it("puts the status chip on its own plate", () => {
+    const html = renderToStaticMarkup(<StatusCluster nowMs={0} online />);
+    expect(html).toContain("wl-plate");
+    expect(html).toContain("rounded-pill");
+    expect(html).not.toContain("text-text-muted");
+  });
+
+  it("lays out the slots with no backdrop of its own", () => {
+    const html = renderToStaticMarkup(
+      <HudFrame
+        navigation={<p data-testid="nav-slot">nav</p>}
+        status={<p data-testid="status-slot">status</p>}
+        mapControls={<p data-testid="map-slot">map</p>}
+        centre={<p data-testid="centre-slot">centre</p>}
+        dock={<p data-testid="dock-slot">dock</p>}
+        credits={<AttributionSlot />}
+      />,
+    );
+    for (const id of ["nav-slot", "status-slot", "map-slot", "centre-slot", "dock-slot"]) {
+      expect(html).toContain(`data-testid="${id}"`);
+    }
+    // The credits strip is the last row and the only thing with a solid band.
+    expect(html.lastIndexOf('data-testid="attribution-slot"')).toBeGreaterThan(
+      html.indexOf('data-testid="dock-slot"'),
+    );
+    expect(html).not.toMatch(/wl-scrim|gradient|bg-night|bg-glass|wl-plate|wl-glass/);
+  });
+
+  it("draws only the credits strip when the trip summary is open", () => {
+    const html = renderToStaticMarkup(<HudFrame credits={<AttributionSlot />} />);
+    expect(html).toContain('data-testid="attribution-slot"');
+    expect(html).not.toContain("justify-between");
+  });
+
+  it("puts the caption under the start button on a plate", () => {
+    const html = renderToStaticMarkup(
+      <StartPrompt onStart={noop} sunMode="follow-clock" onSunMode={noop} />,
+    );
+    expect(html).toMatch(/class="wl-plate[^"]*"[^>]*>Simulated ride/);
   });
 });

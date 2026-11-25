@@ -54,7 +54,7 @@ export function Minimap({ route, alongMetres, position, heading, nextTurnAt }: M
   return (
     <div
       data-testid="minimap"
-      className="wl-glass relative aspect-square size-[clamp(4rem,min(10.5vw,26dvh),9rem)] shrink-0 overflow-hidden rounded-full"
+      className="wl-glass relative aspect-square size-[clamp(3.75rem,min(9vw,23dvh),7.5rem)] shrink-0 overflow-hidden rounded-full"
       role="img"
       aria-label={following ? "Minimap, route ahead" : "Minimap, whole route"}
     >

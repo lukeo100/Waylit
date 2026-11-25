@@ -34,8 +34,8 @@
   --wl-font-size-2xl: 1.953rem;
   --wl-font-size-3xl: 2.441rem;
   --wl-font-size-display: 4rem;
-  --wl-font-size-speed: min(43dvh, 21vw);
-  --wl-font-size-hud-turn: clamp(1.5rem, 9.5dvh, 3.5rem);
+  --wl-font-size-speed: clamp(3rem, 20dvh, 6.5rem);
+  --wl-font-size-hud-turn: clamp(1.25rem, 8dvh, 2.5rem);
   --wl-font-size-hud-lg: clamp(0.875rem, 4dvh, 1.3rem);
   --wl-font-size-hud-dock: clamp(0.8rem, min(3.5dvh, 1.9vw), 1.2rem);
   --wl-font-size-hud-md: clamp(0.75rem, 3.3dvh, 1.05rem);
@@ -70,11 +70,9 @@
   --wl-blur-lg: 28px;
   --wl-glow-cyan: 0 0 18px rgba(95, 200, 232, 0.45);
   --wl-glow-focus: 0 0 0 3px rgba(95, 200, 232, 0.6);
-  --wl-scrim-night: 0.35;
-  --wl-scrim-day: 0.75;
-  --wl-scrim-solid: 46dvh;
-  --wl-scrim-fade: 60dvh;
-  --wl-shadow-text: 0 1px 2px rgba(0, 0, 0, 0.85), 0 0 6px rgba(0, 0, 0, 0.55);
+  --wl-plate-night: 0.74;
+  --wl-plate-day: 0.84;
+  --wl-shadow-text: 0 0 1px rgba(0, 0, 0, 0.9), 0 1px 2px rgba(0, 0, 0, 0.6);
   --wl-motion-fast: 120ms;
   --wl-motion-base: 200ms;
   --wl-motion-slow: 360ms;

@@ -203,7 +203,7 @@ export function MapScene({
             <p
               role="status"
               data-testid="map-note"
-              className={`pointer-events-none max-w-[22vw] rounded-md bg-glass px-2 py-1 text-right text-hud-sm leading-snug ${
+              className={`pointer-events-none wl-plate max-w-[22vw] rounded-md px-2 py-1 text-right text-hud-sm leading-snug ${
                 state?.warning ? "text-caution" : "text-text-secondary"
               }`}
             >
