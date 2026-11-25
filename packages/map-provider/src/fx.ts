@@ -1,4 +1,4 @@
-import { hexToRgb, lightingParameters, mixHex, type Rgb, type ScenePalette } from "./lighting";
+import { hexToRgb, mixHex, type Rgb, type ScenePalette } from "./lighting";
 import { readQuery } from "./query";
 import { StepDownGovernor, type StepGovernorOptions } from "./step-governor";
 import type { ProviderId, SceneLighting } from "./types";
@@ -7,8 +7,10 @@ import type { ProviderId, SceneLighting } from "./types";
  * The futuristic look of the 3D scene, as plain numbers with no renderer.
  *
  * Two things use these numbers. On the CesiumJS path a single full screen post process pass
- * turns them into a colour grade, a cyan edge glow, a horizon haze, a vignette and a very faint
- * scanline shimmer (see `apps/web/src/map/fx-shader.ts`). On the MapLibre fallback the same
+ * turns them into a colour grade, a cyan edge glow, the holographic scan band and grid, and a very
+ * faint scanline shimmer (see `apps/web/src/map/fx-shader.ts`). There is deliberately no vignette
+ * and no horizon haze band: nothing darkens the corners or lays a band across the screen, so the
+ * scene stays clear at the edges and in the middle (a test guards this). On the MapLibre fallback the same
  * numbers grade the style colours, which needs no shader at all (`gradePalette`).
  *
  * Everything is driven by the daylight state: a cooler and cleaner grade by day, a warm magenta
@@ -94,16 +96,8 @@ export interface FxParameters {
   readonly edgeThreshold: number;
   /** How many texture reads the edge detector makes besides the pixel itself: 0, 2 or 8. */
   readonly edgeTaps: 0 | 2 | 8;
-  /** Strength of the haze band at the horizon. */
-  readonly hazeStrength: number;
-  /** The haze colour. */
-  readonly hazeColour: Rgb;
-  /** Where the horizon sits on the screen, 0 at the bottom to 1 at the top. */
+  /** Where the horizon sits on the screen, 0 at the bottom to 1 at the top. The grid starts here. */
   readonly horizonY: number;
-  /** Half height of the haze band as a fraction of the screen. */
-  readonly hazeWidth: number;
-  /** Darkening toward the screen corners. */
-  readonly vignette: number;
   /** Half height of the scan band as a fraction of the screen. */
   readonly scanHalfWidth: number;
   /** How bright the scan band is, from 0 to 1. Strongest at night. */
@@ -146,11 +140,7 @@ export const FX_OFF: FxParameters = {
   edgeGain: 1,
   edgeThreshold: 0,
   edgeTaps: 0,
-  hazeStrength: 0,
-  hazeColour: [0, 0, 0],
   horizonY: 0.72,
-  hazeWidth: 0.12,
-  vignette: 0,
   scanHalfWidth: 0.07,
   scanStrength: 0,
   gridStrength: 0,
@@ -165,7 +155,6 @@ export function fxParameters(lighting: SceneLighting, level: FxLevel): FxParamet
   const f = clamp01(lighting.daylightFactor);
   const w = clamp01(lighting.warmth);
   const night = 1 - f;
-  const sky = lightingParameters(lighting).sky;
 
   const gradeMix = (high ? 0.85 : 0.6) * lerp(0.75, 1, night);
   const saturation = lerp(0.84, 0.7, night);
@@ -180,10 +169,6 @@ export function fxParameters(lighting: SceneLighting, level: FxLevel): FxParamet
   const edgeStrength = (high ? 1 : 0.7) * lerp(0.1, 0.6, night) * (1 + 0.5 * w);
   const edgeGain = lerp(2.2, 9, night);
 
-  const hazeStrength = lerp(0.16, 0.26, night) * (high ? 1 : 0.8);
-  const hazeColour = mixRgb(hexToRgb(sky.horizon), CYAN, 0.12 + 0.2 * night);
-  const vignette = lerp(0.2, 0.34, night);
-
   const parameters: Omit<FxParameters, "key"> = {
     level,
     variant: high ? 2 : 1,
@@ -197,11 +182,7 @@ export function fxParameters(lighting: SceneLighting, level: FxLevel): FxParamet
     edgeGain,
     edgeThreshold: 0.045,
     edgeTaps: high ? 8 : 2,
-    hazeStrength,
-    hazeColour,
     horizonY: 0.72,
-    hazeWidth: 0.12,
-    vignette,
     // The holographic scan band and ground grid are quiet by day and clear at night.
     scanHalfWidth: 0.07,
     scanStrength: lerp(0.18, 0.55, night) * (high ? 1 : 0.8),

@@ -18,8 +18,13 @@ import type { FxParameters } from "@waylit/map-provider";
  *
  * The look, in order: a colour grade (slight desaturation, controlled contrast, deep navy darks
  * and cool lights, a warm magenta to cyan split at sunset), a cyan edge glow that traces the
- * edges of buildings and roads and is strongest at night, a horizon haze band, a vignette and a
- * very faint scanline shimmer. Strengths all come from `fxParameters` (the daylight state).
+ * edges of buildings and roads and is strongest at night, the holographic scan band and grid,
+ * and a very faint scanline shimmer. Strengths all come from `fxParameters` (the daylight state).
+ *
+ * It never darkens the picture by screen position: there is no vignette, no horizon haze band and
+ * no other term that depends on the distance to the middle or the edge of the screen. Every
+ * darkening the grade does is the same for every pixel of the same colour. `fx-shader.test.ts`
+ * and `no-screen-darkening.test.ts` fail if a position based darkening comes back.
  */
 
 /** The names of the uniforms the shader reads. */
@@ -29,7 +34,6 @@ export const FX_UNIFORMS = [
   "u_highlight",
   "u_edge",
   "u_edgeControl",
-  "u_haze",
   "u_holo",
   "u_motion",
 ] as const;
@@ -42,17 +46,16 @@ export type PackedFxUniforms = Readonly<Record<FxUniformName, readonly number[]>
 /** Packs the parameters into the shader's vectors. */
 export function packFxUniforms(p: FxParameters): PackedFxUniforms {
   return {
-    // gradeMix, saturation, contrast, vignette
-    u_grade: [p.gradeMix, p.saturation, p.contrast, p.vignette],
-    // shadow tone rgb, haze strength
-    u_shadow: [...p.shadowTone, p.hazeStrength],
+    // gradeMix, saturation, contrast, unused
+    u_grade: [p.gradeMix, p.saturation, p.contrast, 0],
+    // shadow tone rgb, unused
+    u_shadow: [...p.shadowTone, 0],
     // highlight tone rgb, scanline strength
     u_highlight: [...p.highlightTone, p.scanline],
     // edge colour rgb, edge strength
     u_edge: [...p.edgeColour, p.edgeStrength],
-    // edge gain, edge threshold, horizon height on screen, haze half width
-    u_edgeControl: [p.edgeGain, p.edgeThreshold, p.horizonY, p.hazeWidth],
-    u_haze: [...p.hazeColour],
+    // edge gain, edge threshold, horizon height on screen (for the grid), unused
+    u_edgeControl: [p.edgeGain, p.edgeThreshold, p.horizonY, 0],
     // scan band centre (set every frame), band half height, band strength, grid strength
     u_holo: [-1, p.scanHalfWidth, p.scanStrength, p.gridStrength],
     // grid scroll (set every frame), unused, unused, unused
@@ -71,7 +74,6 @@ uniform vec4 u_shadow;
 uniform vec4 u_highlight;
 uniform vec4 u_edge;
 uniform vec4 u_edgeControl;
-uniform vec3 u_haze;
 uniform vec4 u_holo;
 uniform vec4 u_motion;
 in vec2 v_textureCoordinates;
@@ -112,7 +114,7 @@ const EDGE_SOBEL = `
  * the picture and nothing about the scene, and it scrolls toward the rider with the time.
  */
 const GRID = `
-  // 6. Faint ground grid, from screen coordinates only, in perspective below the horizon.
+  // 4. Faint ground grid, from screen coordinates only, in perspective below the horizon.
   float below = max(u_edgeControl.z - uv.y, 0.02);
   float range = 0.05 / below;
   vec2 cell = vec2((uv.x - 0.5) * range * 2.4, range - u_motion.x);
@@ -161,14 +163,6 @@ ${edges}
   float bandOffset = (uv.y - u_holo.x) / u_holo.y;
   float bandShape = exp(-bandOffset * bandOffset) * u_holo.z * step(0.0, u_holo.x);
   c += u_edge.rgb * bandShape * (0.1 + edge * 1.4);
-
-  // 4. Horizon haze: a soft band at the horizon, from screen height only.
-  float band = (uv.y - u_edgeControl.z) / u_edgeControl.w;
-  c = mix(c, u_haze, exp(-band * band) * u_shadow.w);
-
-  // 5. Vignette, from the distance to the middle of the screen.
-  float edgeDistance = length((uv - 0.5) * vec2(1.0, 0.85));
-  c *= 1.0 - u_grade.w * smoothstep(0.3, 0.85, edgeDistance);
 ${grid}
 ${scan}
 

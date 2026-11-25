@@ -50,7 +50,7 @@ export interface LightingParameters {
   readonly ambientIntensity: number;
   /**
    * A multiplier for unlit photographic tiles (the baked daylight in Google Photorealistic 3D
-   * Tiles). White by day, warm at sunset, dark blue at night.
+   * Tiles). White by day, warm at sunset, a dim cool blue at night that never crushes to black.
    */
   readonly tint: Rgb;
   readonly sky: SkyColours;
@@ -114,7 +114,12 @@ export function sunDirection(azimuthDegrees: number, elevationDegrees: number): 
 
 /** Night end of every ramp. Close to the design tokens night950 and night900. */
 const NIGHT = {
-  tint: [0.09, 0.115, 0.19] as Rgb,
+  /**
+   * The night multiplier for photographic tiles (only used with the visual effect on). It dims
+   * and cools the baked daylight, but never below about a third, so the street stays readable at
+   * night instead of being crushed toward black (it was 0.09 to 0.19 before the HUD redesign).
+   */
+  tint: [0.3, 0.36, 0.5] as Rgb,
   zenith: "#05070b",
   horizon: "#10151d",
   palette: {

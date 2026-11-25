@@ -90,8 +90,7 @@ describe("fxParameters", () => {
     // Sunset: the darks lean magenta (red above green).
     expect(sunset.shadowTone[0]).toBeGreaterThan(day.shadowTone[0]);
     expect(sunset.shadowTone[0]).toBeGreaterThan(sunset.shadowTone[1] * 2);
-    // Night: stronger vignette and desaturation.
-    expect(night.vignette).toBeGreaterThan(day.vignette);
+    // Night: stronger desaturation.
     expect(night.saturation).toBeLessThan(day.saturation);
   });
 
@@ -111,21 +110,26 @@ describe("fxParameters", () => {
     for (const lighting of [DAY, SUNSET, NIGHT]) {
       for (const level of ["low", "high"] as const) {
         const p = fxParameters(lighting, level);
-        for (const value of [
-          p.gradeMix,
-          p.saturation,
-          p.edgeStrength,
-          p.hazeStrength,
-          p.vignette,
-        ]) {
+        for (const value of [p.gradeMix, p.saturation, p.edgeStrength]) {
           expect(value).toBeGreaterThanOrEqual(0);
           expect(value).toBeLessThanOrEqual(1);
         }
-        for (const channel of [...p.shadowTone, ...p.highlightTone, ...p.hazeColour]) {
+        for (const channel of [...p.shadowTone, ...p.highlightTone]) {
           expect(channel).toBeGreaterThanOrEqual(0);
           expect(channel).toBeLessThanOrEqual(1.1);
         }
         expect(p.contrast).toBeGreaterThanOrEqual(1);
+      }
+    }
+  });
+
+  it("has no vignette or horizon haze, at any level or time of day", () => {
+    for (const lighting of [DAY, SUNSET, NIGHT]) {
+      for (const level of ["off", "low", "high"] as const) {
+        const keys = Object.keys(fxParameters(lighting, level));
+        for (const banned of ["vignette", "hazeStrength", "hazeColour", "hazeWidth"]) {
+          expect(keys).not.toContain(banned);
+        }
       }
     }
   });

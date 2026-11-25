@@ -65,6 +65,20 @@ describe("fx shader source", () => {
     expect(source).not.toMatch(/viewport|czm_|inverse|eye|world/i);
   });
 
+  it("never darkens by screen position: no vignette and no horizon haze band", () => {
+    for (const variant of [1, 2] as const) {
+      const source = fxFragmentShader(variant);
+      expect(source).not.toMatch(/vignette|haze/i);
+      // A distance from the middle of the screen is how a vignette is built.
+      expect(source).not.toMatch(/length\(\s*\(?\s*uv\s*-\s*(0\.5|vec2\(0\.5)/);
+      expect(source).not.toMatch(/distance\(\s*uv/);
+      // Every multiply of the whole colour is by a constant stripe, never by a screen position.
+      for (const line of source.split("\n").filter((l) => /\bc\s*\*=/.test(l))) {
+        expect(line).not.toMatch(/uv/);
+      }
+    }
+  });
+
   it("uses no dash characters or non ASCII text", () => {
     for (const variant of [1, 2] as const) {
       // eslint-disable-next-line no-control-regex
@@ -77,12 +91,12 @@ describe("packFxUniforms", () => {
   it("packs the daylight driven parameters into the shader vectors", () => {
     const p = fxParameters(NIGHT, "high");
     const packed = packFxUniforms(p);
-    expect(packed.u_grade).toEqual([p.gradeMix, p.saturation, p.contrast, p.vignette]);
+    expect(packed.u_grade).toEqual([p.gradeMix, p.saturation, p.contrast, 0]);
     expect(packed.u_edge[3]).toBe(p.edgeStrength);
     expect(packed.u_edgeControl[0]).toBe(p.edgeGain);
     expect(packed.u_shadow).toHaveLength(4);
     expect(packed.u_highlight).toHaveLength(4);
-    expect(packed.u_haze).toHaveLength(3);
+    expect(Object.keys(packed)).not.toContain("u_haze");
     expect(packed.u_holo).toEqual([-1, p.scanHalfWidth, p.scanStrength, p.gridStrength]);
     expect(packed.u_motion).toHaveLength(4);
     for (const name of FX_UNIFORMS) {

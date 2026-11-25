@@ -92,11 +92,16 @@ describe("lightingParameters", () => {
     expect(night.ambientIntensity).toBeGreaterThan(0.05);
   });
 
-  it("leaves the photographic tiles untouched by day and dark and blue at night", () => {
+  it("leaves the photographic tiles untouched by day, and dim and blue at night", () => {
     expect(day.tint).toEqual([1, 1, 1]);
     const [r, g, b] = night.tint;
-    expect(Math.max(r, g, b)).toBeLessThan(0.25);
+    expect(Math.max(r, g, b)).toBeLessThan(0.6);
     expect(b).toBeGreaterThan(r);
+  });
+
+  it("never crushes the night tiles toward black", () => {
+    // The darkest channel keeps at least 30 percent of the photo, so the street stays readable.
+    expect(Math.min(...night.tint)).toBeGreaterThanOrEqual(0.3);
   });
 
   it("warms the tint at sunset", () => {

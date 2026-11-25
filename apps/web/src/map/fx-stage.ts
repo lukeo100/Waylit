@@ -1,4 +1,4 @@
-import { Cartesian3, Cartesian4 } from "@cesium/core";
+import { Cartesian4 } from "@cesium/core";
 import { PostProcessStage, type Scene } from "@cesium/engine";
 import {
   FX_OFF,
@@ -34,7 +34,6 @@ export class CesiumFx {
     u_highlight: new Cartesian4(),
     u_edge: new Cartesian4(),
     u_edgeControl: new Cartesian4(),
-    u_haze: new Cartesian3(),
     u_holo: new Cartesian4(-1, 0.07, 0, 0),
     u_motion: new Cartesian4(),
   };
@@ -117,9 +116,6 @@ export class CesiumFx {
     this.vectors.u_holo.y = packed.u_holo[1] ?? 0.07;
     this.vectors.u_holo.z = packed.u_holo[2] ?? 0;
     this.vectors.u_holo.w = packed.u_holo[3] ?? 0;
-    this.vectors.u_haze.x = packed.u_haze[0] ?? 0;
-    this.vectors.u_haze.y = packed.u_haze[1] ?? 0;
-    this.vectors.u_haze.z = packed.u_haze[2] ?? 0;
     // The scene only redraws when asked while it is idle, so ask.
     this.scene.requestRender();
   }
@@ -136,7 +132,6 @@ export class CesiumFx {
         u_highlight: () => vectors.u_highlight,
         u_edge: () => vectors.u_edge,
         u_edgeControl: () => vectors.u_edgeControl,
-        u_haze: () => vectors.u_haze,
         u_holo: () => vectors.u_holo,
         u_motion: () => vectors.u_motion,
       },
