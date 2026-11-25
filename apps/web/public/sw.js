@@ -10,7 +10,8 @@
  *   - Everything else passes straight through to the network.
  *
  * What it never caches by default: /api/ routes, any request to another origin (which
- * covers map tile servers and every third party API), non GET requests and Next.js data
+ * covers map tile servers, Cesium ion, Google 3D Tiles and every third party API), the map
+ * renderers' own files under /cesium/ and /maplibre/, non GET requests and Next.js data
  * requests. NOTE ON MAP TILES: many providers restrict storing or caching their tiles.
  * Caching any third party map tiles must follow that provider's terms. Do not add it
  * here without checking them, and keep it in its own size capped cache.

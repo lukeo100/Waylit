@@ -11,7 +11,7 @@
    * caches, and old caches with a different version are deleted when a new worker
    * activates.
    */
-  var VERSION = "v1";
+  var VERSION = "v2";
 
   var CACHE_PREFIX = "waylit-";
   var CACHES = {
@@ -48,7 +48,10 @@
    *
    * Bypassed on purpose, and never cached by default:
    *   - anything that is not a GET
-   *   - anything on another origin, which includes every map tile server and third party API
+   *   - anything on another origin, which includes every map tile server and third party API:
+   *     Cesium ion (api.cesium.com and its asset hosts), Google 3D Tiles (tile.googleapis.com),
+   *     OpenFreeMap (tiles.openfreemap.org) and the terrain tiles (tiles.mapterhorn.com)
+   *   - /cesium/ and /maplibre/, the map renderers' own worker and WebAssembly files
    *   - /api/ routes
    *   - Next.js data requests (RSC payloads, _rsc queries) and the dev server
    *   - range requests (media)
@@ -76,6 +79,10 @@
       return "bypass";
     if (path.indexOf("/_next/data/") === 0 || path.indexOf("/_next/image") === 0) return "bypass";
     if (path === "/sw.js" || path === "/sw-strategy.js") return "bypass";
+    // The map renderers' own files (Cesium workers and WebAssembly, the MapLibre worker). They
+    // are the app's, not map content, but there are dozens of them and they would push the app's
+    // own chunks out of the size capped cache. The browser's HTTP cache serves them instead.
+    if (path.indexOf("/cesium/") === 0 || path.indexOf("/maplibre/") === 0) return "bypass";
 
     var headers = input.headers || {};
     var rsc = headers.rsc || headers.RSC;

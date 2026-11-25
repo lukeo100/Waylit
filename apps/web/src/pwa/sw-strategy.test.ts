@@ -33,6 +33,35 @@ describe("classifyRequest", () => {
     expect(classify("https://maps.example.com/tiles/root.json")).toBe("bypass");
   });
 
+  it("never touches the map providers' own hosts, which Google and Cesium forbid caching", () => {
+    const hosts = [
+      "https://api.cesium.com/v1/assets/2275207/endpoint",
+      "https://assets.ion.cesium.com/2275207/tileset.json",
+      "https://assets.cesium.com/2275207/tileset.json",
+      "https://tile.googleapis.com/v1/3dtiles/root.json",
+      "https://tile.googleapis.com/v1/3dtiles/datasets/abc/files/x.glb",
+      "https://tiles.openfreemap.org/planet",
+      "https://tiles.openfreemap.org/planet/20260101_000000_pt/14/8800/5370.pbf",
+      "https://tiles.mapterhorn.com/tilejson.json",
+      "https://tiles.mapterhorn.com/12/2200/1342.webp",
+    ];
+    for (const url of hosts) {
+      expect(classify(url)).toBe("bypass");
+      // Even as a script, image or fetch from a worker, and even with a cacheable file type.
+      expect(classify(url, { mode: "cors" })).toBe("bypass");
+      expect(classify(`${url}.png`)).toBe("bypass");
+    }
+  });
+
+  it("never touches the map renderers' own worker and WebAssembly files", () => {
+    expect(classify(`${ORIGIN}/cesium/Workers/chunk-ABC.js`)).toBe("bypass");
+    expect(classify(`${ORIGIN}/cesium/Assets/Images/ion-credit.png`)).toBe("bypass");
+    expect(classify(`${ORIGIN}/cesium/ThirdParty/draco_decoder.wasm`)).toBe("bypass");
+    expect(classify(`${ORIGIN}/maplibre/maplibre-gl-worker.mjs`)).toBe("bypass");
+    // The app's own bundle is still static.
+    expect(classify(`${ORIGIN}/_next/static/chunks/map-chunk.js`)).toBe("static");
+  });
+
   it("never touches non GET requests", () => {
     expect(classify(`${ORIGIN}/_next/static/a.js`, { method: "POST" })).toBe("bypass");
     expect(classify(`${ORIGIN}/`, { method: "PUT", mode: "navigate" })).toBe("bypass");
