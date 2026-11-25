@@ -25,7 +25,7 @@ export function SafetyNotice() {
       aria-modal="false"
       aria-labelledby="safety-notice-title"
       aria-describedby="safety-notice-body"
-      className="fixed right-[max(1rem,var(--wl-safe-right))] bottom-[max(1rem,var(--wl-safe-bottom))] left-[max(1rem,var(--wl-safe-left))] z-50 mx-auto max-h-[calc(100dvh-2rem)] max-w-xl overflow-y-auto rounded-lg border border-l-4 border-glass-border border-l-caution bg-night-800 px-4 py-3 shadow-glow-volt short:py-2"
+      className="fixed right-[max(1rem,var(--wl-safe-right))] bottom-[max(1rem,var(--wl-safe-bottom))] left-[max(1rem,var(--wl-safe-left))] z-50 mx-auto max-h-[calc(100dvh-2rem)] max-w-xl overflow-y-auto rounded-lg border border-l-4 border-glass-border border-l-caution bg-night-800 px-4 py-3 short:py-2"
     >
       <h2 id="safety-notice-title" className="text-base font-semibold text-caution">
         Navigation aid, not a safety system
@@ -40,7 +40,7 @@ export function SafetyNotice() {
           onClick={() => {
             safetyNotice.acknowledge();
           }}
-          className="inline-flex min-h-12 min-w-12 items-center rounded-md bg-volt px-5 text-base font-semibold text-night-950 shadow-glow-volt transition-colors duration-200 ease-out hover:bg-volt-soft"
+          className="inline-flex min-h-12 min-w-12 items-center rounded-md bg-cyan px-5 text-base font-semibold text-night-950 transition-colors duration-200 ease-out hover:bg-cyan-soft"
         >
           I understand
         </button>

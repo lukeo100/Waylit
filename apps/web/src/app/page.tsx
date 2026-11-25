@@ -41,7 +41,7 @@ export default function HomePage() {
         <div className="flex flex-wrap items-center gap-4">
           <a
             href={sourceUrl}
-            className="inline-flex min-h-12 items-center rounded-md bg-volt px-5 text-base font-semibold text-night-950 shadow-glow-volt transition-colors duration-200 ease-out hover:bg-volt-soft"
+            className="inline-flex min-h-12 items-center rounded-md bg-cyan px-5 text-base font-semibold text-night-950 transition-colors duration-200 ease-out hover:bg-cyan-soft"
           >
             View the source code
           </a>

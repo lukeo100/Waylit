@@ -23,7 +23,8 @@ import { fileURLToPath } from "node:url";
 
 const outDir = join(dirname(fileURLToPath(import.meta.url)), "..", "public", "icons");
 
-// Colours copied from packages/ui-tokens (night950, volt, cyan, cyanSoft).
+// App icon colours. They are fixed brand colours for the launcher icon and do not follow the
+// HUD tokens in packages/ui-tokens.
 const BASE = "#05080f";
 const VOLT = "#2e8bff";
 const CYAN = "#35e0ff";

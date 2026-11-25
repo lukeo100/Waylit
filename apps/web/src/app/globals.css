@@ -16,8 +16,6 @@
   --color-night-900: var(--wl-color-night-900);
   --color-night-800: var(--wl-color-night-800);
   --color-night-700: var(--wl-color-night-700);
-  --color-volt: var(--wl-color-volt);
-  --color-volt-soft: var(--wl-color-volt-soft);
   --color-cyan: var(--wl-color-cyan);
   --color-cyan-soft: var(--wl-color-cyan-soft);
   --color-text: var(--wl-color-text);
@@ -25,11 +23,14 @@
   --color-text-muted: var(--wl-color-text-muted);
   --color-caution: var(--wl-color-caution);
   --color-danger: var(--wl-color-danger);
+  --color-danger-border: var(--wl-color-danger-border);
+  --color-danger-fill: var(--wl-color-danger-fill);
   --color-ok: var(--wl-color-ok);
   --color-glass: var(--wl-color-glass);
-  --color-glass-strong: var(--wl-color-glass-strong);
+  --color-glass-night: var(--wl-color-glass-night);
+  --color-glass-day: var(--wl-color-glass-day);
   --color-glass-border: var(--wl-color-glass-border);
-  --color-glass-highlight: var(--wl-color-glass-highlight);
+  --color-credits: var(--wl-color-credits);
   --color-transparent: transparent;
   --color-current: currentColor;
 
@@ -44,16 +45,23 @@
   --text-2xl: var(--wl-font-size-2xl);
   --text-3xl: var(--wl-font-size-3xl);
   --text-display: var(--wl-font-size-display);
-  --text-display-sm: var(--wl-font-size-display-sm);
+  --text-speed: var(--wl-font-size-speed);
+  --text-hud-turn: var(--wl-font-size-hud-turn);
+  --text-hud-lg: var(--wl-font-size-hud-lg);
+  --text-hud-dock: var(--wl-font-size-hud-dock);
+  --text-hud-md: var(--wl-font-size-hud-md);
+  --text-hud-sm: var(--wl-font-size-hud-sm);
 
   --leading-tight: var(--wl-line-height-tight);
   --leading-snug: var(--wl-line-height-snug);
   --leading-normal: var(--wl-line-height-normal);
 
   --tracking-display: var(--wl-letter-spacing-display);
+  --tracking-speed: var(--wl-letter-spacing-speed);
   --tracking-wide: var(--wl-letter-spacing-wide);
 
   --radius-sm: var(--wl-radius-sm);
+  --radius-tile: var(--wl-radius-tile);
   --radius-md: var(--wl-radius-md);
   --radius-lg: var(--wl-radius-lg);
   --radius-pill: var(--wl-radius-pill);
@@ -62,7 +70,6 @@
   --blur-md: var(--wl-blur-md);
   --blur-lg: var(--wl-blur-lg);
 
-  --shadow-glow-volt: var(--wl-glow-volt);
   --shadow-glow-cyan: var(--wl-glow-cyan);
   --shadow-glow-focus: var(--wl-glow-focus);
 
@@ -157,21 +164,15 @@
     }
   }
 
-  /* Translucent glass panel. The base surface for every HUD element. */
+  /*
+   * Flat translucent panel with a hairline border: no blur, no glow, no sheen, so it stays
+   * cheap on a mid-range phone. `--wl-panel` can be set on a parent to change the fill, which is
+   * how the riding screen goes more solid in daylight and more see-through at night.
+   */
   .wl-glass {
-    background:
-      linear-gradient(180deg, var(--wl-color-glass-highlight), transparent 40%),
-      var(--wl-color-glass);
+    background: var(--wl-panel, var(--wl-color-glass));
     border: 1px solid var(--wl-color-glass-border);
     border-radius: var(--wl-radius-lg);
-    backdrop-filter: blur(var(--wl-blur-md)) saturate(140%);
-    -webkit-backdrop-filter: blur(var(--wl-blur-md)) saturate(140%);
-  }
-
-  @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-    .wl-glass {
-      background: var(--wl-color-glass-strong);
-    }
   }
 }
 
@@ -215,15 +216,15 @@
     background: linear-gradient(
       90deg,
       transparent,
-      rgba(46, 139, 255, 0.16) 18%,
-      rgba(46, 139, 255, 0.1) 50%,
-      rgba(46, 139, 255, 0.16) 82%,
+      rgba(95, 200, 232, 0.16) 18%,
+      rgba(95, 200, 232, 0.1) 50%,
+      rgba(95, 200, 232, 0.16) 82%,
       transparent
     );
     border-inline: 2px solid var(--wl-color-cyan);
     box-shadow:
       var(--wl-glow-cyan),
-      inset 0 0 40px rgba(53, 224, 255, 0.25);
+      inset 0 0 40px rgba(95, 200, 232, 0.25);
   }
 
   .wl-corridor-chevrons {
@@ -271,11 +272,29 @@
   /* Placeholder for the 3D scene (task 8): a dark gradient and nothing else. */
   .wl-scene {
     background:
-      radial-gradient(120% 90% at 50% 105%, var(--wl-color-night-700) 0%, transparent 60%),
+      radial-gradient(110% 70% at 50% 108%, var(--wl-color-night-700) 0%, transparent 62%),
       linear-gradient(180deg, var(--wl-color-night-950) 0%, var(--wl-color-night-900) 100%);
   }
 
-  /* Fill that grows while a guarded control is held. Left to right, then it fires. */
+  /*
+   * Panel fill by time of day. The riding screen sets data-daylight from the local time.
+   * Daylight is more solid so the dock stays readable in the sun, night more see-through.
+   */
+  [data-daylight="true"] {
+    --wl-panel: var(--wl-color-glass-day);
+  }
+
+  [data-daylight="false"] {
+    --wl-panel: var(--wl-color-glass-night);
+  }
+
+  /*
+   * Hold to press feedback. Two parts, and neither needs animation to be seen:
+   *  - a ring (media buttons) or a fill (End trip) that grows over the hold time, and
+   *  - a static held state: a brighter edge and a stronger fill, plus a caption.
+   * With reduced motion the growth is skipped and the ring or fill shows complete as soon as
+   * the hold starts, so only the static state and the caption remain.
+   */
   .wl-hold-fill {
     transform: scaleX(0);
     transform-origin: left center;
@@ -287,10 +306,24 @@
     transition-timing-function: linear;
   }
 
+  /* The ring is drawn with pathLength 100, so 100 is empty and 0 is a full circle. */
+  .wl-hold-ring {
+    stroke-dashoffset: 100;
+    /* A round cap would draw a dot at an empty ring, so it is hidden until a hold starts. */
+    opacity: 0;
+  }
+
+  .wl-hold-ring[data-holding="true"] {
+    opacity: 1;
+    stroke-dashoffset: 0;
+    transition-property: stroke-dashoffset;
+    transition-timing-function: linear;
+  }
+
   @media (prefers-reduced-motion: reduce) {
-    /* No growing bar. The caption changes to "Keep holding" instead. */
-    .wl-hold-fill {
-      display: none;
+    .wl-hold-fill[data-holding="true"],
+    .wl-hold-ring[data-holding="true"] {
+      transition: none;
     }
   }
 

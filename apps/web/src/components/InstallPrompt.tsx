@@ -51,7 +51,7 @@ export function InstallPrompt() {
         onClick={() => {
           void installPromptStore.prompt();
         }}
-        className="inline-flex min-h-12 items-center rounded-md border border-glass-border bg-night-800 px-5 text-base font-semibold text-text transition-colors duration-200 ease-out hover:border-volt"
+        className="inline-flex min-h-12 items-center rounded-md border border-glass-border bg-night-800 px-5 text-base font-semibold text-text transition-colors duration-200 ease-out hover:border-cyan"
       >
         Install app
       </button>

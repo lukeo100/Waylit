@@ -75,7 +75,7 @@ export function ServiceWorkerRegistrar() {
       <button
         type="button"
         onClick={apply}
-        className="inline-flex min-h-12 items-center rounded-md bg-volt px-4 text-sm font-semibold text-night-950 hover:bg-volt-soft"
+        className="inline-flex min-h-12 items-center rounded-md bg-cyan px-4 text-sm font-semibold text-night-950 hover:bg-cyan-soft"
       >
         Reload
       </button>
