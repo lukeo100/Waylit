@@ -16,6 +16,8 @@ export type ProviderId = "cesium-google" | "maplibre-fallback";
 
 /** Text and link a provider requires to be visible while its data is shown. */
 export interface ProviderAttribution {
+  /** Plain words shown before the linked text, such as "Data from". */
+  readonly prefix?: string;
   readonly text: string;
   readonly url?: string;
 }
@@ -143,8 +145,6 @@ export interface MapProvider {
   /** Registers a callback that runs before each frame. Returns a function that removes it. */
   onFrame(listener: FrameListener): () => void;
   onStatus(listener: ProviderStatusListener): () => void;
-  /** A small mark at the rider, for debugging. Development only. */
-  setDebugMarker(position: LatLng | undefined): void;
   getDiagnostics(): ProviderDiagnostics;
   getFrameStats(): FrameStatsSummary;
 }

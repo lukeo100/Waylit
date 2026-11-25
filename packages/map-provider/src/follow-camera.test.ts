@@ -185,6 +185,15 @@ describe("FollowCamera", () => {
     expect(pose.headingDegrees).toBeCloseTo(90, 0);
   });
 
+  it("takes a fix that arrives right after another, without inventing a speed", () => {
+    const camera = new FollowCamera();
+    camera.setFix({ position: START, headingDegrees: 0 }, 0);
+    camera.setFix({ position: northOf(START, 3), headingDegrees: 0 }, 10);
+    const pose = run(camera, 10, 6000)!;
+    // It settles on the second fix, and does not drift off at a made up speed.
+    expect(toLocalMetres(START, pose.rider).north).toBeCloseTo(3, 0);
+  });
+
   it("jumps instead of gliding across the map when the rider is far away", () => {
     const camera = new FollowCamera();
     camera.setFix({ position: START, headingDegrees: 0 }, 0);

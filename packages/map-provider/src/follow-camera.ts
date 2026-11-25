@@ -176,6 +176,8 @@ export class FollowCamera {
       return;
     }
     const previousAt = this.fixAtMs;
+    // A fix that arrives within 50 ms of the last one says nothing reliable about speed, so
+    // the velocity is kept. The position and the time are still taken.
     if (previousAt !== undefined && nowMs - previousAt >= 50) {
       const seconds = (nowMs - previousAt) / 1000;
       const measured = {
@@ -189,12 +191,9 @@ export class FollowCamera {
       const speed = Math.hypot(blended.east, blended.north);
       const scale = speed > MAX_SPEED_MPS ? MAX_SPEED_MPS / speed : 1;
       this.vel = { east: blended.east * scale, north: blended.north * scale };
-      this.fixPos = next;
-      this.fixAtMs = nowMs;
-    } else if (previousAt === undefined) {
-      this.fixPos = next;
-      this.fixAtMs = nowMs;
     }
+    this.fixPos = next;
+    this.fixAtMs = nowMs;
     if (fix.headingDegrees !== undefined) {
       this.targetHeading = normaliseDegrees(fix.headingDegrees);
     } else if (Math.hypot(this.vel.east, this.vel.north) > 0.5) {
