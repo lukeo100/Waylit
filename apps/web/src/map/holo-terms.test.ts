@@ -20,6 +20,7 @@ const GOOGLE_MODE_FILES = [
   "cesium-holo.ts",
   "fx-stage.ts",
   "fx-shader.ts",
+  "tile-shader.ts",
   "holo-glsl.ts",
   "beacon-label.ts",
 ];
@@ -43,15 +44,48 @@ const FORBIDDEN = [
   "createWorldTerrain",
   "GroundPrimitive",
   "GroundPolylinePrimitive",
+  "czm_globeDepthTexture",
+  "czm_readDepth",
+  "tileVisible",
 ];
+
+/** A call to any `.pick(` method, whatever the object is called. */
+const PICK_CALL = /\.pick\(/;
+
+/**
+ * Tile events hand over the tile and its content. The new files never subscribe to them. The one
+ * existing subscriber (cesium-google.ts, a loaded tile counter for the error fallback) must keep a
+ * handler that takes no argument, so it cannot look at what a tile holds.
+ */
+const TILE_EVENTS = ["tileLoad"];
 
 describe("Google mode files", () => {
   for (const file of GOOGLE_MODE_FILES) {
     it(`${file} never reads heights, depth or geometry back from the tiles`, () => {
       const text = code(file);
       for (const name of FORBIDDEN) expect(text, `${file} uses ${name}`).not.toContain(name);
+      expect(text, `${file} calls .pick(`).not.toMatch(PICK_CALL);
+      if (file === "cesium-google.ts") return;
+      for (const name of TILE_EVENTS) expect(text, `${file} uses ${name}`).not.toContain(name);
     });
   }
+
+  it("cesium-google.ts only counts loaded tiles and never looks at one", () => {
+    const text = code("cesium-google.ts");
+    expect(text).toMatch(/const tileLoad = \(\): void => \{\s*this\.loadedTiles \+= 1;\s*\};/);
+    for (const use of text.match(/tileset\.tileLoad\.\w+/g) ?? []) {
+      expect(use).toMatch(/\.(add|remove)EventListener$/);
+    }
+    expect(text).not.toMatch(/\.content\b/);
+  });
+
+  it("uses no ClassificationType other than CESIUM_3D_TILE", () => {
+    for (const file of GOOGLE_MODE_FILES) {
+      const uses = code(file).match(/ClassificationType\.\w+/g) ?? [];
+      for (const use of uses) expect(use, file).toBe("ClassificationType.CESIUM_3D_TILE");
+    }
+    expect(code("cesium-holo.ts")).toMatch(/ClassificationType\.CESIUM_3D_TILE/);
+  });
 
   it("draws the corridor as a classification of the 3D tiles only", () => {
     const text = code("cesium-holo.ts");
