@@ -46,7 +46,9 @@ describe("classifyFailure", () => {
     for (const kind of ["unsupported", "auth", "quota", "network", "render", "unknown"] as const) {
       const message = failureMessage(kind);
       expect(message.length).toBeLessThan(80);
-      expect(message).not.toMatch(/[—–]|https?:/);
+      expect(message).not.toMatch(/https?:/);
+      expect(message).not.toContain(String.fromCharCode(0x2014));
+      expect(message).not.toContain(String.fromCharCode(0x2013));
     }
   });
 });
