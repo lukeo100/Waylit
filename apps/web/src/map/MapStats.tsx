@@ -30,7 +30,10 @@ export function MapStats({
       );
       if (stats && stats.sampleCount > 0) {
         rows.push(
-          `fps ${stats.currentFps.toFixed(0)} now | ${stats.medianFps.toFixed(0)} median 60s | ${stats.onePercentLowFps.toFixed(0)} 1% low | ${stats.lastFrameMs.toFixed(1)} ms`,
+          `fps ${stats.currentFps.toFixed(0)} now | ${stats.onePercentLowFps.toFixed(0)} 1% low | ${stats.lastFrameMs.toFixed(1)} ms`,
+        );
+        rows.push(
+          `median ${stats.medianFps.toFixed(1)} 60s | ${stats.median5MinFps.toFixed(1)} 5min | ${stats.medianRideFps.toFixed(1)} ride (${formatRideTime(stats.rideSeconds)})`,
         );
       } else {
         rows.push("fps waiting for frames");
@@ -71,4 +74,10 @@ export function MapStats({
       {lines.join("\n")}
     </pre>
   );
+}
+
+/** Minutes and seconds, such as 4:07, so a tester can tell when 5 minutes of riding have passed. */
+export function formatRideTime(seconds: number): string {
+  const whole = Math.max(0, Math.floor(seconds));
+  return `${String(Math.floor(whole / 60))}:${String(whole % 60).padStart(2, "0")}`;
 }

@@ -41,5 +41,10 @@ export type { FollowCameraProfile, FollowFix } from "./follow-camera";
 export { hexToRgb, lightingParameters, mixHex, rgbToHex, sunDirection } from "./lighting";
 export type { Direction, LightingParameters, Rgb, ScenePalette, SkyColours } from "./lighting";
 export { FrameLimiter, FrameStats, percentile } from "./frame-stats";
-export { DEMO_ROUTE_GROUND_ELLIPSOID_METRES, constantGroundHeight } from "./ground-height";
+export {
+  BERLIN_GEOID_UNDULATION_METRES,
+  DEMO_ROUTE_GROUND_ELLIPSOID_METRES,
+  DEMO_ROUTE_GROUND_MSL_METRES,
+  constantGroundHeight,
+} from "./ground-height";
 export type { GroundHeightSource } from "./ground-height";

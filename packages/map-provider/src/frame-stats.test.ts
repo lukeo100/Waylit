@@ -31,6 +31,9 @@ describe("FrameStats", () => {
       onePercentLowFps: 0,
       lastFrameMs: 0,
       sampleCount: 0,
+      median5MinFps: 0,
+      medianRideFps: 0,
+      rideSeconds: 0,
     });
   });
 
@@ -135,5 +138,53 @@ describe("FrameLimiter", () => {
     expect(limiter.target).toBe(60);
     expect(limiter.shouldDraw(0)).toBe(true);
     expect(limiter.shouldDraw(16.7)).toBe(true);
+  });
+});
+
+describe("FrameStats ride and 5 minute medians", () => {
+  /** Frames at one rate for a number of seconds. Returns the time of the last frame. */
+  function run(stats: FrameStats, startMs: number, fps: number, seconds: number): number {
+    return feed(stats, startMs, 1000 / fps, Math.round(fps * seconds));
+  }
+
+  it("keeps the 60 second median recent while the 5 minute and ride medians remember more", () => {
+    const stats = new FrameStats();
+    // 4 minutes at 20 fps, then 1 minute at 40 fps.
+    let t = run(stats, 0, 20, 240);
+    t = run(stats, t + 50, 40, 60);
+    const s = stats.summary(t);
+    expect(s.medianFps).toBeCloseTo(40, 0);
+    // 4800 frames at 50 ms and 2400 at 25 ms: the median frame time is 50 ms.
+    expect(s.median5MinFps).toBeCloseTo(20, 0);
+    expect(s.medianRideFps).toBeCloseTo(20, 0);
+    expect(s.rideSeconds).toBeCloseTo(300, 0);
+  });
+
+  it("forgets frames older than 5 minutes in the 5 minute median but not in the ride median", () => {
+    const stats = new FrameStats();
+    let t = run(stats, 0, 20, 400);
+    t = run(stats, t + 50, 60, 320);
+    const s = stats.summary(t);
+    expect(s.median5MinFps).toBeCloseTo(60, 0);
+    // 8000 slow frames and 19200 fast ones: the ride median is a fast frame.
+    expect(s.medianRideFps).toBeCloseTo(60, 0);
+    const slowRide = new FrameStats();
+    const end = run(slowRide, 0, 20, 400);
+    const late = run(slowRide, end + 50, 60, 60);
+    expect(slowRide.summary(late).medianRideFps).toBeCloseTo(20, 0);
+    expect(slowRide.summary(late).median5MinFps).toBeCloseTo(20, 0);
+  });
+
+  it("starts the ride median afresh on reset and ignores pauses", () => {
+    const stats = new FrameStats();
+    run(stats, 0, 30, 10);
+    stats.reset();
+    expect(stats.summary(0).medianRideFps).toBe(0);
+    let t = run(stats, 100_000, 30, 10);
+    // A 20 second pause is not a slow frame.
+    t = run(stats, t + 20_000, 30, 10);
+    const s = stats.summary(t);
+    expect(s.medianRideFps).toBeCloseTo(30, 0);
+    expect(s.rideSeconds).toBeCloseTo(20, 0);
   });
 });

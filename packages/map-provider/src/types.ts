@@ -127,6 +127,15 @@ export interface FrameStatsSummary {
   readonly lastFrameMs: number;
   /** Frames counted in the window. */
   readonly sampleCount: number;
+  /**
+   * Median frames per second over the last 5 minutes. Success criterion 9 asks for a median of
+   * at least 30 fps over a 5 minute ride, so this is the figure to read at the end of one.
+   */
+  readonly median5MinFps: number;
+  /** Median frames per second since the ride started (the stats were last reset). */
+  readonly medianRideFps: number;
+  /** Seconds of drawn frames counted since the ride started. */
+  readonly rideSeconds: number;
 }
 
 export interface MapProvider {
