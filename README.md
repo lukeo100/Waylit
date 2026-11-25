@@ -45,6 +45,8 @@ Then open http://localhost:3000. The service worker only runs in production buil
 
 The code is split into a Next.js app and small shared packages, described in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
+The riding screen shows a 3D environment. Without any key it uses MapLibre with OpenFreeMap. With your own Cesium ion token (`NEXT_PUBLIC_CESIUM_ION_TOKEN`), production builds show Google Photorealistic 3D Tiles through CesiumJS and fall back to MapLibre if that fails. Development builds always use the fallback unless you add `?map=cesium` to the address, to save the Cesium ion allowance. `?map=fallback` forces the fallback anywhere, and `?dev=1` shows a frame rate overlay. See [docs/DEPLOYING.md](docs/DEPLOYING.md).
+
 Anyone should be able to deploy their own copy. The plan for that is in [docs/DEPLOYING.md](docs/DEPLOYING.md). Waylit does not run a shared hosted instance, so there are no shared API keys: you bring your own for any optional provider.
 
 ## Contributing
@@ -57,7 +59,7 @@ Contributions of all kinds are welcome, including bug reports, device testing, d
 |---|---|
 | [docs/VISION.md](docs/VISION.md) | Goals, principles and design direction |
 | [docs/ROADMAP.md](docs/ROADMAP.md) | Phases and current status |
-| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Package layout and dependency rules |
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Package layout, dependency rules and the 3D scene |
 | [docs/DESIGN_SYSTEM.md](docs/DESIGN_SYSTEM.md) | Design tokens and visual principles |
 | [docs/PWA.md](docs/PWA.md) | Installing, offline caching, wake lock, testing on Android and PWA limits |
 | [docs/DEPLOYING.md](docs/DEPLOYING.md) | Running your own copy |

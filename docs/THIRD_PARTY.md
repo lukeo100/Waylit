@@ -40,7 +40,16 @@ Most transitive packages are MIT, ISC, BSD or Apache 2.0. A few differ, none are
 | sharp, @img/sharp-* | Apache-2.0, with libvips binaries under LGPL-3.0-or-later | Optional dependency of Next.js for image optimisation | Installed but unused, as the app does not use `next/image` optimisation. Not bundled into the client. Revisit before adopting image optimisation or shipping a Docker image that includes it |
 | minimatch, graceful-fs | BlueOak-1.0.0 | Tooling | Permissive |
 
-Candidates under evaluation, not yet adopted: CesiumJS (Apache 2.0), three.js (MIT), MapLibre GL JS (BSD-3-Clause). The mapping spike decides between them. Each must be checked for compatibility with Apache 2.0 when adopted.
+Adopted for the 3D scene (task 8): CesiumJS and MapLibre GL JS. three.js is not used.
+
+| Package | Licence | Notes |
+|---|---|---|
+| `@cesium/engine` 26.5.0, `@cesium/core` 0.1.1 (and its `@cesium/gltf`, `@cesium/wasm-splats`) | Apache-2.0 | The CesiumJS engine and widget, without the Viewer. Loaded only on the riding screen. Its workers and assets are copied to `apps/web/public/cesium` at build time |
+| `maplibre-gl` 6.19.0 | BSD-3-Clause | The fallback renderer. Its worker is copied to `apps/web/public/maplibre` |
+| `dompurify` | MPL-2.0 OR Apache-2.0 | Pulled in by CesiumJS. Used under Apache-2.0 |
+| `draco3d`, `lerc`, `meshoptimizer`, `ktx-parse`, `pako`, `protobufjs`, `urijs`, `autolinker`, `rbush`, `earcut` and similar | Apache-2.0, MIT, BSD or ISC | Pulled in by CesiumJS and MapLibre. All compatible with Apache-2.0 |
+
+The versions are pinned exactly and the lockfile is committed. Run `pnpm licenses list --prod --filter web` to see the full list.
 
 ### PWA shell
 
@@ -51,7 +60,7 @@ The simulation layer adds no dependencies. The filters, random number generator,
 
 ### Riding screen
 
-The riding screen adds no dependencies. Icons are original inline SVG drawn for Waylit, the minimap is plain SVG from the demo route's own coordinates, and mock weather is a fixed value. No map tiles or map data are used on the screen, so it needs no map credit. The credits strip is reserved for the 3D scene's attributions. The HUD redesign (floating HUD, one joined dock, round minimap) added no dependencies either, and the screenshots in `docs/images` are original captures of the app taken with headless Chrome, with no third party content in them.
+The riding screen itself adds no dependencies (the 3D scene is described below). Icons are original inline SVG drawn for Waylit, the minimap is plain SVG from the demo route's own coordinates, and mock weather is a fixed value. The minimap is not a map: it never contains map tiles or OpenStreetMap data. The 3D scene renders the required map credits into the credits strip. The HUD redesign (floating HUD, one joined dock, round minimap) added no dependencies either, and the screenshots in `docs/images` are original captures of the app taken with headless Chrome, with no third party content in them.
 
 ### Sun and daylight
 
@@ -68,8 +77,9 @@ None. The app uses the platform's system UI font, so no font files are bundled o
 | Source | Licence or terms | Required attribution |
 |---|---|---|
 | OpenStreetMap data | Open Database Licence (ODbL) | Show "© OpenStreetMap contributors", linked to https://www.openstreetmap.org/copyright, in the app wherever its data or tiles are displayed |
-| Google Map Tiles API and Photorealistic 3D Tiles | Google Maps Platform terms, to be verified in the mapping spike | Whatever the terms require, shown in the app. Not adopted until verified |
-| Cesium ion hosted assets | Cesium ion terms, to be verified in the mapping spike | Cesium ion and data provider credits as required |
+| Google Photorealistic 3D Tiles, served through Cesium ion (asset 2275207) | Google Maps Platform terms and Cesium ion terms. The owner of a deployment accepts them with their own Cesium ion account | The Google logo and the data credits Google requires, plus the Cesium ion logo, shown by CesiumJS in the credits strip, never covered. Waylit never reads heights from these tiles, never caches them and never reuses them outside the live view |
+| OpenFreeMap vector tiles (fallback) | Free public service, data under ODbL, schema by OpenMapTiles (CC-BY 4.0) | "OpenFreeMap", "© OpenMapTiles" and "© OpenStreetMap contributors" in the credits strip |
+| Mapterhorn terrain tiles (fallback) | Mapterhorn attribution page lists its source datasets | "Terrain: Mapterhorn", linked to https://mapterhorn.com/attribution, in the credits strip when terrain is on |
 
 Anyone deploying Waylit supplies their own keys and agrees to the provider terms themselves. Waylit does not ship or share any provider key.
 

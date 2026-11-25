@@ -78,14 +78,38 @@ Every variable is optional. With all of them empty, Waylit uses its defaults, th
 | Variable | Default when empty | Purpose |
 |---|---|---|
 | `NEXT_PUBLIC_WAYLIT_SOURCE_URL` | The upstream repository | Link to the source code shown in the app. Point it at your fork if you change the code, which helps you meet the licence's notice requirements |
-| `NEXT_PUBLIC_CESIUM_ION_TOKEN` | Not used yet | Reserved for the mapping provider decision |
-| `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` | Not used yet | Reserved for the mapping provider decision |
+| `NEXT_PUBLIC_CESIUM_ION_TOKEN` | The MapLibre fallback map is used | Cesium ion access token. With it, production builds render Google Photorealistic 3D Tiles through Cesium ion. See section 6 |
+
+Waylit has no Google Maps API key variable. Google's 3D tiles are reached through Cesium ion, so there is no direct Google key path and no Google billing account to set up.
 
 Variables starting with `NEXT_PUBLIC_` are included in the browser bundle and are visible to anyone who loads the app. Only put browser-safe keys there, restricted by referrer and quota.
 
 ## 6. Optional providers
 
-To be written after the mapping spike: how to get your own key for the chosen provider, how to restrict it by referrer and quota, and which terms you agree to.
+Waylit has two map providers behind one interface. You do not need a key for either to run the app.
+
+**Fallback map (default).** MapLibre GL JS draws OpenFreeMap vector tiles with open terrain from Mapterhorn. No key, no account. It shows "OpenFreeMap", "OpenMapTiles" and "© OpenStreetMap contributors" in the credits strip. Public tile servers are shared services, so for heavy use run or sponsor your own.
+
+**Photorealistic 3D (optional).** CesiumJS renders Google Photorealistic 3D Tiles through Cesium ion (asset 2275207).
+
+1. Create a Cesium ion account and an access token that can read that asset. Restrict the token to your site's origin in the Cesium ion dashboard, so a copy of it found in the browser bundle is of little use.
+2. Put it in `NEXT_PUBLIC_CESIUM_ION_TOKEN` (in `apps/web/.env.local` locally, or in your host's build settings) and rebuild. The value is public in the bundle by design, which is why the restriction matters.
+3. Check the free allowance. Every page load that starts the 3D scene requests the root tileset once, and Cesium ion counts those. Check your plan's current limits and Google's and Cesium's terms before you share a deployment.
+
+Which provider runs on a page load:
+
+| Situation | Provider |
+|---|---|
+| No token | Fallback |
+| Token, production build | CesiumJS |
+| Token, development build (`pnpm dev`) | Fallback, to save the allowance. Add `?map=cesium` to the address to use CesiumJS |
+| `?map=fallback` | Fallback, on any build |
+
+If CesiumJS fails (bad token, no quota, network, no WebGL) the app tries once, then switches to the fallback and shows a small amber note on the riding screen. It does not retry in a loop.
+
+Network hosts used by the scene, in case you set a content security policy or a firewall: `api.cesium.com` and `assets.ion.cesium.com` (and Cesium ion's tile hosts), `tile.googleapis.com`, `tiles.openfreemap.org`, `tiles.mapterhorn.com`. Waylit does not ship a content security policy. The scene also uses workers (`worker-src blob:`) and WebAssembly, and `/cesium/` and `/maplibre/` must be served as plain static files. Both folders are copied into `apps/web/public` by `pnpm dev` and `pnpm build`.
+
+Waylit's service worker never caches Google, Cesium ion, OpenFreeMap or Mapterhorn tiles. Do not add a cache in front of them unless the provider's terms allow it.
 
 ## 7. Installing the PWA
 

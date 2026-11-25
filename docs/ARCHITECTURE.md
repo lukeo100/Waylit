@@ -2,7 +2,7 @@
 
 Waylit is a pnpm workspace monorepo. The web app is one consumer of a set of small shared packages. A later Expo app will be a second consumer of the same packages, so anything that is not specific to the browser lives outside `apps/web`.
 
-This page describes what exists today. The map provider package is still only an interface, and the rest fills in as the milestone 1 tasks land (see [AGENT_BRIEF.md](AGENT_BRIEF.md)).
+This page describes what exists today. The 3D scene runs on a map provider interface with two implementations, and the rest fills in as the milestone 1 tasks land (see [AGENT_BRIEF.md](AGENT_BRIEF.md)).
 
 ## Layout
 
@@ -12,7 +12,7 @@ apps/
 packages/
   core/                Navigation types, units, geo helpers, route progress, simulated GPS, GPS distance, smoothing, HUD number formatting, media model and mock tracks, and the solar module (sun position, day phase, sun times). No DOM, no React.
   vehicle/             Read-only vehicle interface, mock Ninebot MAX G3 adapter, energy model, speed fallback and trip distance fallback with GPS backfill. No DOM, no React.
-  map-provider/        Map provider interface types. No DOM, no React, no provider SDKs.
+  map-provider/        The map provider interface, provider selection, follow camera maths, lighting parameters, performance options and frame statistics. No DOM, no React, no provider SDKs.
   ui-tokens/           Design tokens as TypeScript values plus a CSS variables file.
 ```
 
@@ -91,9 +91,71 @@ core, ui-tokens ──> nothing
 
 - **Shared packages stay platform neutral.** No DOM globals, no React, no Next.js. The shared ESLint config blocks `window`, `document`, `navigator` and `localStorage` in `packages/*`.
 - **Navigation logic never imports rendering.** `core` knows about positions, routes and progress. It does not know a map or a 3D scene exists.
-- **Providers stay behind the interface.** `map-provider` defines what the app needs from any map or 3D tile provider. Provider SDK types (CesiumJS, MapLibre or others) belong in a provider implementation, never in shared types. The provider choice is made by the mapping spike (task 3), so no implementation exists yet.
+- **Providers stay behind the interface.** `map-provider` defines what the app needs from any map or 3D tile provider. Provider SDK types (CesiumJS, MapLibre or others) belong in a provider implementation, never in shared types. The two implementations live in `apps/web/src/map` and are described under "3D scene" below.
 - **Vehicles stay behind the interface.** `vehicle` exposes telemetry and connection state only. It has no methods that send commands to a vehicle, and must not gain any without a maintainer agreement in an issue. Every telemetry field is optional, and the app falls back to GPS-derived values when one is missing. GPS speed and vehicle speed are separate values.
 - **Tokens are the single source of visual values.** `ui-tokens/src/tokens.ts` is the source of truth. `tokens.css` mirrors it as CSS custom properties for the web, and a test fails if the two drift. The web app maps the variables into its Tailwind theme. See [DESIGN_SYSTEM.md](DESIGN_SYSTEM.md).
+
+## 3D scene
+
+The riding screen draws a 3D environment behind the HUD. Navigation logic is separate from rendering: the simulated GPS in `@waylit/core` produces positions, and the scene only receives a camera pose and a lighting description.
+
+```
+packages/map-provider/src/
+  types.ts          MapProvider interface, CameraPose, SceneLighting, status and diagnostics types
+  options.ts        Provider selection, performance tuning and the address overrides
+  follow-camera.ts  Third person follow camera: smoothing, heading, velocity extrapolation
+  lighting.ts       Day, golden hour and night parameters from the solar state
+  frame-stats.ts    Frame time statistics and the frame limiter
+  ground-height.ts  A constant ground height supplied by the route, never read from tiles
+apps/web/src/map/
+  MapScene.tsx           React host: creates the controller, shows the amber note and the dev overlay
+  scene-controller.ts    Feeds the provider from the GPS stream, handles pause and one time fallback
+  load-provider.ts       Lazy loads a provider (each is its own chunk, not in the start screen JS)
+  cesium-google.ts       CesiumJS with Google Photorealistic 3D Tiles through Cesium ion
+  maplibre-fallback.ts   MapLibre GL JS with OpenFreeMap vector tiles and open terrain
+  camera-math.ts         Maps the follow pose onto each renderer's camera model
+  lighting-input.ts      Turns the HUD daylight state into scene lighting
+  credits-dom.ts, errors.ts, base-provider.ts, fallback-style.ts, cesium-setup.ts, MapStats.tsx
+```
+
+### Choosing a provider
+
+`selectProvider` in `options.ts` picks one provider per page load:
+
+| Situation | Provider |
+|---|---|
+| `?map=fallback` | MapLibre fallback |
+| `?map=cesium` and a Cesium ion token is configured | CesiumJS |
+| `?map=cesium` and no token | MapLibre fallback |
+| No token | MapLibre fallback |
+| Token configured, development build, no override | MapLibre fallback (saves the monthly allowance) |
+| Token configured, production build | CesiumJS |
+
+The app builds and runs without a token. Only one attempt is made with CesiumJS. If it fails (rejected token, no network, quota, no WebGL), the scene controller swaps to the MapLibre fallback once and shows a quiet amber note. It never retries in a loop.
+
+### Follow camera
+
+`FollowCamera` receives each GPS fix and produces a camera pose at display rate: a position behind and above the rider, looking at a point ahead of the rider, so the rider sits in the lower middle of the screen and the horizon in the upper third. Position and heading are smoothed exponentially, with a short velocity extrapolation between fixes. Each provider turns the pose into its own camera. CesiumJS takes a heading, pitch and range around the target. MapLibre takes a centre, zoom, pitch and bearing. There is no rider model or route corridor yet.
+
+### Lighting
+
+The scene follows the solar daylight state that already drives the HUD, including the developer time override. `lightingParameters` returns sun direction, light intensity, a tint for the photographic tiles, sky colours and a map palette for the fallback. Photorealistic tiles carry baked daylight, so night and sunset are produced by tinting them with an unlit custom shader rather than by relighting them. Parameters carry a quantised `key` so providers skip repaints for tiny changes.
+
+### Performance
+
+Aimed at a mid range Android phone. Both providers load lazily. The device pixel ratio is capped (1.5 for CesiumJS, 2 for MapLibre). CesiumJS uses a high screen space error (32), a 256 MiB tile cache and no globe, base imagery, skybox, sun, moon or widgets. Frames are capped at 30 fps while riding and 10 fps before the trip starts. Rendering pauses when the tab is hidden and when the ride has ended. A development only overlay (dev builds or `?dev=1`) shows current fps, the 60 second median, the 1 percent low and tile counts. Tuning can be overridden for testing with `?dpr=`, `?fps=`, `?sse=` and `?terrain=`.
+
+### Quota and ground rules for Google tiles
+
+CesiumJS loads Google Photorealistic 3D Tiles through Cesium ion (asset 2275207). There is no Google key and no Google billing account in the app. The app never reads heights from Google tiles: it does not sample heights, pick heights from the scene or query terrain against the tiles. The camera and rider height come from a constant ground height for the route (`?ground=` overrides it for testing). Every Cesium page load can use one of the monthly root tileset requests of the ion free allowance, which is why development builds default to the fallback.
+
+### Static assets and caching
+
+CesiumJS needs its workers and assets served as files. `apps/web/scripts/copy-map-assets.mjs` copies them from `@cesium/engine` into `apps/web/public/cesium` and the MapLibre worker into `apps/web/public/maplibre` before `dev` and `build`. Those folders are ignored by git. The app sets `CESIUM_BASE_URL` to `/cesium/`. The service worker bypasses `/cesium/`, `/maplibre/` and every cross origin request, so Google, Cesium ion, OpenFreeMap and Mapterhorn tiles are never cached by Waylit. No content security policy is shipped by the app. If you add one, allow the hosts listed in [DEPLOYING.md](DEPLOYING.md).
+
+### Credits
+
+The scene renders its own attributions into the credits strip under the dock, which the HUD never covers. CesiumJS shows the Google logo, the data credits Google requires and the Cesium ion logo. The fallback shows OpenFreeMap, OpenMapTiles and "© OpenStreetMap contributors", plus a Mapterhorn credit when terrain is on. The minimap is a plain drawn route and never contains OpenStreetMap content.
 
 ## Simulation layer
 

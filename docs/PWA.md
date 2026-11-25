@@ -73,15 +73,16 @@ Registration happens only in production builds (`ServiceWorkerRegistrar`), becau
 
 | Request | Strategy | Cache |
 |---|---|---|
-| Page loads (navigations) | Network first. On failure, the last saved copy of that page, then the offline page | `waylit-pages-v1`, capped at 20 entries |
-| `/_next/static/*`, `/icons/*`, the manifest and other same origin images, fonts, scripts and styles | Stale while revalidate | `waylit-static-v1`, capped at 120 entries |
-| Offline page, start page, manifest, icons | Saved at install | `waylit-shell-v1` |
+| Page loads (navigations) | Network first. On failure, the last saved copy of that page, then the offline page | `waylit-pages-v2`, capped at 20 entries |
+| `/_next/static/*`, `/icons/*`, the manifest and other same origin images, fonts, scripts and styles | Stale while revalidate | `waylit-static-v2`, capped at 120 entries |
+| Offline page, start page, manifest, icons | Saved at install | `waylit-shell-v2` |
 
 Build assets have content hashes in their names, so a saved copy is always the right copy for its URL. After the first load, the page tells the worker which assets it already loaded, so the first offline launch works. The worker only accepts same origin build assets in that message.
 
 ### What it never caches
 
-- Requests to any other origin. That includes every map tile server and third party API.
+- Requests to any other origin. That includes every map tile server and third party API (Google 3D Tiles, Cesium ion, OpenFreeMap, Mapterhorn).
+- `/cesium/` and `/maplibre/`, the map renderers' workers and WebAssembly files. They are large, change with the dependency versions and are cached by the browser's normal HTTP cache.
 - `/api/` routes, non GET requests, range requests and Next.js data requests.
 - Error responses and opaque responses.
 
