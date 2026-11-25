@@ -15,7 +15,7 @@ The 3D environment is the primary visual element. Interface elements complement 
 - **Lighting.** Scene lighting follows the local time of day: warm light and long shadows at sunset, natural daylight by day, street lighting and subtle vehicle illumination at night.
 - **Top left.** A very large current speed, next instruction, distance to the next turn, estimated arrival, remaining distance and remaining duration.
 - **Top right.** Time, weather, connectivity and a small 2D minimap showing the upcoming route and heading.
-- **Bottom dock.** One joined glass dock along the bottom. On the left, a compact media player with artwork, artist, track, previous, play or pause, next and progress. On the right, a vehicle dashboard with battery, estimated range, trip distance, trip duration and an End Trip button. Below it, a reserved credits strip that nothing covers.
+- **Bottom dock.** One joined glass dock along the bottom, sized to its content and centred rather than stretched across the screen. On the left, a compact media player with artwork, artist, track, previous, play or pause, next and progress. On the right, a vehicle dashboard with battery, estimated range, trip distance, trip duration and an End Trip button. Below it, a reserved credits strip that nothing covers.
 
 The look is dark and premium: flat translucent dark panels, one soft cyan accent, restrained holographic effects, minimal readable typography and smooth animation. Where the underlying 3D geometry is imperfect, subtle lighting and stylisation keep the scene cohesive. Performance always takes priority over visual complexity.
 

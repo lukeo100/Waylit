@@ -1,6 +1,6 @@
 # Waylit project brief (public mirror)
 
-**Status:** Approved on 2026-11-22. Amendment 1 (public repository and open source practice), Amendment 2 (model policy) and Amendment 3 (mapping provider decision) applied the same day. Amendment 4 (workflow) and Amendment 5 (HUD dock and daylight) followed on 2026-11-25.
+**Status:** Approved on 2026-11-22. Amendment 1 (public repository and open source practice), Amendment 2 (model policy) and Amendment 3 (mapping provider decision) applied the same day. Amendment 4 (workflow), Amendment 5 (HUD dock and daylight) and Amendment 6 (HUD feedback) followed on 2026-11-25.
 
 This is the public, sanitised copy of the project brief. It tells AI coding agents and contributors what Waylit is, what is in scope and how to work. The maintainer keeps private planning notes elsewhere, so this file is the version everyone can see. To propose a change to the brief, open an issue.
 
@@ -111,3 +111,5 @@ The 3D riding view is the defining feature and the biggest technical risk, so it
 
 - The media player and the vehicle dashboard form one joined glass dock along the bottom of the riding screen, above a reserved credits strip that nothing covers. Success criterion 2 is worded to match.
 - Day and night are computed from the rider's location and the date using the sun's position, not fixed hours. Scene lighting and the HUD use the same daylight state, and a development time override can jump to dawn, noon, sunset or night to demonstrate it (supports success criterion 5).
+
+**Amendment 6, 2026-11-25. HUD feedback.** Amber and red may be used for warnings and errors, with cyan staying the only other accent. The riding screen hides the phone's system bars by running fullscreen, so the app draws its own top strip. The bottom dock is content sized and centred, not full width.
