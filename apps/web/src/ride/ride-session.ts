@@ -15,7 +15,6 @@ import {
   type PositionFix,
   type ProgressModel,
   type Route,
-  type SpeedSource,
 } from "@waylit/core";
 import {
   TripTracker,
@@ -38,12 +37,26 @@ import { nextGuardState } from "./guard";
 
 export type RidePhase = "idle" | "riding" | "summary";
 
+/** Where a finished trip's distance came from: the scooter, GPS, or a mix of the two. */
+export type SummaryDistanceSource = "vehicle" | "gps" | "mixed";
+
 export interface TripSummary {
   readonly distanceMetres: number;
   readonly durationSeconds: number;
   readonly averageSpeedKmh: number;
-  /** Where the distance came from, so the summary can say when GPS was used. */
-  readonly distanceSource: SpeedSource;
+  /**
+   * Where the distance came from over the whole trip, so the summary can say when GPS was used
+   * at any point. It is not just the last source: a trip that lost the scooter for a while and
+   * got it back is "mixed".
+   */
+  readonly distanceSource: SummaryDistanceSource;
+}
+
+/** Works out the summary source from what the trip tracker counted. */
+export function summaryDistanceSource(trip: TripReading): SummaryDistanceSource {
+  if (!trip.usedGps) return "vehicle";
+  // Under a metre from the scooter is treated as none, so rounding noise does not read as a mix.
+  return trip.distanceMetres - trip.gpsDistanceMetres < 1 ? "gps" : "mixed";
 }
 
 /** Everything the HUD needs to draw one frame. */
@@ -154,7 +167,7 @@ export class RideSession {
       distanceMetres: trip.distanceMetres,
       durationSeconds: trip.durationSeconds,
       averageSpeedKmh: averageSpeedKmh(trip.distanceMetres, trip.durationSeconds),
-      distanceSource: trip.distanceSource,
+      distanceSource: summaryDistanceSource(trip),
     };
     this.sim.stop();
     this.phase = "summary";
@@ -320,6 +333,8 @@ export function createEmptySnapshot(route: Route = DEMO_ROUTE): RideSnapshot {
       durationSeconds: 0,
       distanceSource: "gps",
       durationSource: "gps",
+      usedGps: false,
+      gpsDistanceMetres: 0,
     },
     guarded: false,
     playbackSpeed: 1,

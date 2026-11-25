@@ -87,6 +87,49 @@ describe("RideSession", () => {
     expect(back.trip.distanceMetres).toBeGreaterThanOrEqual(s.trip.distanceMetres);
   });
 
+  it("summary says distance came from the scooter when GPS was never needed", () => {
+    const { session, run } = make();
+    session.start();
+    run(40);
+    expect(session.endTrip()!.distanceSource).toBe("vehicle");
+  });
+
+  it("summary says mixed when GPS covered a dropout and the scooter came back", () => {
+    const { session, run } = make();
+    session.start();
+    run(20);
+    session.setTelemetryLost(true);
+    run(10);
+    session.setTelemetryLost(false);
+    run(20);
+    // The last source is the scooter, but GPS was used in the middle.
+    expect(session.getSnapshot().trip.distanceSource).toBe("vehicle");
+    expect(session.getSnapshot().trip.usedGps).toBe(true);
+    expect(session.endTrip()!.distanceSource).toBe("mixed");
+  });
+
+  it("summary says GPS when the scooter never reported", () => {
+    const { session, run } = make();
+    session.setTelemetryLost(true);
+    session.start();
+    run(40);
+    expect(session.endTrip()!.distanceSource).toBe("gps");
+  });
+
+  it("keeps the trip total in step with the route through a dropout", () => {
+    const { session, run } = make();
+    session.start();
+    run(20);
+    session.setTelemetryLost(true);
+    run(10);
+    session.setTelemetryLost(false);
+    const s = run(20);
+    expect(Math.abs(s.trip.distanceMetres - s.progress.distanceAlongMetres)).toBeLessThan(
+      s.progress.distanceAlongMetres * 0.1 + 15,
+    );
+    expect(s.trip.durationSeconds).toBeGreaterThan(49);
+  });
+
   it("turns the speed guard on and off with a gap, and off outside a trip", () => {
     const { session, run } = make();
     expect(session.getSnapshot().guarded).toBe(false);

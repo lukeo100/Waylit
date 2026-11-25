@@ -40,9 +40,11 @@ export function TripSummary({ summary, onStartNew }: TripSummaryProps) {
             testId="summary-average-speed"
           />
         </dl>
-        {summary.distanceSource === "gps" ? (
-          <p className="text-xs leading-snug text-text-secondary">
-            Distance was counted from GPS because scooter data was not available.
+        {summary.distanceSource !== "vehicle" ? (
+          <p data-testid="summary-note" className="text-xs leading-snug text-text-secondary">
+            {summary.distanceSource === "gps"
+              ? "Distance was counted from GPS because scooter data was not available."
+              : "Part of the distance was counted from GPS while scooter data was not available."}
           </p>
         ) : null}
         <button

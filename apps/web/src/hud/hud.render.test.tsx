@@ -154,8 +154,33 @@ describe("riding screen components", () => {
     expect(html).toContain("4.18 km");
     expect(html).toContain("15 min");
     expect(html).toContain("17 km/h");
-    expect(html).toContain("counted from GPS");
+    expect(html).toContain("Distance was counted from GPS");
     expect(html).toContain("Start new trip");
+    const mixed = renderToStaticMarkup(
+      <TripSummary
+        summary={{
+          distanceMetres: 4180,
+          durationSeconds: 905,
+          averageSpeedKmh: 16.6,
+          distanceSource: "mixed",
+        }}
+        onStartNew={noop}
+      />,
+    );
+    expect(mixed).toContain("Part of the distance was counted from GPS");
+    expect(mixed).not.toContain("Distance was counted from GPS because");
+    const scooter = renderToStaticMarkup(
+      <TripSummary
+        summary={{
+          distanceMetres: 4180,
+          durationSeconds: 905,
+          averageSpeedKmh: 16.6,
+          distanceSource: "vehicle",
+        }}
+        onStartNew={noop}
+      />,
+    );
+    expect(scooter).not.toContain("GPS");
   });
 
   it("uses no em dashes or emoji in any copy", () => {
