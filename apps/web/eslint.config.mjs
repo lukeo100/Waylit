@@ -5,7 +5,16 @@ import reactHooks from "eslint-plugin-react-hooks";
 import prettier from "eslint-config-prettier";
 
 export default tseslint.config(
-  { ignores: [".next/**", "out/**", "node_modules/**", "next-env.d.ts"] },
+  {
+    ignores: [
+      ".next/**",
+      "out/**",
+      "node_modules/**",
+      "next-env.d.ts",
+      "public/cesium/**",
+      "public/maplibre/**",
+    ],
+  },
   js.configs.recommended,
   ...tseslint.configs.strict,
   {

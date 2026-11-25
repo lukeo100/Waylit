@@ -6,6 +6,8 @@ build/
 coverage/
 pnpm-lock.yaml
 next-env.d.ts
+apps/web/public/cesium/
+apps/web/public/maplibre/
 # Prose docs are formatted by hand to keep diffs readable
 *.md
 LICENSE

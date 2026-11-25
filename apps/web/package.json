@@ -5,10 +5,11 @@
   "license": "Apache-2.0",
   "type": "module",
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
+    "dev": "node scripts/copy-map-assets.mjs && next dev",
+    "build": "node scripts/copy-map-assets.mjs && next build",
     "start": "next start",
     "icons": "node scripts/generate-icons.mjs",
+    "map-assets": "node scripts/copy-map-assets.mjs",
     "lint": "eslint .",
     "typecheck": "next typegen && tsc --noEmit"
   },

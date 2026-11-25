@@ -10,6 +10,10 @@ build/
 coverage/
 *.tsbuildinfo
 
+# Map renderer runtime files copied from node_modules by apps/web/scripts/copy-map-assets.mjs
+apps/web/public/cesium/
+apps/web/public/maplibre/
+
 # Environment and secrets (names only belong in .env.example)
 .env
 .env.*
