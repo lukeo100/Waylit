@@ -73,3 +73,16 @@ export type {
 } from "./media";
 export { MOCK_TRACKS } from "./mock-media";
 export { artworkDataUri, generateArtworkSvg, svgToDataUri } from "./artwork";
+export {
+  CIVIL_TWILIGHT_ELEVATION_DEGREES,
+  GOLDEN_HOUR_ELEVATION_DEGREES,
+  NAUTICAL_TWILIGHT_ELEVATION_DEGREES,
+  SUNRISE_ELEVATION_DEGREES,
+  daylightFactor,
+  getSolarState,
+  getSolarStateAt,
+  getSunTimes,
+  getSunTimesAt,
+  solarPhaseFromElevation,
+} from "./solar";
+export type { PolarCondition, SolarPhase, SolarState, SunTimes } from "./solar";
