@@ -168,3 +168,50 @@ export function OfflineIcon(props: IconProps) {
     </Icon>
   );
 }
+
+/**
+ * Battery with a level bar. `percent` is 0 to 100, or undefined when there is no reading, which
+ * draws an empty outline. It is drawn in two parts so the level can use its own colour.
+ */
+export function BatteryIcon({
+  percent,
+  low = false,
+  size = 24,
+  className,
+}: IconProps & { readonly percent: number | undefined; readonly low?: boolean }) {
+  const level = percent === undefined ? 0 : Math.min(Math.max(percent, 0), 100);
+  const barWidth = (level / 100) * 13;
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width={size}
+      height={size}
+      aria-hidden="true"
+      focusable="false"
+      className={className}
+    >
+      <rect
+        x="2"
+        y="7"
+        width="17"
+        height="10"
+        rx="2.6"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+      />
+      <path d="M21.2 10.4v3.2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+      {barWidth > 0 ? (
+        <rect
+          data-testid="battery-bar"
+          x="4"
+          y="9"
+          width={barWidth}
+          height="6"
+          rx="1.2"
+          fill={low ? "var(--wl-color-caution)" : "var(--wl-color-text)"}
+        />
+      ) : null}
+    </svg>
+  );
+}

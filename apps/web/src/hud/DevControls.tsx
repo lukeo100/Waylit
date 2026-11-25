@@ -22,7 +22,7 @@ export function DevControls({
     <aside
       aria-label="Simulation dev controls"
       data-testid="dev-controls"
-      className="wl-glass pointer-events-auto flex flex-wrap items-center justify-center gap-x-2 gap-y-1 px-2 py-1 text-xs text-text-secondary"
+      className="wl-glass pointer-events-auto flex flex-wrap items-center justify-center gap-x-2 gap-y-1 rounded-md px-2 py-1 text-hud-sm text-text-secondary"
     >
       <span className="font-semibold text-text">Dev</span>
       <span role="group" aria-label="Playback speed" className="flex items-center gap-1">
@@ -34,7 +34,7 @@ export function DevControls({
             onClick={() => {
               onPlaybackSpeed(multiplier);
             }}
-            className={`min-h-8 min-w-8 rounded-sm border px-1.5 text-xs font-semibold ${playbackSpeed === multiplier ? "border-cyan bg-cyan text-night-950" : "border-glass-border bg-night-800 text-text"}`}
+            className={`min-h-8 min-w-8 rounded-sm border px-1.5 font-semibold ${playbackSpeed === multiplier ? "border-cyan bg-cyan text-night-950" : "border-glass-border bg-night-800 text-text"}`}
           >
             {multiplier}x
           </button>

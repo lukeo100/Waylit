@@ -52,7 +52,7 @@ export function TripSummary({ summary, onStartNew }: TripSummaryProps) {
           autoFocus
           onClick={onStartNew}
           data-testid="start-new-trip"
-          className="inline-flex min-h-14 items-center justify-center rounded-md bg-volt px-6 text-lg font-bold text-night-950 shadow-glow-volt transition-colors duration-200 ease-out hover:bg-volt-soft"
+          className="inline-flex min-h-14 items-center justify-center rounded-md bg-cyan px-6 text-lg font-bold text-night-950 transition-colors duration-200 ease-out hover:bg-cyan-soft"
         >
           Start new trip
         </button>
