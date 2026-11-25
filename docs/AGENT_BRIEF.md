@@ -13,7 +13,7 @@ The 3D riding view is the defining feature and the biggest technical risk, so it
 ## 2. Success criteria for milestone 1
 
 1. The PWA installs on Android Chrome and launches in standalone landscape mode, with no browser navigation, website header or sidebar on the riding screen.
-2. The riding screen has the layout described in [VISION.md](VISION.md): speed, next turn, distance, ETA and remaining trip at top left, time, weather, connectivity and a minimap at top right, a media player at bottom left, and a vehicle dashboard with an End Trip button at bottom right.
+2. The riding screen has the layout described in [VISION.md](VISION.md): speed, next turn, distance, ETA and remaining trip at top left, time, weather, connectivity and a minimap at top right, and one joined glass dock along the bottom with the media player on the left and the vehicle dashboard with an End Trip button on the right, above a reserved credits strip that nothing covers.
 3. A realistic 3D environment renders from the provider chosen in the mapping spike (see Amendment 3), with a third-person camera following the simulated rider. A holographic rider silhouette and an original stylised scooter sit in the lower middle of the screen.
 4. A glowing route corridor, floating chevron arrows and a holographic heading marker show the route. A turn instruction appears and its distance counts down.
 5. Scene lighting follows the real local time of day, and a time override demonstrates sunset, day and night.

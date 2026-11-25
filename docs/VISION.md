@@ -13,10 +13,9 @@ The 3D environment is the primary visual element. Interface elements complement 
 - **3D world.** A third-person view of the rider travelling through realistic roads, buildings, trees and terrain, with a perspective camera that follows the rider. The rider and vehicle sit around the lower middle of the screen, with a stylised holographic rider silhouette.
 - **Route.** A glowing route corridor on the road, floating chevron arrows for upcoming turns, a holographic heading marker and subtle road-edge highlighting.
 - **Lighting.** Scene lighting follows the local time of day: warm light and long shadows at sunset, natural daylight by day, street lighting and subtle vehicle illumination at night.
-- **Top left.** Current speed, next instruction, distance to the next turn, estimated arrival, remaining distance and remaining duration.
+- **Top left.** A very large current speed, next instruction, distance to the next turn, estimated arrival, remaining distance and remaining duration.
 - **Top right.** Time, weather, connectivity and a small 2D minimap showing the upcoming route and heading.
-- **Bottom left.** A compact media player with artwork, artist, track, previous, play or pause, next and progress.
-- **Bottom right.** A vehicle dashboard with speed, trip distance, battery, estimated range, trip duration and an End Trip button.
+- **Bottom dock.** One joined glass dock along the bottom. On the left, a compact media player with artwork, artist, track, previous, play or pause, next and progress. On the right, a vehicle dashboard with battery, estimated range, trip distance, trip duration and an End Trip button. Below it, a reserved credits strip that nothing covers.
 
 The look is dark and premium: flat translucent dark panels, one soft cyan accent, restrained holographic effects, minimal readable typography and smooth animation. Where the underlying 3D geometry is imperfect, subtle lighting and stylisation keep the scene cohesive. Performance always takes priority over visual complexity.
 
