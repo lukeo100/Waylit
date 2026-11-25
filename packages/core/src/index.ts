@@ -94,3 +94,11 @@ export {
   utcOffsetMinutesAt,
 } from "./sun-moment";
 export type { PositionSource, SunClockMode, SunMomentInput } from "./sun-moment";
+export {
+  DEFAULT_TURN_THRESHOLDS,
+  directionOf,
+  isSlight,
+  nextTurn,
+  turnPhase,
+} from "./turn-guidance";
+export type { TurnDirection, TurnGuidance, TurnPhase, TurnPhaseThresholds } from "./turn-guidance";
