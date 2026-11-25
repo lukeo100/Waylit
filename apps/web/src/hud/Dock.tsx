@@ -16,7 +16,7 @@ export function Dock({ media, vehicle }: DockProps) {
   return (
     <div
       data-testid="dock"
-      className="wl-glass relative grid min-h-[clamp(3.75rem,17dvh,5.75rem)] grid-cols-[minmax(0,1fr)_1px_minmax(0,1.1fr)] overflow-hidden"
+      className="wl-glass relative grid min-h-[clamp(3.75rem,17dvh,5.75rem)] grid-cols-[minmax(0,1fr)_1px_auto] overflow-hidden"
     >
       {media}
       <div
