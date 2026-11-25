@@ -9,6 +9,11 @@ import { safetyNotice } from "@/pwa/safety-notice";
  *
  * The server snapshot says "already acknowledged", so the notice never appears in the
  * prerendered HTML and there is no hydration mismatch. It appears after hydration.
+ *
+ * It never covers the credits strip. On the riding screen the strip holds the Google and Cesium
+ * credits, which must stay visible, so the notice sits above it: the riding screen publishes the
+ * strip's height as `--wl-credits-clearance` (see `useCreditsClearance`) and the notice's bottom
+ * edge and maximum height both respect it. Elsewhere the variable is unset and counts as zero.
  */
 export function SafetyNotice() {
   const acknowledged = useSyncExternalStore(
@@ -25,7 +30,7 @@ export function SafetyNotice() {
       aria-modal="false"
       aria-labelledby="safety-notice-title"
       aria-describedby="safety-notice-body"
-      className="fixed right-[max(1rem,var(--wl-safe-right))] bottom-[max(1rem,var(--wl-safe-bottom))] left-[max(1rem,var(--wl-safe-left))] z-50 mx-auto max-h-[calc(100dvh-2rem)] max-w-xl overflow-y-auto rounded-lg border border-l-4 border-glass-border border-l-caution bg-night-800 px-4 py-3 short:py-2"
+      className="fixed right-[max(1rem,var(--wl-safe-right))] bottom-[calc(max(1rem,var(--wl-safe-bottom))+var(--wl-credits-clearance,0px))] left-[max(1rem,var(--wl-safe-left))] z-50 mx-auto max-h-[calc(100dvh-2rem-var(--wl-credits-clearance,0px))] max-w-xl overflow-y-auto rounded-lg border border-l-4 border-glass-border border-l-caution bg-night-800 px-4 py-3 short:py-2"
     >
       <h2 id="safety-notice-title" className="text-base font-semibold text-caution">
         Navigation aid, not a safety system

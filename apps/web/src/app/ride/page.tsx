@@ -1,6 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState, type CSSProperties } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  useSyncExternalStore,
+  type CSSProperties,
+} from "react";
 import { DEMO_ROUTE } from "@waylit/core";
 import { parseTimeOverride } from "@/hud/dev-controls";
 import { DaylightProvider } from "@/hud/daylight-context";
@@ -22,10 +29,12 @@ import { StatusCluster } from "@/hud/StatusCluster";
 import { TripSummary } from "@/hud/TripSummary";
 import { VehiclePanel } from "@/hud/VehiclePanel";
 import { telemetryNote } from "@/hud/telemetry-note";
+import { useCreditsClearance } from "@/hud/use-credits-clearance";
 import { useDevControls, useMinuteClock, useOnline, useSearch } from "@/hud/use-browser-state";
 import { MapScene } from "@/map/MapScene";
 import { useMockMedia } from "@/media/useMockMedia";
 import { browserFullscreenEnvironment, enterFullscreen, exitFullscreen } from "@/pwa/fullscreen";
+import { safetyNotice } from "@/pwa/safety-notice";
 import { useWakeLock } from "@/pwa/use-wake-lock";
 import { useRide } from "@/ride/use-ride";
 
@@ -72,6 +81,15 @@ export default function RidePage() {
   const devControls = useDevControls();
   // The credits strip is where the 3D scene draws its required credits and logos.
   const [creditsElement, setCreditsElement] = useState<HTMLElement | null>(null);
+  // The first run safety notice sits above the credits strip (it reads the strip's height), and
+  // the 3D scene does not start until it has been acknowledged, so no tile credits are ever on
+  // screen behind an open notice. The server snapshot says acknowledged, like the notice itself.
+  const noticeAcknowledged = useSyncExternalStore(
+    safetyNotice.subscribe,
+    safetyNotice.isAcknowledged,
+    () => true,
+  );
+  useCreditsClearance(creditsElement?.parentElement ?? null);
 
   // A developer can override the date and time (see DevControls). The override only exists
   // while the dev controls are shown, so riders can never end up on a frozen clock.
@@ -118,7 +136,7 @@ export default function RidePage() {
       >
         <ScenePlaceholder />
         <MapScene
-          creditsElement={creditsElement}
+          creditsElement={noticeAcknowledged ? creditsElement : null}
           route={DEMO_ROUTE}
           phase={snapshot.phase}
           position={riding ? snapshot.position : undefined}

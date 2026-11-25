@@ -50,7 +50,16 @@ export default tseslint.config(
   },
   {
     files: ["scripts/**/*.mjs"],
-    languageOptions: { globals: { console: "readonly", Buffer: "readonly" } },
+    languageOptions: {
+      globals: {
+        console: "readonly",
+        Buffer: "readonly",
+        process: "readonly",
+        setTimeout: "readonly",
+        fetch: "readonly",
+        WebSocket: "readonly",
+      },
+    },
   },
   prettier,
 );
