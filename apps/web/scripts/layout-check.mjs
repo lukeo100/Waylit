@@ -1,6 +1,7 @@
 /**
  * Layout check for the riding screen: nothing may cover the credits strip, and the development
- * overlay may not sit on top of the HUD text. It opens /ride in headless Chrome at the landscape
+ * overlay may not sit on top of the HUD text. The map settings button must be a 44 pixel target, and
+ * its open sheet may not cover the credits strip or the speed and turn text. It opens /ride in headless Chrome at the landscape
  * sizes the screen is designed for, with the first run safety notice open and closed, with and
  * without ?dev=1, and fails if
  *
@@ -54,7 +55,7 @@ const MEASURE = `(() => {
     const credits = strip.querySelector('[data-testid="map-credit-mount"]');
     out.creditsHeight = credits ? credits.getBoundingClientRect().height : 0;
   }
-  const ids = ['speed-value','speed-unit','speed-source','telemetry-note','turn-distance','turn-instruction','stat-remaining','stat-eta','local-time','weather','minimap','map-note','start-prompt','dev-controls','dock'];
+  const ids = ['speed-value','speed-unit','speed-source','telemetry-note','turn-distance','turn-instruction','stat-remaining','stat-eta','local-time','weather','minimap','map-note','start-prompt','dev-controls','dock','map-settings-button'];
   // Credits as Cesium draws them, with the long Google data line, to check the strip stays on one
   // line and the logos stay visible. Only when the page asks for it.
   if (window.__fakeCredits) {
@@ -127,6 +128,41 @@ try {
               problems.push(`${names[i]} overlaps ${names[j]}`);
             }
           }
+        }
+        // The map settings button is a 44 pixel target, and its open sheet may not cover the
+        // credits strip (checked with the notice closed, when the sheet can be opened).
+        const button = m.hud["map-settings-button"];
+        if (!button) problems.push("map settings button missing");
+        else if (button.w < 44 - 0.5 || button.h < 44 - 0.5)
+          problems.push(`map settings button is ${button.w}x${button.h}px (under 44)`);
+        if (acknowledged && button) {
+          await page.evaluate(
+            `document.querySelector('[data-testid="map-settings-button"]').click()`,
+          );
+          await sleep(300);
+          const o = await page.evaluate(MEASURE);
+          const sheet = await page.evaluate(
+            `(() => { const e = document.querySelector('[data-testid="map-settings-sheet"]'); if (!e) return null; const r = e.getBoundingClientRect(); return { x: r.left, y: r.top, w: r.width, h: r.height, r: r.right, b: r.bottom }; })()`,
+          );
+          if (!sheet) problems.push("map settings sheet did not open");
+          else {
+            if (o.covered > 0) problems.push(`open sheet covers ${o.covered} strip probe points`);
+            if (o.strip && intersects(sheet, o.strip))
+              problems.push("open sheet overlaps the strip");
+            const leftHud = ["speed-value", "turn-distance", "turn-instruction"];
+            for (const id of leftHud) {
+              const r = o.hud[id];
+              if (r && r.w > 0 && intersects(sheet, r)) problems.push(`open sheet overlaps ${id}`);
+            }
+          }
+          if (process.env.SHOTS_DIR) {
+            await page.screenshot(
+              join(process.env.SHOTS_DIR, `layout-${w}x${h}-sheet-dev${dev ? 1 : 0}.png`),
+            );
+          }
+          await page.evaluate(
+            `document.querySelector('[data-testid="map-settings-close"]')?.click()`,
+          );
         }
         if (process.env.SHOTS_DIR) {
           await page.screenshot(

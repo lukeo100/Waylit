@@ -3,7 +3,12 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { LatLng, Route } from "@waylit/core";
-import { resolveTuning, selectProvider, type ProviderActivity } from "@waylit/map-provider";
+import {
+  fxLevelIsPinned,
+  resolveFxLevel,
+  resolveTuning,
+  type ProviderActivity,
+} from "@waylit/map-provider";
 import { cesiumIonToken } from "@/config";
 import { devControlsEnabled } from "@/hud/dev-controls";
 import type { DaylightState } from "@/hud/daylight";
@@ -11,6 +16,7 @@ import type { RidePhase } from "@/ride/ride-session";
 import { MapStats } from "./MapStats";
 import { sceneLightingFrom } from "./lighting-input";
 import { loadProvider } from "./load-provider";
+import { mapSettingsModel, type MapSettings } from "./map-settings";
 import { MapSceneController, startFixOf, type SceneState } from "./scene-controller";
 
 interface MapSceneProps {
@@ -27,6 +33,12 @@ interface MapSceneProps {
    */
   readonly alongMetres?: number | undefined;
   readonly daylight: DaylightState;
+  /**
+   * The rider's saved map settings. A change of map starts the other provider (through the same
+   * selection and one-shot fallback rules). A change of the effect level is applied to a running
+   * Google scene without starting it again, so it does not use a Cesium ion request.
+   */
+  readonly settings: MapSettings;
   /** Show the frame rate overlay and the provider details. Development and `?dev=1`. */
   readonly devOverlay: boolean;
   /**
@@ -59,6 +71,7 @@ export function MapScene({
   heading,
   alongMetres,
   daylight,
+  settings,
   devOverlay,
   statsSlot = null,
 }: MapSceneProps) {
@@ -69,10 +82,12 @@ export function MapScene({
 
   // The newest inputs, so a scene that starts late (the credits strip is found after the first
   // render) still starts with the right ones.
-  const latest = useRef({ phase, daylight });
+  const latest = useRef({ phase, daylight, settings });
   useEffect(() => {
-    latest.current = { phase, daylight };
+    latest.current = { phase, daylight, settings };
   });
+  // Bumped when the provider has to be started again for a new effect level.
+  const [restart, setRestart] = useState(0);
 
   useEffect(() => {
     const scene = sceneRef.current;
@@ -80,13 +95,19 @@ export function MapScene({
     const search = window.location.search;
     const nodeEnv = process.env.NODE_ENV;
     const overrides = devControlsEnabled(search, nodeEnv);
-    const selection = selectProvider({ search, token: cesiumIonToken, nodeEnv });
+    const stored = latest.current.settings;
+    const { selection } = mapSettingsModel({
+      search,
+      token: cesiumIonToken,
+      nodeEnv,
+      settings: stored,
+    });
     const next = new MapSceneController({
       sceneElement: scene,
       creditsElement,
       selection,
       route,
-      tuningFor: (id) => resolveTuning(id, search, overrides),
+      tuningFor: (id) => resolveTuning(id, search, overrides, stored.fx),
       createProvider: (id, tuning) =>
         loadProvider(id, tuning, {
           token: cesiumIonToken,
@@ -108,7 +129,22 @@ export function MapScene({
       next.dispose();
       controllerRef.current = null;
     };
-  }, [creditsElement, route]);
+    // A new map choice or a restart starts a fresh controller, with its own one-shot fallback.
+  }, [creditsElement, route, settings.map, restart]);
+
+  // A new effect level goes to a running Google scene directly. Anything else starts again.
+  const lastFx = useRef(settings.fx);
+  useEffect(() => {
+    if (lastFx.current === settings.fx) return;
+    lastFx.current = settings.fx;
+    const controller = controllerRef.current;
+    if (!controller) return;
+    const search = window.location.search;
+    const provider = controller.getState().providerId;
+    const level = resolveFxLevel(search, provider ?? "maplibre-fallback", settings.fx);
+    const pinned = fxLevelIsPinned(search, settings.fx);
+    if (!controller.setFxLevel(level, pinned)) setRestart((n) => n + 1);
+  }, [settings.fx]);
 
   // A new trip puts the camera back at the start, with no gliding.
   useEffect(() => {

@@ -1,0 +1,111 @@
+import { describe, expect, it } from "vitest";
+import { renderToStaticMarkup } from "react-dom/server";
+import { mapSettingsModel, type MapSettings as Settings } from "@/map/map-settings";
+import { GUARD_ON_KMH, nextGuardState } from "@/ride/guard";
+import { MapSettings, MapSettingsSheet } from "./MapSettings";
+
+const noop = () => undefined;
+
+function model(overrides: { token?: string | undefined; search?: string; settings?: Settings }) {
+  return mapSettingsModel({
+    search: overrides.search ?? "",
+    token: "token" in overrides ? overrides.token : "token-for-tests",
+    nodeEnv: "production",
+    settings: overrides.settings ?? {},
+  });
+}
+
+const sheet = (m: ReturnType<typeof model>) =>
+  renderToStaticMarkup(<MapSettingsSheet model={m} onChange={noop} onClose={noop} />);
+
+describe("map settings button", () => {
+  it("is a round control of at least 44 pixels that opens a dialog", () => {
+    const html = renderToStaticMarkup(
+      <MapSettings model={model({})} guarded={false} onChange={noop} />,
+    );
+    expect(html).toContain('data-testid="map-settings-button"');
+    expect(html).toContain("size-11");
+    expect(html).toContain('aria-haspopup="dialog"');
+    expect(html).toContain('aria-expanded="false"');
+    expect(html).toContain('aria-label="Map settings"');
+    // Closed to start with.
+    expect(html).not.toContain("map-settings-sheet");
+  });
+
+  it("needs a hold above the guard speed, and says so", () => {
+    // The same guard as the media buttons: on at 8 km/h.
+    expect(GUARD_ON_KMH).toBe(8);
+    expect(nextGuardState(false, 8)).toBe(true);
+    expect(nextGuardState(false, 7.9)).toBe(false);
+    const guarded = renderToStaticMarkup(<MapSettings model={model({})} guarded onChange={noop} />);
+    expect(guarded).toContain('data-guarded="true"');
+    expect(guarded).toContain("Map settings. Hold to press.");
+    expect(guarded).toContain('data-testid="hold-ring"');
+    expect(guarded).toContain("wl-hold-ring");
+    const free = renderToStaticMarkup(
+      <MapSettings model={model({})} guarded={false} onChange={noop} />,
+    );
+    expect(free).toContain('data-guarded="false"');
+    expect(free).not.toContain("Hold to press");
+    expect(free).not.toContain("wl-hold-ring");
+  });
+});
+
+describe("map settings sheet", () => {
+  it("offers Google 3D tiles and the fallback map and the three effect levels", () => {
+    const html = sheet(model({}));
+    expect(html).toContain('role="dialog"');
+    expect(html).toContain("Google 3D tiles");
+    expect(html).toContain("Fallback map");
+    expect(html).toContain("Hologram screen effect");
+    for (const level of ["Off", "Low", "High"]) expect(html).toContain(`>${level}<`);
+    // Every choice and the close button is a 44 pixel target.
+    expect((html.match(/min-h-11/g) ?? []).length).toBeGreaterThanOrEqual(6);
+  });
+
+  it("marks the map and the effect in force", () => {
+    const google = sheet(model({}));
+    expect(google).toMatch(/aria-checked="true"[^>]*data-value="cesium"/);
+    const fallback = sheet(model({ settings: { map: "fallback", fx: "high" } }));
+    expect(fallback).toMatch(/aria-checked="true"[^>]*data-value="fallback"/);
+    expect(fallback).toMatch(/aria-checked="true"[^>]*data-value="high"/);
+    // Effect defaults to off on Google tiles.
+    expect(google).toMatch(/aria-checked="true"[^>]*data-value="off"/);
+  });
+
+  it("tells the maintainer that each switch to Google uses a Cesium ion request", () => {
+    const html = sheet(model({}));
+    expect(html).toContain('data-testid="map-quota"');
+    expect(html).toContain("1,000 root requests per month");
+    expect(html).toContain("Community plan");
+  });
+
+  it("disables the Google option with a plain explanation when there is no token", () => {
+    const html = sheet(model({ token: undefined, settings: { map: "cesium" } }));
+    expect(html).toMatch(/<button[^>]*disabled=""[^>]*data-value="cesium"/);
+    expect(html).toContain('data-testid="map-no-token"');
+    expect(html).toContain("need a Cesium ion token");
+    expect(html).not.toContain('data-testid="map-quota"');
+    expect(html).not.toMatch(/error|failed/i);
+    // The fallback is what is showing.
+    expect(html).toMatch(/aria-checked="true"[^>]*data-value="fallback"/);
+  });
+
+  it("locks a choice the address has made and says how to change it", () => {
+    const html = sheet(model({ search: "?map=fallback&fx=low" }));
+    expect(html).toContain('data-testid="map-locked"');
+    expect(html).toContain('data-testid="fx-locked"');
+    const radios = html.match(/<button[^>]*role="radio"[^>]*>/g) ?? [];
+    expect(radios.length).toBe(5);
+    for (const radio of radios) expect(radio).toContain('disabled=""');
+    const free = sheet(model({}));
+    expect(free).not.toContain("map-locked");
+    expect(free).not.toContain("fx-locked");
+  });
+
+  it("stays above the credits strip and has no red", () => {
+    const html = sheet(model({}));
+    expect(html).toContain("var(--wl-credits-clearance");
+    expect(html).not.toMatch(/danger|text-red|bg-red/);
+  });
+});

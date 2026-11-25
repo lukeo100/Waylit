@@ -16,6 +16,10 @@ export function parseMapChoice(search: string): MapChoice | undefined {
 }
 
 export type SelectionReason =
+  /** The rider chose the fallback map in the settings sheet. */
+  | "chosen-fallback"
+  /** The rider chose Google 3D tiles in the settings sheet and a token is configured. */
+  | "chosen-cesium"
   /** `?map=fallback` in the address. */
   | "override-fallback"
   /** `?map=cesium` in the address and a token is configured. */
@@ -41,13 +45,17 @@ export interface SelectProviderInput {
   readonly token: string | undefined;
   /** `process.env.NODE_ENV`. Anything other than "production" is a development build. */
   readonly nodeEnv: string | undefined;
+  /** The rider's choice from the settings sheet. The address (`?map=`) still wins over it. */
+  readonly preference?: MapChoice | undefined;
 }
 
 /**
  * Picks the provider. CesiumJS with Google Photorealistic 3D Tiles needs a Cesium ion token, so
  * without one the fallback runs. Development builds default to the fallback unless the address
  * has `?map=cesium`, because every Cesium page load can use one of the monthly root tileset
- * requests (the free allowance is small). `?map=fallback` forces the fallback anywhere.
+ * requests (the free allowance is small). `?map=fallback` forces the fallback anywhere. Order:
+ * the address, then the rider's saved choice (`preference`), then these defaults. Without a token
+ * the fallback always runs, whatever was chosen.
  */
 export function selectProvider(input: SelectProviderInput): ProviderSelection {
   const hasToken = (input.token?.trim() ?? "") !== "";
@@ -59,6 +67,10 @@ export function selectProvider(input: SelectProviderInput): ProviderSelection {
       : { id: "maplibre-fallback", reason: "override-cesium-no-token" };
   }
   if (!hasToken) return { id: "maplibre-fallback", reason: "no-token" };
+  if (input.preference === "fallback")
+    return { id: "maplibre-fallback", reason: "chosen-fallback" };
+  // An explicit choice of Google tiles is honoured in development too, because the rider asked.
+  if (input.preference === "cesium") return { id: "cesium-google", reason: "chosen-cesium" };
   if (input.nodeEnv !== "production") {
     return { id: "maplibre-fallback", reason: "development-default" };
   }
@@ -154,11 +166,13 @@ export function resolveTuning(
   id: ProviderId,
   search: string,
   allowOverrides: boolean,
+  storedFx?: FxLevel,
 ): RenderTuning {
-  // The effect level can be chosen from the address anywhere, not only in development.
+  // The effect level can be chosen from the address anywhere, not only in development, and by
+  // the rider in the settings sheet (the address wins).
   const fx = {
-    fxLevel: resolveFxLevel(search, id),
-    fxPinned: fxLevelIsPinned(search),
+    fxLevel: resolveFxLevel(search, id, storedFx),
+    fxPinned: fxLevelIsPinned(search, storedFx),
   };
   const base = { ...DEFAULT_TUNING[id], ...fx };
   if (!allowOverrides) return base;

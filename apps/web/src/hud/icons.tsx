@@ -215,3 +215,22 @@ export function BatteryIcon({
     </svg>
   );
 }
+
+/** Stacked layers, for the map settings. */
+export function LayersIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="m12 3 9 5-9 5-9-5z" />
+      <path d="m3 12.5 9 5 9-5" />
+      <path d="m3 17 9 5 9-5" />
+    </Icon>
+  );
+}
+
+export function CloseIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M6 6l12 12M18 6 6 18" />
+    </Icon>
+  );
+}

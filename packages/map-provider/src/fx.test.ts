@@ -4,7 +4,9 @@ import {
   FxGovernor,
   GOOGLE_FX_ON_BY_DEFAULT,
   cheaperLevel,
+  fxLevelIsFromAddress,
   fxLevelIsPinned,
+  parseFxLevel,
   fxParameters,
   gradePalette,
   resolveFxLevel,
@@ -238,5 +240,28 @@ describe("gradePalette", () => {
     expect(channel(gradedNight.roadMajor, 1)).toBeGreaterThan(channel(night.roadMajor, 1));
     // By day the road stays close to the plain palette.
     expect(Math.abs(channel(gradedDay.roadMajor, 1) - channel(day.roadMajor, 1))).toBeLessThan(45);
+  });
+});
+
+describe("the saved effect level", () => {
+  it("parses words and ignores anything else", () => {
+    expect(parseFxLevel(" High ")).toBe("high");
+    expect(parseFxLevel("off")).toBe("off");
+    expect(parseFxLevel("max")).toBeUndefined();
+    expect(parseFxLevel(null)).toBeUndefined();
+  });
+
+  it("comes after the address and before the default", () => {
+    expect(resolveFxLevel("", "cesium-google", "high")).toBe("high");
+    expect(resolveFxLevel("?fx=off", "cesium-google", "high")).toBe("off");
+    expect(resolveFxLevel("", "cesium-google")).toBe("off");
+    expect(resolveFxLevel("", "maplibre-fallback", "low")).toBe("low");
+  });
+
+  it("counts a saved level as chosen, and tells the address apart", () => {
+    expect(fxLevelIsPinned("", "low")).toBe(true);
+    expect(fxLevelIsPinned("")).toBe(false);
+    expect(fxLevelIsFromAddress("?fx=low")).toBe(true);
+    expect(fxLevelIsFromAddress("")).toBe(false);
   });
 });

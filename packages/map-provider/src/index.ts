@@ -60,6 +60,8 @@ export {
   GOOGLE_FX_ON_BY_DEFAULT,
   cheaperLevel,
   fxLevelIsPinned,
+  fxLevelIsFromAddress,
+  parseFxLevel,
   fxParameters,
   gradePalette,
   resolveFxLevel,

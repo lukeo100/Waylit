@@ -39,6 +39,9 @@ class FakeProvider implements MapProvider {
   lightings: SceneLighting[] = [];
   activities: ProviderActivity[] = [];
   failMountWith: string | undefined;
+  fxCalls: { level: string; pinned: boolean }[] = [];
+  /** Set to make this fake able to change the effect level without starting again. */
+  liveFx = false;
   private frames = new Set<FrameListener>();
   private statuses = new Set<ProviderStatusListener>();
 
@@ -62,6 +65,10 @@ class FakeProvider implements MapProvider {
   }
   setGuidance(frame: GuidanceFrame): void {
     this.guidance.push(frame);
+  }
+  setFxLevel(level: "off" | "low" | "high", pinned: boolean): boolean {
+    this.fxCalls.push({ level, pinned });
+    return this.liveFx;
   }
   setLighting(l: SceneLighting): void {
     this.lightings.push(l);
@@ -271,6 +278,29 @@ describe("MapSceneController", () => {
     await controller.start();
     controller.dispose();
     expect(created[0]?.unmounted).toBeGreaterThan(0);
+  });
+});
+
+describe("MapSceneController effect level", () => {
+  it("returns false before a provider is up, so the scene starts again with the new level", () => {
+    const { controller } = setup("", undefined);
+    expect(controller.setFxLevel("low", true)).toBe(false);
+  });
+
+  it("hands the level to a provider that can change it live, and says so", async () => {
+    const { controller, created } = setup("", "t");
+    await controller.start();
+    const provider = created[0]!;
+    provider.liveFx = true;
+    expect(controller.setFxLevel("high", true)).toBe(true);
+    expect(provider.fxCalls).toEqual([{ level: "high", pinned: true }]);
+  });
+
+  it("says false when the provider has to start again", async () => {
+    const { controller, created } = setup("", "t");
+    await controller.start();
+    expect(controller.setFxLevel("low", false)).toBe(false);
+    expect(created).toHaveLength(1);
   });
 });
 

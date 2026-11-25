@@ -35,10 +35,14 @@ import {
   useDevControls,
   useMinuteClock,
   useOnline,
+  useMapSettings,
   useSearch,
   useSunMode,
 } from "@/hud/use-browser-state";
 import { MapScene } from "@/map/MapScene";
+import { mapSettingsModel } from "@/map/map-settings";
+import { cesiumIonToken } from "@/config";
+import { MapSettings } from "@/hud/MapSettings";
 import { useMockMedia } from "@/media/useMockMedia";
 import { browserFullscreenEnvironment, enterFullscreen, exitFullscreen } from "@/pwa/fullscreen";
 import { safetyNotice } from "@/pwa/safety-notice";
@@ -105,6 +109,13 @@ export default function RidePage() {
   // It starts from `?time=` in the address (see parseTimeOverride), and the controls take over
   // after that. "live" is the explicit choice to follow the real clock.
   const search = useSearch();
+  const [mapSettings, setMapSettings] = useMapSettings();
+  const mapModel = mapSettingsModel({
+    search,
+    token: cesiumIonToken,
+    nodeEnv: process.env.NODE_ENV,
+    settings: mapSettings,
+  });
   const [timeChoice, setTimeChoice] = useState<number | "live" | undefined>(undefined);
   const urlTimeMs = devControls
     ? parseTimeOverride(search, DEFAULT_SUN_POSITION, realNowMs)
@@ -168,6 +179,7 @@ export default function RidePage() {
           heading={riding ? snapshot.heading : undefined}
           alongMetres={riding ? snapshot.progress.distanceAlongMetres : undefined}
           daylight={daylight}
+          settings={mapSettings}
           devOverlay={devControls}
           statsSlot={statsSlot}
         />
@@ -188,13 +200,20 @@ export default function RidePage() {
                   />
                   <div className="flex shrink-0 flex-col items-end gap-[clamp(0.4rem,2.2dvh,0.9rem)]">
                     <StatusCluster nowMs={nowMs} online={online} />
-                    <Minimap
-                      route={DEMO_ROUTE}
-                      alongMetres={snapshot.progress.distanceAlongMetres}
-                      position={riding ? snapshot.position : undefined}
-                      heading={riding ? snapshot.heading : undefined}
-                      nextTurnAt={riding ? snapshot.progress.nextInstruction?.at : undefined}
-                    />
+                    <div className="flex items-end gap-[clamp(0.4rem,1vw,0.75rem)]">
+                      <MapSettings
+                        model={mapModel}
+                        guarded={snapshot.guarded}
+                        onChange={setMapSettings}
+                      />
+                      <Minimap
+                        route={DEMO_ROUTE}
+                        alongMetres={snapshot.progress.distanceAlongMetres}
+                        position={riding ? snapshot.position : undefined}
+                        heading={riding ? snapshot.heading : undefined}
+                        nextTurnAt={riding ? snapshot.progress.nextInstruction?.at : undefined}
+                      />
+                    </div>
                     <div ref={setStatsSlot} className="flex flex-col items-end gap-1" />
                   </div>
                 </div>

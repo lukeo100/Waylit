@@ -38,18 +38,35 @@ export function cheaperLevel(level: FxLevel): FxLevel | undefined {
  */
 export const GOOGLE_FX_ON_BY_DEFAULT = false;
 
-/** The level a provider starts at. `?fx=off`, `?fx=low` and `?fx=high` always win. */
-export function resolveFxLevel(search: string, provider: ProviderId): FxLevel {
+/** Parses an effect level word, or undefined for anything else. */
+export function parseFxLevel(value: string | null | undefined): FxLevel | undefined {
+  const word = value?.trim().toLowerCase();
+  return word === "off" || word === "low" || word === "high" ? word : undefined;
+}
+
+/**
+ * The level a provider starts at. `?fx=off`, `?fx=low` and `?fx=high` always win, then the
+ * rider's own choice from the settings sheet (`stored`), then the default for the provider.
+ */
+export function resolveFxLevel(search: string, provider: ProviderId, stored?: FxLevel): FxLevel {
   const value = readQuery(search).get("fx")?.trim().toLowerCase();
   if (value === "off" || value === "low" || value === "high") return value;
+  if (stored !== undefined) return stored;
   if (provider === "cesium-google") return GOOGLE_FX_ON_BY_DEFAULT ? "high" : "off";
   return "high";
 }
 
-/** True when the address explicitly picked a level, so the adaptive governor must not move it. */
-export function fxLevelIsPinned(search: string): boolean {
-  const value = readQuery(search).get("fx")?.trim().toLowerCase();
-  return value === "off" || value === "low" || value === "high";
+/**
+ * True when the address or the rider explicitly picked a level, so the adaptive governor must
+ * not move it.
+ */
+export function fxLevelIsPinned(search: string, stored?: FxLevel): boolean {
+  return parseFxLevel(readQuery(search).get("fx")) !== undefined || stored !== undefined;
+}
+
+/** True when the address picked the level, so the settings sheet cannot change it. */
+export function fxLevelIsFromAddress(search: string): boolean {
+  return parseFxLevel(readQuery(search).get("fx")) !== undefined;
 }
 
 /** Everything the post process and the fallback grade need, all numbers in 0 to 1 unless noted. */

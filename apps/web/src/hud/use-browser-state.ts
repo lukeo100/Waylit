@@ -3,6 +3,7 @@
 import { useSyncExternalStore } from "react";
 import type { SunClockMode } from "@waylit/core";
 import { devControlsEnabled } from "./dev-controls";
+import { createMapSettingsStore, type MapSettings } from "@/map/map-settings";
 import { DEFAULT_SUN_MODE, createSunModeStore } from "./sun-mode";
 
 /** True while the browser says it has a network connection. */
@@ -82,4 +83,20 @@ export function useSunMode(): readonly [SunClockMode, (mode: SunClockMode) => vo
     () => DEFAULT_SUN_MODE,
   );
   return [mode, sunModeStore.set];
+}
+
+const mapSettingsStore = createMapSettingsStore(browserStorage);
+const NO_MAP_SETTINGS: MapSettings = {};
+
+/**
+ * The rider's map settings (which map, how strong the hologram screen effect). Remembered between
+ * visits. `?map=` and `?fx=` in the address still win over them.
+ */
+export function useMapSettings(): readonly [MapSettings, (patch: MapSettings) => void] {
+  const settings = useSyncExternalStore(
+    mapSettingsStore.subscribe,
+    mapSettingsStore.get,
+    () => NO_MAP_SETTINGS,
+  );
+  return [settings, mapSettingsStore.set];
 }

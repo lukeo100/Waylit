@@ -21,6 +21,9 @@ interface HoldButtonProps {
   /** Tells the parent when a hold starts and stops, so it can show a caption. */
   readonly onHoldChange?: (holding: boolean) => void;
   readonly "data-testid"?: string;
+  /** For a button that opens a panel. */
+  readonly "aria-expanded"?: boolean;
+  readonly "aria-haspopup"?: "dialog";
 }
 
 const browserTimers = {
@@ -50,6 +53,8 @@ export function HoldButton({
   children,
   onHoldChange,
   "data-testid": testId,
+  "aria-expanded": expanded,
+  "aria-haspopup": hasPopup,
 }: HoldButtonProps) {
   const [holding, setHolding] = useState(false);
   const activate = useRef(onActivate);
@@ -94,6 +99,8 @@ export function HoldButton({
       type="button"
       aria-label={guarded ? `${label}. Hold to press.` : label}
       data-testid={testId}
+      aria-expanded={expanded}
+      aria-haspopup={hasPopup}
       data-guarded={guarded}
       data-holding={holding}
       data-feedback={feedback}

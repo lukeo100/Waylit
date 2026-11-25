@@ -28,6 +28,7 @@ import {
   longSideFovDegrees,
   type CameraPose,
   type CorridorShape,
+  type FxLevel,
   type GroundHeightSource,
   type GuidanceFrame,
   type ProviderAttribution,
@@ -347,6 +348,26 @@ export class CesiumGoogleProvider extends BaseProvider {
     }
     // The tile tint and the warm lift exist only when the visual effect is on.
     if (this.shader) setTileShaderLighting(this.shader, params.tint, lighting.daylightFactor);
+  }
+
+  /**
+   * Changes the screen effect on the running scene, so choosing it in the settings sheet does not
+   * start Google tiles again (a start costs a Cesium ion root request). The tile tint exists
+   * only while the effect is on, so it is made or removed here too. Returns false before the
+   * scene is up, when the caller should simply start again with the new level.
+   */
+  setFxLevel(level: FxLevel, pinned: boolean): boolean {
+    const fx = this.fx;
+    const tileset = this.tileset;
+    if (!fx || !tileset || this.disposed) return false;
+    fx.setLevel(level);
+    this.governor = new LoadGovernor(level, pinned, this.holo?.currentDetail ?? "full");
+    this.shader = createTileShader(level);
+    tileset.customShader = this.shader;
+    // Put the current light into the new shader.
+    this.lastLightKey = undefined;
+    if (this.lastLighting) this.setLighting(this.lastLighting);
+    return true;
   }
 
   setRoute(corridor: CorridorShape): void {

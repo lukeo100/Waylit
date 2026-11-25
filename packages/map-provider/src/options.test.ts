@@ -146,3 +146,65 @@ describe("effectivePixelRatio", () => {
     expect(effectivePixelRatio(2, 0.1)).toBe(0.5);
   });
 });
+
+describe("the rider's saved choice", () => {
+  const token = "token-for-tests";
+
+  it("picks Google tiles when chosen, even in development, and the fallback when chosen", () => {
+    expect(
+      selectProvider({ search: "", token, nodeEnv: "development", preference: "cesium" }),
+    ).toEqual({ id: "cesium-google", reason: "chosen-cesium" });
+    expect(
+      selectProvider({ search: "", token, nodeEnv: "production", preference: "fallback" }),
+    ).toEqual({ id: "maplibre-fallback", reason: "chosen-fallback" });
+  });
+
+  it("is beaten by the address in both directions", () => {
+    expect(
+      selectProvider({
+        search: "?map=fallback",
+        token,
+        nodeEnv: "production",
+        preference: "cesium",
+      }),
+    ).toEqual({ id: "maplibre-fallback", reason: "override-fallback" });
+    expect(
+      selectProvider({
+        search: "?map=cesium",
+        token,
+        nodeEnv: "development",
+        preference: "fallback",
+      }),
+    ).toEqual({ id: "cesium-google", reason: "override-cesium" });
+  });
+
+  it("never picks Google tiles without a token", () => {
+    expect(
+      selectProvider({ search: "", token: undefined, nodeEnv: "production", preference: "cesium" }),
+    ).toEqual({ id: "maplibre-fallback", reason: "no-token" });
+  });
+
+  it("keeps the development default of the fallback when nothing was chosen", () => {
+    expect(selectProvider({ search: "", token, nodeEnv: "development" }).reason).toBe(
+      "development-default",
+    );
+    expect(
+      selectProvider({ search: "", token, nodeEnv: "development", preference: undefined }).id,
+    ).toBe("maplibre-fallback");
+  });
+
+  it("feeds the saved effect level into the tuning, and the address still wins", () => {
+    expect(resolveTuning("cesium-google", "", false, "low")).toMatchObject({
+      fxLevel: "low",
+      fxPinned: true,
+    });
+    expect(resolveTuning("cesium-google", "?fx=high", false, "low")).toMatchObject({
+      fxLevel: "high",
+      fxPinned: true,
+    });
+    expect(resolveTuning("cesium-google", "", false)).toMatchObject({
+      fxLevel: "off",
+      fxPinned: false,
+    });
+  });
+});

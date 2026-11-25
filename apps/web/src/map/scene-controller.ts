@@ -1,6 +1,7 @@
 import { bearingDegrees, type LatLng, type Route } from "@waylit/core";
 import {
   FollowCamera,
+  type FxLevel,
   RouteGuide,
   type MapProvider,
   type ProviderActivity,
@@ -139,6 +140,15 @@ export class MapSceneController {
   setLighting(lighting: SceneLighting): void {
     this.lighting = lighting;
     this.provider?.setLighting(lighting);
+  }
+
+  /**
+   * Changes the screen effect level on the running provider if it can do that without starting
+   * again (Google tiles can, and that saves a Cesium ion request). Returns false when the caller
+   * has to start the scene again.
+   */
+  setFxLevel(level: FxLevel, pinned: boolean): boolean {
+    return this.provider?.setFxLevel?.(level, pinned) ?? false;
   }
 
   setActivity(activity: ProviderActivity): void {

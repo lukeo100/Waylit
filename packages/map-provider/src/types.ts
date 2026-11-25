@@ -1,4 +1,5 @@
 import type { LatLng, SolarPhase, TurnDirection, TurnPhase } from "@waylit/core";
+import type { FxLevel } from "./fx";
 
 /**
  * Map provider interface. Types only.
@@ -223,6 +224,13 @@ export interface MapProvider {
   setLighting(lighting: SceneLighting): void;
   /** Idle (start screen) draws slowly, riding at the target rate, paused draws nothing. */
   setActivity(activity: ProviderActivity): void;
+  /**
+   * Optional. Changes the screen effect level on the running scene without starting it again,
+   * which matters for Google tiles (a new start costs a Cesium ion root request). Returns true
+   * when it was applied, false when the provider has to be started again. `pinned` is true when
+   * the level was chosen, so the adaptive step down leaves it alone.
+   */
+  setFxLevel?(level: FxLevel, pinned: boolean): boolean;
   /** The route to draw as a glowing corridor on the road. Called once, before or after mount. */
   setRoute(corridor: CorridorShape): void;
   /** What the hologram layer draws this frame: rider, heading marker, chevrons and beacon. */
