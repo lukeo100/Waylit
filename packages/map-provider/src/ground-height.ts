@@ -23,11 +23,11 @@ export function constantGroundHeight(metresAboveEllipsoid: number): GroundHeight
 }
 
 /**
- * Ground height of the demo route above mean sea level, in metres. The loop is on flat open
- * ground in Berlin at about 50 m above sea level. A round figure from general knowledge, good
- * to a few metres. It was never read from any tiles.
+ * Ground height of the demo route above mean sea level, in metres. The loop is on the flat open
+ * ground of the Tempelhof field in Berlin, at about 45 m above sea level. A documented estimate
+ * from general knowledge, good to a few metres. It was never read from any tiles.
  */
-export const DEMO_ROUTE_GROUND_MSL_METRES = 50;
+export const DEMO_ROUTE_GROUND_MSL_METRES = 45;
 
 /**
  * How far the geoid (mean sea level) lies above the WGS84 ellipsoid at Berlin, in metres. The
@@ -50,9 +50,12 @@ export const BERLIN_GEOID_UNDULATION_METRES = 40;
 
 /**
  * An estimate of the ground height above the WGS84 ellipsoid along the demo route, in metres:
- * the height above sea level plus the geoid undulation, so 90 m. Not read from any tiles. If
- * the camera looks too high or sinks into the scene, set it for the current run with
- * `?ground=<metres>`.
+ * the height above sea level (about 45 m at Tempelhof) plus the geoid undulation (about 40 m,
+ * with Berlin's geoid at 39.5 to 40 m), so 85 m. It is a documented estimate, a constant chosen
+ * from general knowledge and the task 8 review, and it is never derived from the Google tiles
+ * or any other imagery or terrain (Amendment 3). It can be a few metres out, which only changes
+ * how high the camera looks. If the camera looks too high or sinks into the scene, set it for
+ * the current run with `?ground=<metres>`.
  */
 export const DEMO_ROUTE_GROUND_ELLIPSOID_METRES =
   DEMO_ROUTE_GROUND_MSL_METRES + BERLIN_GEOID_UNDULATION_METRES;

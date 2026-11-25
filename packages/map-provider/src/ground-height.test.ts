@@ -7,17 +7,18 @@ import {
 } from "./ground-height";
 
 describe("ground height", () => {
-  it("adds the geoid undulation at Berlin (about 40 m) to the height above sea level", () => {
+  it("adds the geoid undulation at Berlin (about 40 m) to the height above sea level (about 45 m)", () => {
+    expect(DEMO_ROUTE_GROUND_MSL_METRES).toBe(45);
     expect(BERLIN_GEOID_UNDULATION_METRES).toBe(40);
     expect(DEMO_ROUTE_GROUND_ELLIPSOID_METRES).toBe(
       DEMO_ROUTE_GROUND_MSL_METRES + BERLIN_GEOID_UNDULATION_METRES,
     );
-    expect(DEMO_ROUTE_GROUND_ELLIPSOID_METRES).toBe(90);
+    expect(DEMO_ROUTE_GROUND_ELLIPSOID_METRES).toBe(85);
   });
 
   it("is a plain constant that takes no input from the scene", () => {
-    const source = constantGroundHeight(90);
-    expect(source.heightAt({ lat: 52.47, lng: 13.4 })).toBe(90);
-    expect(source.heightAt({ lat: 0, lng: 0 })).toBe(90);
+    const source = constantGroundHeight(85);
+    expect(source.heightAt({ lat: 52.47, lng: 13.4 })).toBe(85);
+    expect(source.heightAt({ lat: 0, lng: 0 })).toBe(85);
   });
 });
