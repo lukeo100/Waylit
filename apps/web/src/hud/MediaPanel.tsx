@@ -43,13 +43,13 @@ export function MediaPanel({ state, controls, guarded }: MediaPanelProps) {
       data-testid="media-panel"
       data-guarded={guarded}
       data-holding={holding}
-      className="relative flex min-w-0 items-center gap-[clamp(0.4rem,1.3vw,0.9rem)] px-[clamp(0.5rem,1.6vw,1rem)] py-[clamp(0.25rem,1.4dvh,0.6rem)]"
+      className="relative flex min-w-0 items-center gap-[clamp(0.35rem,0.8vw,0.9rem)] px-[clamp(0.4rem,1vw,1rem)] py-[clamp(0.25rem,1.4dvh,0.6rem)]"
     >
       <span
         role="img"
         aria-label={`Artwork for ${state.track.title}`}
         data-testid="artwork"
-        className="size-[clamp(2.5rem,12.5dvh,4rem)] shrink-0 rounded-tile border border-glass-border bg-cover bg-center"
+        className="size-[clamp(2rem,min(12.5dvh,4.6vw),4rem)] shrink-0 rounded-tile border border-glass-border bg-cover bg-center"
         style={{ backgroundImage: `url("${artworkDataUri(state.track.artwork)}")` }}
       />
       <div className="min-w-0 flex-1">
@@ -71,7 +71,7 @@ export function MediaPanel({ state, controls, guarded }: MediaPanelProps) {
       <div
         role="group"
         aria-label="Playback"
-        className={`flex shrink-0 items-center gap-[clamp(0.15rem,0.7vw,0.5rem)] ${guarded && !holding ? "opacity-90" : ""}`}
+        className={`flex shrink-0 items-center gap-[clamp(0.2rem,0.5vw,0.5rem)] ${guarded && !holding ? "opacity-90" : ""}`}
       >
         <HoldButton
           label="Previous track"
@@ -96,7 +96,7 @@ export function MediaPanel({ state, controls, guarded }: MediaPanelProps) {
           onActivate={() => {
             controls.toggle();
           }}
-          className={`${BUTTON} size-[clamp(3rem,11dvh,3.75rem)] border-cyan/60 text-cyan`}
+          className={`${BUTTON} size-[clamp(2.75rem,11dvh,3.75rem)] border-cyan/60 text-cyan`}
           data-testid="media-toggle"
         >
           {playing ? <PauseIcon size="48%" /> : <PlayIcon size="48%" />}

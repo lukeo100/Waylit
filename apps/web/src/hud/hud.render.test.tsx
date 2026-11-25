@@ -70,6 +70,9 @@ describe("riding screen components", () => {
     );
     expect(html).toContain('data-fallback="true"');
     expect(html).toContain("No scooter data. Trip distance from GPS.");
+    // Cyan and grey, not a second accent: no amber on the GPS label or the note.
+    expect(html).not.toContain("text-caution");
+    expect(html).toContain("text-cyan");
   });
 
   it("only says there is no scooter data while riding and when telemetry is missing", () => {
@@ -315,19 +318,22 @@ describe("riding screen components", () => {
 
   it("dev controls have the time override and every touch target is at least 44 px", () => {
     const daylight = computeDaylight(DEFAULT_SUN_POSITION, Date.UTC(2026, 5, 21, 11, 0), true);
-    const html = renderToStaticMarkup(
-      <DevControls
-        playbackSpeed={1}
-        telemetryLost={false}
-        onPlaybackSpeed={noop}
-        onTelemetryLost={noop}
-        daylight={daylight}
-        realNowMs={Date.UTC(2026, 5, 21, 11, 0)}
-        position={DEFAULT_SUN_POSITION}
-        timeOverrideMs={Date.UTC(2026, 5, 21, 11, 0)}
-        onTimeOverride={noop}
-      />,
-    );
+    const render = (timeOverrideMs: number | undefined) =>
+      renderToStaticMarkup(
+        <DevControls
+          playbackSpeed={1}
+          telemetryLost={false}
+          onPlaybackSpeed={noop}
+          onTelemetryLost={noop}
+          daylight={daylight}
+          realNowMs={Date.UTC(2026, 5, 21, 11, 0)}
+          position={DEFAULT_SUN_POSITION}
+          timeOverrideMs={timeOverrideMs}
+          onTimeOverride={noop}
+        />,
+      );
+    // With an override in force the panel opens on the time page.
+    const html = render(Date.UTC(2026, 5, 21, 11, 0));
     for (const id of ["time-dawn", "time-noon", "time-sunset", "time-night", "time-slider"]) {
       expect(html).toContain(`data-testid="${id}"`);
     }
@@ -335,28 +341,23 @@ describe("riding screen components", () => {
     expect(html).toContain('data-overridden="true"');
     expect(html).toContain("Live");
     expect(html).toContain("day");
-    // The time row is folded away until it is asked for, so the panel stays small.
-    const folded = renderToStaticMarkup(
-      <DevControls
-        playbackSpeed={1}
-        telemetryLost={false}
-        onPlaybackSpeed={noop}
-        onTelemetryLost={noop}
-        daylight={daylight}
-        realNowMs={Date.UTC(2026, 5, 21, 11, 0)}
-        position={DEFAULT_SUN_POSITION}
-        timeOverrideMs={undefined}
-        onTimeOverride={noop}
-      />,
-    );
+    expect(html).not.toContain("Lose scooter data");
+    // Without one it opens on the simulation page, and the time page is folded away.
+    const folded = render(undefined);
     expect(folded).toContain('data-testid="time-toggle"');
     expect(folded).toContain('aria-expanded="false"');
+    expect(folded).toContain("Lose scooter data");
     expect(folded).not.toContain('data-testid="time-override"');
     expect(folded).not.toContain("time-slider");
-    // No 32 px targets any more.
-    expect(html).not.toContain("min-h-8");
-    expect(html).not.toContain("min-w-8");
-    expect(html.match(/min-h-11/g)?.length ?? 0).toBeGreaterThanOrEqual(10);
+    for (const page of [html, folded]) {
+      // No 32 px targets, and each page is one line that never wraps onto a second row.
+      expect(page).not.toContain("min-h-8");
+      expect(page).not.toContain("min-w-8");
+      expect(page).toContain("flex-nowrap");
+      expect(page).not.toContain("flex-wrap");
+    }
+    expect(html.match(/min-h-11/g)?.length ?? 0).toBeGreaterThanOrEqual(8);
+    expect(folded.match(/min-h-11/g)?.length ?? 0).toBeGreaterThanOrEqual(6);
   });
 
   it("shows arrival from the overridden clock when the time is overridden", () => {

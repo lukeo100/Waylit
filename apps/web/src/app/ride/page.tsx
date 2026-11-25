@@ -144,7 +144,7 @@ export default function RidePage() {
           </div>
 
           {summary ? null : (
-            <div className="row-start-2 pt-[1dvh] pr-[max(var(--wl-safe-right),clamp(0.5rem,2.8vw,2.5rem))] pb-[clamp(0.25rem,1.6dvh,0.75rem)] pl-[max(var(--wl-safe-left),clamp(0.5rem,2.8vw,2.5rem))]">
+            <div className="row-start-2 pt-[1dvh] pr-[max(var(--wl-safe-right),clamp(0.5rem,2vw,2.5rem))] pb-[clamp(0.25rem,1.6dvh,0.75rem)] pl-[max(var(--wl-safe-left),clamp(0.5rem,2vw,2.5rem))]">
               <Dock
                 media={
                   <MediaPanel

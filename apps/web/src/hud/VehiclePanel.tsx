@@ -42,12 +42,12 @@ export function VehiclePanel({ telemetry, trip, guarded, riding, onEndTrip }: Ve
     <section
       aria-label="Vehicle dashboard"
       data-testid="vehicle-panel"
-      className="flex min-w-0 items-center justify-between gap-[clamp(0.4rem,1.4vw,1.1rem)] px-[clamp(0.5rem,1.6vw,1rem)] py-[clamp(0.25rem,1.4dvh,0.6rem)]"
+      className="flex min-w-0 items-center justify-between gap-[clamp(0.3rem,0.8vw,1.1rem)] px-[clamp(0.4rem,1vw,1rem)] py-[clamp(0.25rem,1.4dvh,0.6rem)]"
     >
-      <div className="flex min-w-0 items-center gap-[clamp(0.4rem,1.4vw,1.1rem)]">
+      <div className="flex min-w-0 items-center gap-[clamp(0.3rem,0.8vw,1.1rem)]">
         <div className="flex items-center gap-1">
           <span
-            className={`size-[clamp(1.25rem,6dvh,1.75rem)] shrink-0 ${low ? "text-caution" : "text-text-secondary"}`}
+            className={`size-[clamp(1.1rem,5.2dvh,1.75rem)] shrink-0 ${low ? "text-caution" : "text-text-secondary"}`}
           >
             <BatteryIcon percent={batteryPercent} low={low} size="100%" />
           </span>
@@ -80,7 +80,7 @@ export function VehiclePanel({ telemetry, trip, guarded, riding, onEndTrip }: Ve
         feedback="fill"
         onHoldChange={setHolding}
         onActivate={onEndTrip}
-        className={`min-h-11 min-w-[clamp(5.25rem,12.5vw,8rem)] shrink-0 rounded-md border border-danger-border bg-danger-fill px-[clamp(0.5rem,1.2vw,1rem)] text-hud-md leading-tight font-semibold whitespace-nowrap text-danger transition-colors duration-200 ease-out data-[holding=true]:border-danger data-[holding=true]:bg-danger/25 ${riding ? "" : "pointer-events-none opacity-40"}`}
+        className={`min-h-11 min-w-[clamp(5.25rem,12.5vw,8rem)] shrink-0 rounded-md border border-danger-border bg-danger-fill px-[clamp(0.4rem,1vw,1rem)] text-hud-md leading-tight font-semibold whitespace-nowrap text-danger transition-colors duration-200 ease-out data-[holding=true]:border-danger data-[holding=true]:bg-danger/25 ${riding ? "" : "pointer-events-none opacity-40"}`}
         data-testid="end-trip"
       >
         {endLabel}

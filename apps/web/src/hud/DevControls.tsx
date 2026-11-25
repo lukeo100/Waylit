@@ -33,9 +33,13 @@ interface DevControlsProps {
 
 /** At least 44 by 44 pixels, like every other touch target. */
 const BUTTON =
-  "min-h-11 min-w-11 rounded-sm border px-2 font-semibold transition-colors duration-200 ease-out";
+  "min-h-11 min-w-11 shrink-0 rounded-sm border px-2 font-semibold transition-colors duration-200 ease-out";
 const BUTTON_ON = `${BUTTON} border-cyan bg-cyan text-night-950`;
 const BUTTON_OFF = `${BUTTON} border-glass-border bg-night-800 text-text`;
+
+/** One line, never wrapped. It scrolls sideways when the screen is narrower than the row. */
+const ROW =
+  "flex w-max max-w-full min-w-0 flex-nowrap items-center gap-x-1 overflow-x-auto whitespace-nowrap [scrollbar-width:none] [&::-webkit-scrollbar]:hidden";
 
 const PRESET_LABEL: Record<TimePreset, string> = {
   dawn: "Dawn",
@@ -56,13 +60,20 @@ const PHASE_LABEL = {
  * Developer controls for the simulation. They are hidden in production builds unless the
  * address has `?dev=1`.
  *
- * - Playback speed changes how fast the simulated ride runs.
- * - "Lose scooter data" stops scooter telemetry, so the GPS fallback can be seen.
- * - The Time button opens the time controls. They override the date and time the HUD works
- *   from, so day, sunset and night can be shown at any hour. Live goes back to the real clock.
- *   The Dawn, Noon, Sunset and Night buttons jump to those moments at the rider's place on the
- *   chosen date. The slider and the date field use the device's own time zone, like the HUD
- *   clock. Closing the Time row also goes back to the real clock.
+ * The panel is always exactly one row tall, so it can sit under the Start trip button on the
+ * shortest landscape screens without covering the navigation text. It has two pages and the
+ * Time button switches between them:
+ *
+ * - The simulation page: playback speed, and "Lose scooter data", which stops scooter
+ *   telemetry so the GPS fallback can be seen.
+ * - The time page: it overrides the date and time the HUD works from, so day, sunset and night
+ *   can be shown at any hour. Live goes back to the real clock. The Dawn, Noon, Sunset and
+ *   Night buttons jump to those moments at the rider's place on the chosen date. The slider
+ *   and the date field use the device's own time zone, like the HUD clock.
+ *
+ * Going back to the simulation page keeps the override, and the Time button stays filled while
+ * one is in force. Only Live (or leaving the dev controls) returns to the real clock. A row
+ * that is wider than the screen scrolls sideways instead of wrapping onto a second line.
  */
 export function DevControls({
   playbackSpeed,
@@ -77,74 +88,36 @@ export function DevControls({
 }: DevControlsProps) {
   const baseMs = timeOverrideMs ?? realNowMs;
   const overridden = timeOverrideMs !== undefined;
-  // The time row starts folded away, so the panel stays as small as it was. It opens when a
-  // developer asks for it, and it is open whenever a time override is in force.
-  const [open, setOpen] = useState(false);
-  const expanded = open || overridden;
+  // The panel opens on the time page when the address already carries a time override.
+  const [timePage, setTimePage] = useState(overridden);
 
   return (
     <aside
       aria-label="Simulation dev controls"
       data-testid="dev-controls"
-      className="wl-glass pointer-events-auto flex max-w-full flex-col items-center gap-y-1 rounded-md px-2 py-1 text-hud-sm text-text-secondary"
+      className="wl-glass pointer-events-auto flex max-w-full rounded-md px-2 py-1 text-hud-sm text-text-secondary"
     >
-      <div className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1">
-        <span className="font-semibold text-text">Dev</span>
-        <span role="group" aria-label="Playback speed" className="flex items-center gap-1">
-          {PLAYBACK_SPEEDS.map((multiplier) => (
-            <button
-              key={multiplier}
-              type="button"
-              aria-pressed={playbackSpeed === multiplier}
-              onClick={() => {
-                onPlaybackSpeed(multiplier);
-              }}
-              className={playbackSpeed === multiplier ? BUTTON_ON : BUTTON_OFF}
-            >
-              {multiplier}x
-            </button>
-          ))}
-        </span>
-        <label className="flex min-h-11 items-center gap-1.5 text-text">
-          <input
-            type="checkbox"
-            checked={telemetryLost}
-            onChange={(event) => {
-              onTelemetryLost(event.target.checked);
-            }}
-            className="size-4 accent-cyan"
-          />
-          Lose scooter data
-        </label>
-        <button
-          type="button"
-          aria-expanded={expanded}
-          aria-controls="dev-time-override"
-          data-testid="time-toggle"
-          onClick={() => {
-            if (expanded) {
-              // Folding the time row puts the HUD back on the real clock.
-              setOpen(false);
-              onTimeOverride(undefined);
-            } else {
-              setOpen(true);
-            }
-          }}
-          className={expanded ? BUTTON_ON : BUTTON_OFF}
-        >
-          Time
-        </button>
-      </div>
-
-      {expanded ? (
+      {timePage ? (
         <div
           id="dev-time-override"
           role="group"
           aria-label="Time of day override"
           data-testid="time-override"
           data-overridden={overridden}
-          className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1"
+          className={ROW}
         >
+          <button
+            type="button"
+            aria-expanded
+            aria-controls="dev-time-override"
+            data-testid="time-toggle"
+            onClick={() => {
+              setTimePage(false);
+            }}
+            className={BUTTON_OFF}
+          >
+            Back
+          </button>
           <button
             type="button"
             aria-pressed={!overridden}
@@ -169,7 +142,7 @@ export function DevControls({
               {PRESET_LABEL[preset]}
             </button>
           ))}
-          <label className="flex min-h-11 items-center gap-1.5 text-text">
+          <label className="flex min-h-11 shrink-0 items-center gap-1.5 text-text">
             <span className="sr-only">Time of day</span>
             <input
               type="range"
@@ -184,10 +157,10 @@ export function DevControls({
                   onTimeOverride(withLocalMinutes(baseMs, Number(event.target.value)));
                 }
               }}
-              className="h-11 w-[clamp(6rem,18vw,11rem)] accent-cyan"
+              className="h-11 w-[clamp(3.5rem,8vw,11rem)] accent-cyan"
             />
           </label>
-          <label className="flex min-h-11 items-center gap-1.5 text-text">
+          <label className="flex min-h-11 shrink-0 items-center gap-1.5 text-text">
             <span className="sr-only">Date</span>
             <input
               type="date"
@@ -202,12 +175,55 @@ export function DevControls({
               className="min-h-11 rounded-sm border border-glass-border bg-night-800 px-1.5 text-text"
             />
           </label>
-          <span data-testid="time-readout" className="text-text tabular-nums">
+          <span data-testid="time-readout" className="shrink-0 text-text tabular-nums">
             {formatClockTime(daylight.nowMs === 0 ? undefined : daylight.nowMs)} ·{" "}
             {PHASE_LABEL[daylight.solar.phase]} · sun {Math.round(daylight.solar.elevationDegrees)}°
           </span>
         </div>
-      ) : null}
+      ) : (
+        <div role="group" aria-label="Simulation" data-testid="sim-controls" className={ROW}>
+          <span className="font-semibold text-text">Dev</span>
+          <span role="group" aria-label="Playback speed" className="flex items-center gap-1">
+            {PLAYBACK_SPEEDS.map((multiplier) => (
+              <button
+                key={multiplier}
+                type="button"
+                aria-pressed={playbackSpeed === multiplier}
+                onClick={() => {
+                  onPlaybackSpeed(multiplier);
+                }}
+                className={playbackSpeed === multiplier ? BUTTON_ON : BUTTON_OFF}
+              >
+                {multiplier}x
+              </button>
+            ))}
+          </span>
+          <label className="flex min-h-11 shrink-0 items-center gap-1.5 text-text">
+            <input
+              type="checkbox"
+              checked={telemetryLost}
+              onChange={(event) => {
+                onTelemetryLost(event.target.checked);
+              }}
+              className="size-4 accent-cyan"
+            />
+            Lose scooter data
+          </label>
+          <button
+            type="button"
+            aria-expanded={false}
+            aria-controls="dev-time-override"
+            data-testid="time-toggle"
+            data-overridden={overridden}
+            onClick={() => {
+              setTimePage(true);
+            }}
+            className={overridden ? BUTTON_ON : BUTTON_OFF}
+          >
+            Time
+          </button>
+        </div>
+      )}
     </aside>
   );
 }
