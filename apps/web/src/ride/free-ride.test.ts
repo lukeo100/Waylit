@@ -7,6 +7,7 @@ import {
   type GeolocationLike,
   type GeolocationPositionLike,
 } from "@waylit/core";
+import type { VehicleAdapter, VehicleTelemetry } from "@waylit/vehicle";
 import { RideSession } from "./ride-session";
 import { createSessionFor } from "./session-factory";
 
@@ -158,6 +159,58 @@ describe("a free ride on live GPS", () => {
     session.start();
     ride(10);
     expect(JSON.stringify(session.getSnapshot())).not.toMatch(/trace|history|track/i);
+  });
+});
+
+describe("a free ride with a vehicle owned by the app", () => {
+  function fakeAdapter() {
+    const listeners = new Set<(s: VehicleTelemetry) => void>();
+    const adapter: VehicleAdapter = {
+      info: { adapterId: "fake", displayName: "Fake scooter" },
+      capabilities: { fields: ["speedMps"] },
+      connect: async () => undefined,
+      disconnect: async () => undefined,
+      getConnectionState: () => "connected",
+      onTelemetry: (l) => {
+        listeners.add(l);
+        return () => void listeners.delete(l);
+      },
+      onConnectionStateChange: () => () => undefined,
+    };
+    const emit = (sample: VehicleTelemetry) => {
+      for (const l of listeners) l(sample);
+    };
+    return { adapter, emit };
+  }
+
+  it("uses the scooter speed, and falls back to GPS with a reason when it goes quiet", () => {
+    const clock = createManualClock(1_700_000_000_000);
+    const geo = new Fake();
+    const { adapter, emit } = fakeAdapter();
+    const session = new RideSession({
+      clock,
+      live: new LiveGpsSource({ geolocation: geo, clock }),
+      vehicle: adapter,
+    });
+    session.start();
+    for (let i = 0; i < 6; i++) {
+      clock.advance(1000);
+      geo.emit(i * 5, 5);
+      emit({ speedMps: 4, timestamp: clock.now() });
+      session.tick();
+    }
+    let s = session.getSnapshot();
+    expect(s.freeRide).toBe(true);
+    expect(s.speed.source).toBe("vehicle");
+    expect(s.speed.speedMps).toBeCloseTo(4, 5);
+
+    for (let i = 6; i < 10; i++) {
+      clock.advance(1000);
+      geo.emit(i * 5, 5);
+      s = session.tick();
+    }
+    expect(s.speed.source).toBe("gps");
+    expect(s.speed.fallbackReason).toBe("vehicle-telemetry-stale");
   });
 });
 
