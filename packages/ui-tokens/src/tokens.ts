@@ -156,6 +156,18 @@ export const shadow = {
    * two pixels at most and is never used as a backdrop.
    */
   text: "0 0 1px rgba(0, 0, 0, 0.9), 0 1px 2px rgba(0, 0, 0, 0.6)",
+  /**
+   * The only aid on the top left navigation text and the top right status text, which have no
+   * plate: a 1 pixel dark edge on four sides (no blur, so it is a hairline outline that follows the
+   * glyphs) plus one soft 8 pixel halo. It never fills a box. Local shadows may not blur past 12
+   * pixels (`no-screen-darkening.test.ts`). The edge is there because a soft halo alone is almost
+   * invisible on thin strokes over a white sky (`readability.test.ts` has the numbers).
+   */
+  scene:
+    "1px 0 0 rgba(0, 0, 0, 0.72), -1px 0 0 rgba(0, 0, 0, 0.72), 0 1px 0 rgba(0, 0, 0, 0.72), 0 -1px 0 rgba(0, 0, 0, 0.72), 0 0 8px rgba(0, 0, 0, 0.55)",
+  /** The same shadow as a `filter` for icons, the turn arrow and the connectivity dot. */
+  sceneIcon:
+    "drop-shadow(1px 0 0 rgba(0, 0, 0, 0.72)) drop-shadow(-1px 0 0 rgba(0, 0, 0, 0.72)) drop-shadow(0 1px 0 rgba(0, 0, 0, 0.72)) drop-shadow(0 -1px 0 rgba(0, 0, 0, 0.72)) drop-shadow(0 0 8px rgba(0, 0, 0, 0.55))",
 } as const;
 
 export const motion = {

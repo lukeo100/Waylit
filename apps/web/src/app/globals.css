@@ -447,6 +447,21 @@
   }
 
   /*
+   * Glyphs drawn straight on the scene with no plate behind them (the top left navigation text
+   * and the top right status text). A local shadow that follows the glyphs only: a 1 pixel dark
+   * edge on four sides and one soft 8 pixel halo, never a box, a gradient or a backdrop. The
+   * blur is capped at 12 pixels by no-screen-darkening.test.ts, and readability.test.ts models
+   * it over a white sky. .wl-hud-icon is the same shadow as a drop-shadow filter for icons.
+   */
+  .wl-hud-shadow {
+    text-shadow: var(--wl-shadow-scene);
+  }
+
+  .wl-hud-icon {
+    filter: var(--wl-shadow-scene-icon);
+  }
+
+  /*
    * The turn arrow turns cyan when the turn is close (imminent or now), the one moment the
    * accent is worth spending on it.
    */

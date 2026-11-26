@@ -4,12 +4,18 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { fxFragmentShader } from "@/map/fx-shader";
 import { shadow, tokens } from "@waylit/ui-tokens";
+import { parseDropShadows, parseTextShadow, type ShadowLayer } from "./readability";
 
 /**
  * Guard for the HUD redesign: the riding screen must never again lay a darkening layer over the
  * scene. A rider found the old daylight scrim (a dark gradient over the top 60 percent of the
  * screen) and the post process vignette jarring, so readability now comes only from local aids:
- * small plates behind text, glass behind controls and a two pixel text edge.
+ * glass behind controls, a few small plates, and, for the top left navigation text and the top
+ * right status text, a shadow that follows the glyphs and nothing else (no plate, no box).
+ *
+ * That shadow may be soft but not wide: no layer blurs past 12 pixels, none is offset more than
+ * 2 pixels and none is more than 0.9 opaque. The numbers live in the tokens, the CSS only refers
+ * to them, and a test below fails when a layer goes past the cap.
  *
  * This test fails if a full screen or screen wide gradient, scrim or vignette is added back to
  * the CSS, to the riding screen's components, to the design tokens or to the scene's post
@@ -46,6 +52,20 @@ const FULL_SCREEN_FILL_ALLOWED: Record<string, string> = {
   ".wl-corridor::after": "home page decoration, not the riding screen",
   ".wl-corridor-road": "home page decoration, inside its own perspective plane",
 };
+
+const SHADOW_LIMITS = { blurPx: 12, offsetPx: 2, alpha: 0.9 } as const;
+
+/** What is over the cap in a list of local shadow layers (empty when all are within it). */
+function shadowProblems(layers: readonly ShadowLayer[]): string[] {
+  const problems: string[] = [];
+  for (const layer of layers) {
+    if (layer.blur > SHADOW_LIMITS.blurPx) problems.push(`blur ${layer.blur}px`);
+    if (Math.max(Math.abs(layer.x), Math.abs(layer.y)) > SHADOW_LIMITS.offsetPx)
+      problems.push(`offset ${layer.x}px ${layer.y}px`);
+    if (layer.alpha > SHADOW_LIMITS.alpha) problems.push(`alpha ${layer.alpha}`);
+  }
+  return problems;
+}
 
 function sourceFiles(dir: string): string[] {
   const out: string[] = [];
@@ -111,16 +131,79 @@ describe("no screen wide darkening on the riding screen", () => {
     expect(Object.keys(tokens)).not.toContain("vignette");
   });
 
-  it("keeps the text shadow tight: no blur over 2 pixels", () => {
-    // Each layer is "x y blur colour". The third length is the blur radius.
-    const blurs = shadow.text
-      .split(/,(?![^(]*\))/)
-      .map((layer) => layer.trim().split(/\s+/))
-      .map((parts) => Number.parseFloat(parts[2] ?? "NaN"));
-    expect(blurs.length).toBeGreaterThan(0);
-    for (const blur of blurs) {
-      expect(Number.isFinite(blur)).toBe(true);
-      expect(blur).toBeLessThanOrEqual(2);
+  it("caps the local glyph shadow: blur at most 12 px, offset at most 2 px, at most 0.9 opaque", () => {
+    const sets: Record<string, ShadowLayer[]> = {
+      "shadow.text": parseTextShadow(shadow.text),
+      "shadow.scene": parseTextShadow(shadow.scene),
+      "shadow.sceneIcon": parseDropShadows(shadow.sceneIcon),
+    };
+    const expectedCount: Record<string, number> = {
+      "shadow.text": shadow.text.split("rgba(").length - 1,
+      "shadow.scene": shadow.scene.split("rgba(").length - 1,
+      "shadow.sceneIcon": shadow.sceneIcon.split("rgba(").length - 1,
+    };
+    for (const [name, layers] of Object.entries(sets)) {
+      // A layer the parser could not read would slip past the cap, so count them.
+      expect(layers.length, `${name} layers parsed`).toBe(expectedCount[name]);
+      expect(layers.length).toBeGreaterThan(0);
+      expect(shadowProblems(layers), name).toEqual([]);
+    }
+  });
+
+  it("fails when a layer goes past the cap", () => {
+    expect(shadowProblems(parseTextShadow("0 0 12px rgba(0, 0, 0, 0.5)"))).toEqual([]);
+    expect(shadowProblems(parseTextShadow("0 0 13px rgba(0, 0, 0, 0.5)"))).toHaveLength(1);
+    expect(shadowProblems(parseTextShadow("0 0 40px rgba(0, 0, 0, 0.5)"))).toHaveLength(1);
+    expect(shadowProblems(parseTextShadow("3px 0 2px rgba(0, 0, 0, 0.5)"))).toHaveLength(1);
+    expect(shadowProblems(parseTextShadow("0 0 8px rgba(0, 0, 0, 0.95)"))).toHaveLength(1);
+    expect(
+      shadowProblems(parseDropShadows("drop-shadow(0 0 20px rgba(0, 0, 0, 0.5))")),
+    ).toHaveLength(1);
+  });
+
+  it("applies the glyph shadow only through the tokens, so the cap cannot be dodged", () => {
+    for (const selector of [".wl-hud-text", ".wl-hud-shadow", ".wl-hud-icon"]) {
+      const rule = cssRules(css).find((r) => r.selector === selector);
+      expect(rule, selector).toBeDefined();
+      expect(rule?.body).toMatch(/(text-shadow|filter):\s*var\(--wl-shadow-[a-z-]+\);/);
+      expect(rule?.body).not.toMatch(/\d+(px|em|rem)/);
+      expect(rule?.body).not.toMatch(
+        /background|border|box-shadow|backdrop-filter|gradient|inset|width|height/,
+      );
+    }
+  });
+
+  it("has no backdrop filter and no box shadow on the HUD's own rules or components", () => {
+    // The only box shadows in the app CSS are the keyboard focus ring and the home page
+    // decoration, neither on the riding screen's top HUD.
+    expect(css).not.toMatch(/backdrop-filter/);
+    for (const selector of [".wl-plate", ".wl-hud-text", ".wl-hud-shadow", ".wl-hud-icon"]) {
+      const rule = cssRules(css).find((r) => r.selector === selector);
+      expect(rule?.body, selector).not.toMatch(/box-shadow|backdrop-filter/);
+    }
+    for (const file of sourceFiles(join(SRC, "hud")).filter((f) => f.endsWith(".tsx"))) {
+      expect(readFileSync(file, "utf8"), relative(SRC, file)).not.toMatch(
+        /backdrop-|\bshadow-|drop-shadow-|text-shadow|box-shadow|\bblur-/,
+      );
+    }
+  });
+
+  it("leaves no plate, fill, border or box on the top left navigation and the top right status", () => {
+    for (const name of ["NavigationPanel", "StatusCluster"]) {
+      const source = readFileSync(join(SRC, "hud", `${name}.tsx`), "utf8");
+      const classes = [...source.matchAll(/className=(?:"([^"]*)"|\{`([^`]*)`\})/g)]
+        .flatMap((m) => (m[1] ?? m[2] ?? "").split(/\s+/))
+        .map((c) => c.replace(/^\$\{.*$/, ""))
+        .filter(Boolean);
+      expect(classes.length).toBeGreaterThan(5);
+      for (const cls of classes) {
+        // The 7 pixel connectivity dot is the one filled shape: a status light, not a plate.
+        if (cls === "bg-ok" || cls === "bg-caution" || cls === "rounded-full") continue;
+        expect(cls, `${name}: ${cls}`).not.toMatch(
+          /^(wl-plate|wl-glass|bg-|border|rounded|ring|outline|shadow|backdrop|from-|via-|to-)/,
+        );
+      }
+      expect(classes).toContain("wl-hud-shadow");
     }
   });
 

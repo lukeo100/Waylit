@@ -53,9 +53,11 @@ describe("riding screen components", () => {
     expect(html).toContain('data-testid="stat-remaining"');
     expect(html).toMatch(/\d+ min\s*(<!-- -->)?\s*<span[^>]*> \u00b7 <\/span>/);
     expect(html).toContain("Arrive ");
-    // The speed and turn sit on one small plate sized to the text, not a dock style panel.
-    expect(html).not.toContain("wl-glass");
-    expect(html).toContain("wl-plate");
+    // The speed and turn are bare on the scene: no plate, glass, fill or border, only a shadow
+    // that follows the glyphs (text shadow on the text, drop shadow on the arrow).
+    expect(html).not.toMatch(/wl-glass|wl-plate|bg-glass|bg-night|border/);
+    expect(html).toContain("wl-hud-shadow");
+    expect(html).toMatch(/wl-turn-arrow wl-hud-icon/);
     expect(html).toContain("text-speed");
   });
 
@@ -473,10 +475,11 @@ describe("HUD redesign: local readability, no screen wide backdrop", () => {
     expect(html).not.toContain("text-text-muted");
   });
 
-  it("puts the status chip on its own plate", () => {
+  it("draws the status with no plate, only a shadow on the glyphs and the dot", () => {
     const html = renderToStaticMarkup(<StatusCluster nowMs={0} online />);
-    expect(html).toContain("wl-plate");
-    expect(html).toContain("rounded-pill");
+    expect(html).not.toMatch(/wl-plate|wl-glass|rounded-pill|border|bg-glass|bg-night/);
+    expect(html).toContain("wl-hud-shadow");
+    expect(html).toContain("wl-hud-icon");
     expect(html).not.toContain("text-text-muted");
   });
 

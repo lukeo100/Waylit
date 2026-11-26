@@ -16,17 +16,24 @@
  *     gradient over more than 20 percent of the screen, or as a band across 97 percent of its
  *     width (no scrim, no vignette, no wide backdrop), or
  *   - a piece of text over the scene is below WCAG AA (4.5:1, or 3:1 for the speed and the turn
- *     distance) when its own plate is composited over pure white or pure black, using the colours
- *     the browser actually computed. The dev runs use `time=night`, where the plate is lightest.
+ *     distance). Text on a plate is checked with the plate composited over pure white and pure
+ *     black. The top left navigation text and the top right status text have no plate: they are
+ *     checked with the shadow model in `halo-model.mjs` (the pixel touching the glyph, with the
+ *     computed text-shadow or drop-shadow filter) over pure white, a light sky (#bcd9ee) and pure
+ *     black. All colours are the ones the browser actually computed. The dev runs use
+ *     `time=night`, where a plate is lightest, or
+ *   - the navigation or status group paints a fill, border, box shadow or backdrop filter, or has
+ *     no glyph shadow (they must stay plate free).
  *
  * Usage (after `pnpm build`, with the app running: `pnpm --filter @waylit/web start`):
  *   node apps/web/scripts/layout-check.mjs [baseUrl]    default http://localhost:3000
  *
- * It needs Chrome or Chromium (set CHROME_BIN if it is not `google-chrome`). Screenshots go to
- * the folder in SHOTS_DIR when that is set.
+ * It needs Chrome or Chromium (set CHROME_BIN if it is not `google-chrome`, and CDP_PORT if port
+ * 9333 is taken). Screenshots go to the folder in SHOTS_DIR when that is set.
  */
 import { join } from "node:path";
 import { launchChrome, sleep } from "./cdp.mjs";
+import { haloContrast, parseShadowLayers } from "./halo-model.mjs";
 
 const base = process.argv[2] ?? "http://localhost:3000";
 const SIZES = [
@@ -91,6 +98,8 @@ const MEASURE = `(() => {
  * and pure black behind the plate, and any element that paints a large area.
  */
 const READABILITY = `(() => {
+  const parseShadowLayers = ${parseShadowLayers.toString()};
+  const haloContrast = ${haloContrast.toString()};
   const parse = (c) => {
     const srgb = c.match(/color\\(srgb ([^)]+)\\)/);
     if (srgb) { const p = srgb[1].split(/[ \\/]+/).filter(Boolean).map(Number); return { r: p[0] * 255, g: p[1] * 255, b: p[2] * 255, a: p.length > 3 ? p[3] : 1 }; }
@@ -100,20 +109,55 @@ const READABILITY = `(() => {
   const lum = (c) => 0.2126 * lin(c.r) + 0.7152 * lin(c.g) + 0.0722 * lin(c.b);
   const ratio = (a, b) => { const x = lum(a), y = lum(b); return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05); };
   const over = (under, top) => ({ r: under.r * (1 - top.a) + top.r * top.a, g: under.g * (1 - top.a) + top.g * top.a, b: under.b * (1 - top.a) + top.b * top.a });
-  const texts = { 'speed-value': 3, 'turn-distance': 3, 'speed-unit': 4.5, 'speed-source': 4.5, 'turn-instruction': 4.5, 'stat-remaining': 4.5, 'stat-eta': 4.5, 'local-time': 4.5, 'weather': 4.5, 'telemetry-note': 4.5, 'map-note': 4.5 };
-  const out = { text: [], large: [] };
+  const texts = { 'speed-value': 3, 'turn-distance': 3, 'speed-unit': 4.5, 'speed-source': 4.5, 'turn-instruction': 4.5, 'stat-remaining': 4.5, 'stat-eta': 4.5, 'local-time': 4.5, 'weather': 4.5, 'telemetry-note': 4.5, 'map-note': 4.5, 'turn-arrow': 4.5 };
+  const out = { text: [], large: [], bare: [] };
+  const SCENES = { white: [255, 255, 255], 'light sky': [188, 217, 238], black: [0, 0, 0] };
   for (const [id, need] of Object.entries(texts)) {
     const el = document.querySelector('[data-testid="' + id + '"]');
     if (!el || el.getBoundingClientRect().width === 0) continue;
-    const fg = parse(getComputedStyle(el).color);
+    const cs = getComputedStyle(el);
+    const fg = parse(cs.color);
     let node = el, bg = null;
     while (node && node !== document.body) {
       const c = parse(getComputedStyle(node).backgroundColor);
-      if (c && c.a > 0) { bg = c; break; }
+      // Only a local fill counts as a plate. The page root's own background is the scene's.
+      const box = node.getBoundingClientRect();
+      if (c && c.a > 0 && box.width * box.height < 0.4 * innerWidth * innerHeight) { bg = c; break; }
       node = node.parentElement;
     }
-    const worst = bg ? Math.min(ratio(fg, over({ r: 255, g: 255, b: 255 }, bg)), ratio(fg, over({ r: 0, g: 0, b: 0 }, bg))) : Math.min(ratio(fg, { r: 255, g: 255, b: 255 }), ratio(fg, { r: 0, g: 0, b: 0 }));
-    out.text.push({ id, need, worst: Math.round(worst * 100) / 100, plate: bg ? bg.a : 0 });
+    if (!bg) {
+      // Bare on the scene: the glyph shadow is the only aid. The stroke is the font size times a
+      // stem of 0.1 em (0.12 em from semibold), or 0.1 of the width for the 24 unit icon.
+      const isIcon = id === 'turn-arrow';
+      const stroke = isIcon ? el.getBoundingClientRect().width * 0.1 : parseFloat(cs.fontSize) * (Number(cs.fontWeight) >= 600 ? 0.12 : 0.1);
+      const source = cs.textShadow !== 'none' && !isIcon ? cs.textShadow : cs.filter;
+      const layers = parseShadowLayers(source === 'none' ? '' : source);
+      const perScene = {};
+      for (const [name, scene] of Object.entries(SCENES)) {
+        perScene[name] = layers.length ? haloContrast([fg.r, fg.g, fg.b], scene, layers, stroke) : 1;
+      }
+      const worstName = Object.keys(perScene).sort((a, b) => perScene[a] - perScene[b])[0];
+      out.bare.push({ id, need, layers: layers.length, stroke: Math.round(stroke * 100) / 100, perScene, worst: Math.round(perScene[worstName] * 100) / 100, worstScene: worstName });
+      continue;
+    }
+    const worst = Math.min(ratio(fg, over({ r: 255, g: 255, b: 255 }, bg)), ratio(fg, over({ r: 0, g: 0, b: 0 }, bg)));
+    out.text.push({ id, need, worst: Math.round(worst * 100) / 100, plate: bg.a });
+  }
+  // The navigation and status groups must stay plate free.
+  out.plateFree = [];
+  for (const id of ['navigation-panel', 'status-cluster']) {
+    const el = document.querySelector('[data-testid="' + id + '"]');
+    if (!el || el.getBoundingClientRect().width === 0) continue;
+    const cs = getComputedStyle(el);
+    const fill = parse(cs.backgroundColor);
+    const problems = [];
+    if (fill && fill.a > 0) problems.push('background fill');
+    if (cs.backgroundImage !== 'none') problems.push('background image');
+    if (['Top', 'Right', 'Bottom', 'Left'].some((side) => parseFloat(cs['border' + side + 'Width']) > 0 && cs['border' + side + 'Style'] !== 'none')) problems.push('border');
+    if (cs.boxShadow !== 'none') problems.push('box shadow');
+    if (cs.backdropFilter && cs.backdropFilter !== 'none') problems.push('backdrop filter');
+    if (cs.textShadow === 'none') problems.push('no glyph shadow');
+    out.plateFree.push({ id, problems });
   }
   const area = innerWidth * innerHeight;
   // The dev controls row is a development tool, never shown to riders, and can be nearly as wide
@@ -140,16 +184,32 @@ function readabilityProblems(result) {
   for (const t of result.text) {
     if (t.worst < t.need) problems.push(`${t.id} contrast ${t.worst} under ${t.need}`);
   }
+  // The navigation and status text must be measured as bare glyphs, not as text on a plate.
+  for (const id of ["speed-value", "local-time"]) {
+    if (!result.bare.some((t) => t.id === id))
+      problems.push(`${id} was not checked as a bare glyph`);
+  }
+  for (const t of result.bare) {
+    if (t.layers === 0) problems.push(`${t.id} has no glyph shadow`);
+    else if (t.worst < t.need)
+      problems.push(`${t.id} shadow contrast ${t.worst} over ${t.worstScene} under ${t.need}`);
+  }
+  for (const g of result.plateFree) {
+    for (const p of g.problems) problems.push(`${g.id} is not plate free: ${p}`);
+  }
   for (const name of result.large) problems.push(`large painted area: ${name}`);
   return problems;
 }
 
-/** The lowest contrast seen per text id, for the summary at the end. */
+/** The lowest contrast seen per text id (and scene), for the summary at the end. */
 const lowest = {};
+const lowestBare = {};
 
 const intersects = (a, b) => a.x < b.r && b.x < a.r && a.y < b.b && b.y < a.b;
 
 const chrome = await launchChrome({
+  // Set CDP_PORT when another script or worker already uses the default debugging port.
+  port: Number(process.env.CDP_PORT ?? 9333),
   extraArgs: ["--enable-unsafe-swiftshader", "--use-angle=swiftshader"],
 });
 let failures = 0;
@@ -270,6 +330,13 @@ try {
           for (const t of read.text) {
             if (lowest[t.id] === undefined || t.worst < lowest[t.id]) lowest[t.id] = t.worst;
           }
+          for (const t of read.bare) {
+            const seen = (lowestBare[t.id] ??= {});
+            for (const [scene, value] of Object.entries(t.perScene)) {
+              const rounded = Math.round(value * 100) / 100;
+              if (seen[scene] === undefined || rounded < seen[scene]) seen[scene] = rounded;
+            }
+          }
           if (process.env.SHOTS_DIR) {
             await page.screenshot(
               join(process.env.SHOTS_DIR, `layout-${w}x${h}-riding-dev${dev ? 1 : 0}.png`),
@@ -287,11 +354,15 @@ try {
   await chrome.close();
 }
 console.log(
-  "lowest contrast over white or black, riding: " +
+  "lowest contrast of text on a plate over white or black, riding: " +
     Object.entries(lowest)
       .map(([id, v]) => `${id} ${v}`)
       .join(", "),
 );
+console.log("lowest contrast of bare glyphs with the shadow, riding (white / light sky / black):");
+for (const [id, scenes] of Object.entries(lowestBare)) {
+  console.log(`  ${id}: ${scenes.white} / ${scenes["light sky"]} / ${scenes.black}`);
+}
 if (failures > 0) {
   console.error(`${failures} problem(s)`);
   process.exit(1);
