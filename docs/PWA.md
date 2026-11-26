@@ -116,6 +116,10 @@ Build assets have content hashes in their names, so a saved copy is always the r
 
 `apps/web/src/pwa/wake-lock.ts` holds the logic and `use-wake-lock.ts` is the React hook. The ride screen calls `useWakeLock(true)` only while a trip is running, so the lock is released as soon as **End trip** is pressed. It requests a screen wake lock, asks again whenever the page becomes visible (the browser releases the lock when the page is hidden), and releases it on unmount. It is feature detected, and a refused or missing lock does nothing and never throws.
 
+## Location permission (live GPS)
+
+Phone GPS is off by default. When the rider chooses **Phone GPS** and taps **Start free ride**, the page calls `watchPosition` from that tap (a user gesture), so the browser's location prompt appears then and not before. The start screen says first what will be asked and that the location stays on the device. If the rider blocks it, the ride shows an amber note and the browser setting has to be changed (the icon beside the address), then the trip started again. The screen wake lock is already held while a trip runs, so GPS keeps updating with the screen on. Background tracking is not supported by a PWA: if the page is hidden, the browser may stop location updates, and the ride shows the signal as lost until it returns. Not verified on a real phone yet.
+
 ## First run safety notice
 
 `SafetyNotice` (root layout) shows once: Waylit is a navigation aid, not a safety system, follow local road rules, do not interact with the screen while riding, provided without warranty. The acknowledgement is stored in `localStorage` under `waylit:safety-notice-ack:v1`. Storage access is wrapped in try and catch. If storage is blocked, the notice is not shown again for the rest of that page session and nothing throws. Change the version suffix in the key if the wording changes enough that riders should read it again.

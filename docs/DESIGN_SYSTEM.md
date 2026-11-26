@@ -138,6 +138,10 @@ The ribbon is 3.4 m wide with 0.22 m rails. Chevrons float ahead of the rider an
 
 A quiet round control (44 pixels, a stacked layers icon, glass border) sits beside the minimap and turns cyan while its sheet is open. The sheet is the same dark glass as the dock, with two exclusive rows of 44 pixel choices: the checked one has a cyan border, a faint cyan fill and cyan text, the others are quiet grey. A disabled choice is dimmed and its reason is written under the row in muted text, never in red or amber, because having no token or an address override is not a fault. Above 8 km/h the button shows the hold ring like every other guarded control, and the sheet closes by itself. Screenshot from the procedural preview: [map settings sheet](images/map-settings-sheet-915x412.png).
 
+### Position row, GPS note and free ride
+
+The settings sheet has a third exclusive row, **Position** (Simulator, Phone GPS), in the same 44 pixel style, with the ground height field below it on a free ride on Google tiles. The row is only changeable before a trip, and says so in muted text. `GpsNote` is a small status plate in the clear middle, shown only in a free ride, for a signal that needs attention: amber (`caution`) for weak, lost, blocked or unavailable, quiet info for waiting for a fix, never red. A free ride replaces the turn column with "Free ride" and a one line explanation, and the minimap shows only the rider dot, cone and compass.
+
 ## Motion
 
 | Token | Value | Use |

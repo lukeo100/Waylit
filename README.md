@@ -70,6 +70,7 @@ Contributions of all kinds are welcome, including bug reports, device testing, d
 | [docs/ROADMAP.md](docs/ROADMAP.md) | Phases and current status |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Package layout, dependency rules and the 3D scene |
 | [docs/DESIGN_SYSTEM.md](docs/DESIGN_SYSTEM.md) | Design tokens and visual principles |
+| [docs/PRIVACY.md](docs/PRIVACY.md) | What location data the app touches (none is stored or sent) |
 | [docs/PWA.md](docs/PWA.md) | Installing, offline caching, wake lock, testing on Android and PWA limits |
 | [docs/DEPLOYING.md](docs/DEPLOYING.md) | Running your own copy |
 | [docs/MAINTAINING.md](docs/MAINTAINING.md) | Repository settings and release process |
