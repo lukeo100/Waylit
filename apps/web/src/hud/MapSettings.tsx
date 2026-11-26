@@ -2,6 +2,7 @@
 
 import { useEffect, useId, useState } from "react";
 import type { FxLevel, MapChoice } from "@waylit/map-provider";
+import { GROUND_RANGE_METRES } from "@/map/map-settings";
 import { HOLD_TO_PRESS_MS } from "@/ride/guard";
 import {
   MAP_SETTINGS_TEXT as TEXT,
@@ -91,6 +92,10 @@ const FX_OPTIONS: readonly Option<FxLevel>[] = [
 
 interface SheetProps {
   readonly model: MapSettingsModel;
+  /** False once a trip is running: the position source can only change before it starts. */
+  readonly canChangeGps?: boolean;
+  /** The saved ground height constant, shown in the ground field. */
+  readonly groundMetres?: number | undefined;
   readonly onChange: (patch: MapSettingsValue) => void;
   readonly onClose: () => void;
   readonly id?: string;
@@ -102,7 +107,20 @@ interface SheetProps {
  * on the right, only as tall as its content, and never taller than the space above the credits
  * strip (it reads `--wl-credits-clearance`), so it can never cover the credits.
  */
-export function MapSettingsSheet({ model, onChange, onClose, id }: SheetProps) {
+export function MapSettingsSheet({
+  model,
+  canChangeGps = true,
+  groundMetres,
+  onChange,
+  onClose,
+  id,
+}: SheetProps) {
+  const gpsNote = useId();
+  const groundId = useId();
+  const gpsOptions: readonly Option<"sim" | "live">[] = [
+    { value: "sim", label: TEXT.gpsSimOption },
+    { value: "live", label: TEXT.gpsLiveOption },
+  ];
   const titleId = useId();
   const mapNote = useId();
   const fxNote = useId();
@@ -125,7 +143,7 @@ export function MapSettingsSheet({ model, onChange, onClose, id }: SheetProps) {
         </h2>
         <button
           type="button"
-          aria-label="Close map settings"
+          aria-label="Close settings"
           data-testid="map-settings-close"
           onClick={onClose}
           className={`${TARGET} inline-flex touch-manipulation items-center justify-center rounded-full border border-glass-border text-text-secondary hover:border-cyan`}
@@ -155,6 +173,69 @@ export function MapSettingsSheet({ model, onChange, onClose, id }: SheetProps) {
       </div>
 
       <Segmented
+        label={TEXT.gpsLabel}
+        options={gpsOptions}
+        value={model.gps === "sim" ? "sim" : "live"}
+        disabled={model.gpsLockedByAddress || !canChangeGps}
+        describedBy={gpsNote}
+        testId="gps-choice"
+        onChange={(value) => {
+          onChange({ gps: value });
+        }}
+      />
+      <div id={gpsNote} className="flex flex-col gap-1 text-hud-sm leading-snug text-text-muted">
+        <p data-testid="gps-hint">
+          {model.gps === "replay"
+            ? TEXT.gpsHintReplay
+            : model.gps === "live"
+              ? TEXT.gpsHintLive
+              : TEXT.gpsHintSim}
+        </p>
+        {model.gpsLockedByAddress ? <p data-testid="gps-locked">{TEXT.gpsLocked}</p> : null}
+        {!canChangeGps && !model.gpsLockedByAddress ? (
+          <p data-testid="gps-busy">{TEXT.gpsBusy}</p>
+        ) : null}
+      </div>
+      {model.freeRide && model.map === "cesium" ? (
+        <div className="flex flex-col gap-1.5">
+          <label
+            htmlFor={groundId}
+            className="text-hud-sm leading-none font-medium text-text-secondary"
+          >
+            {TEXT.groundLabel}
+          </label>
+          <input
+            id={groundId}
+            data-testid="ground-input"
+            type="number"
+            inputMode="decimal"
+            min={GROUND_RANGE_METRES.min}
+            max={GROUND_RANGE_METRES.max}
+            step="1"
+            placeholder="85"
+            defaultValue={groundMetres ?? ""}
+            onChange={(event) => {
+              const raw = event.currentTarget.value.trim();
+              if (raw === "") {
+                onChange({ groundMetres: undefined });
+                return;
+              }
+              const value = Number(raw);
+              if (
+                Number.isFinite(value) &&
+                value >= GROUND_RANGE_METRES.min &&
+                value <= GROUND_RANGE_METRES.max
+              ) {
+                onChange({ groundMetres: value });
+              }
+            }}
+            className={`${TARGET} rounded-md border border-glass-border bg-white/5 px-2 text-hud-sm text-text tabular-nums`}
+          />
+          <p className="text-hud-sm leading-snug text-text-muted">{TEXT.groundHint}</p>
+        </div>
+      ) : null}
+
+      <Segmented
         label={TEXT.fxLabel}
         options={FX_OPTIONS}
         value={model.fx}
@@ -177,6 +258,9 @@ interface MapSettingsProps {
   readonly model: MapSettingsModel;
   /** True while the speed guard is on (above 8 km/h): the button needs a hold. */
   readonly guarded: boolean;
+  /** True before a trip starts, when the position source may still change. */
+  readonly canChangeGps?: boolean;
+  readonly groundMetres?: number | undefined;
   readonly onChange: (patch: MapSettingsValue) => void;
 }
 
@@ -186,7 +270,13 @@ interface MapSettingsProps {
  * and the sheet closes by itself when the guard turns on. The button never sits over the credits
  * strip or the top text.
  */
-export function MapSettings({ model, guarded, onChange }: MapSettingsProps) {
+export function MapSettings({
+  model,
+  guarded,
+  canChangeGps = true,
+  groundMetres,
+  onChange,
+}: MapSettingsProps) {
   const [open, setOpen] = useState(false);
   const sheetId = useId();
 
@@ -208,7 +298,7 @@ export function MapSettings({ model, guarded, onChange }: MapSettingsProps) {
   return (
     <>
       <HoldButton
-        label="Map settings"
+        label="Settings"
         guarded={guarded}
         holdMs={HOLD_TO_PRESS_MS}
         feedback="ring"
@@ -228,6 +318,8 @@ export function MapSettings({ model, guarded, onChange }: MapSettingsProps) {
         <MapSettingsSheet
           id={sheetId}
           model={model}
+          canChangeGps={canChangeGps}
+          groundMetres={groundMetres}
           onChange={onChange}
           onClose={() => {
             setOpen(false);

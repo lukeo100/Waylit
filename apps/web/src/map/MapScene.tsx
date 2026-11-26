@@ -2,8 +2,10 @@
 
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import type { LatLng, Route } from "@waylit/core";
+import { DEMO_ROUTE, type LatLng, type Route } from "@waylit/core";
 import {
+  DEMO_ROUTE_GROUND_ELLIPSOID_METRES,
+  LiveGroundEstimator,
   fxLevelIsPinned,
   resolveFxLevel,
   resolveTuning,
@@ -22,7 +24,8 @@ import { MapSceneController, startFixOf, type SceneState } from "./scene-control
 interface MapSceneProps {
   /** The reserved credits strip. The provider draws its credits and logos into it. */
   readonly creditsElement: HTMLElement | null;
-  readonly route: Route;
+  /** The route to guide along, or undefined for a free ride (live GPS, no route). */
+  readonly route: Route | undefined;
   readonly phase: RidePhase;
   /** The simulated rider, once the trip has started. */
   readonly position: LatLng | undefined;
@@ -32,6 +35,17 @@ interface MapSceneProps {
    * turn from. The turn beacon uses it so the beacon and the HUD show the same distance.
    */
   readonly alongMetres?: number | undefined;
+  /**
+   * The phone's altitude and its accuracy, in a free ride. It feeds the ground height for Google
+   * tiles (see `LiveGroundEstimator`). Never read from the tiles.
+   */
+  readonly altitude?:
+    | {
+        readonly metres: number;
+        readonly accuracyMetres?: number | undefined;
+        readonly timestamp: number;
+      }
+    | undefined;
   readonly daylight: DaylightState;
   /**
    * The rider's saved map settings. A change of map starts the other provider (through the same
@@ -70,6 +84,7 @@ export function MapScene({
   position,
   heading,
   alongMetres,
+  altitude,
   daylight,
   settings,
   devOverlay,
@@ -86,6 +101,7 @@ export function MapScene({
   useEffect(() => {
     latest.current = { phase, daylight, settings };
   });
+  const groundRef = useRef<LiveGroundEstimator | undefined>(undefined);
   // Bumped when the provider has to be started again for a new effect level.
   const [restart, setRestart] = useState(0);
 
@@ -102,6 +118,15 @@ export function MapScene({
       nodeEnv,
       settings: stored,
     });
+    // A free ride on Google tiles takes the ground height from the phone's altitude, slowly and
+    // clamped, with the settings constant until it is reliable. `?ground=` still wins. The height
+    // never comes from the tiles (Amendment 3).
+    const estimator = route
+      ? undefined
+      : new LiveGroundEstimator({
+          fallbackMetres: stored.groundMetres ?? DEMO_ROUTE_GROUND_ELLIPSOID_METRES,
+        });
+    groundRef.current = estimator;
     const next = new MapSceneController({
       sceneElement: scene,
       creditsElement,
@@ -112,8 +137,11 @@ export function MapScene({
         loadProvider(id, tuning, {
           token: cesiumIonToken,
           lighting: sceneLightingFrom(latest.current.daylight),
+          ...(estimator && tuning.groundHeightEllipsoidMetres === undefined
+            ? { ground: estimator }
+            : {}),
         }),
-      startFix: startFixOf(route.path),
+      startFix: startFixOf((route ?? DEMO_ROUTE).path),
       now: () => performance.now(),
       onState: setState,
     });
@@ -148,7 +176,8 @@ export function MapScene({
 
   // A new trip puts the camera back at the start, with no gliding.
   useEffect(() => {
-    if (phase === "idle") controllerRef.current?.resetCamera(startFixOf(route.path));
+    if (phase === "idle")
+      controllerRef.current?.resetCamera(startFixOf((route ?? DEMO_ROUTE).path));
   }, [phase, route]);
 
   // The rider. The first fix of a trip puts the camera on the rider.
@@ -156,6 +185,18 @@ export function MapScene({
     if (position === undefined) return;
     controllerRef.current?.setRider({ position, headingDegrees: heading });
   }, [position, heading]);
+
+  // The phone's altitude, once per fix, and the settings constant for the ground height.
+  const altitudeAt = altitude?.timestamp;
+  useEffect(() => {
+    if (altitude)
+      groundRef.current?.addSample(altitude.metres, altitude.accuracyMetres, altitude.timestamp);
+    // One sample per fix: the timestamp says when a new one arrived.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [altitudeAt]);
+  useEffect(() => {
+    if (settings.groundMetres !== undefined) groundRef.current?.setFallback(settings.groundMetres);
+  }, [settings.groundMetres]);
 
   // The session's distance along the route, for the turn beacon's countdown.
   useEffect(() => {

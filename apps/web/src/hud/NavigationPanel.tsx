@@ -22,6 +22,11 @@ interface NavigationPanelProps {
    * overridden time plus the time left, so it agrees with the clock the rider is shown.
    */
   readonly simulatedNowMs?: number | undefined;
+  /**
+   * True for a free ride (live GPS, no route). There is no turn, ETA or distance left to show,
+   * so the turn column says so in plain words instead.
+   */
+  readonly freeRide?: boolean | undefined;
 }
 
 /**
@@ -44,6 +49,7 @@ export function NavigationPanel({
   riding,
   note,
   simulatedNowMs,
+  freeRide = false,
 }: NavigationPanelProps) {
   const speedValue = formatSpeedKmh(speed.speedMps);
   const gpsValue = formatSpeedKmh(gpsSpeedMps);
@@ -110,7 +116,19 @@ export function NavigationPanel({
         data-phase={phase}
         className="flex min-w-0 flex-col justify-center gap-[clamp(0.15rem,0.9dvh,0.35rem)] py-[clamp(0.35rem,1.8dvh,0.8rem)] pr-[clamp(0.7rem,1.5vw,1.2rem)] pl-[clamp(0.6rem,1.3vw,1rem)]"
       >
-        {turn ? (
+        {freeRide ? (
+          <>
+            <p
+              data-testid="free-ride"
+              className="text-hud-turn leading-none font-semibold tracking-display whitespace-nowrap text-text"
+            >
+              Free ride
+            </p>
+            <p className="max-w-[17ch] text-hud-md leading-snug font-medium text-text-secondary">
+              No route. Speed, distance and time come from GPS.
+            </p>
+          </>
+        ) : turn ? (
           <>
             <div className="flex items-center gap-[clamp(0.3rem,0.9vw,0.6rem)]">
               <span
@@ -140,16 +158,18 @@ export function NavigationPanel({
         ) : (
           <p className="text-hud-md text-text-secondary">No instructions</p>
         )}
-        <p className="flex items-baseline gap-[0.5em] text-hud-sm leading-tight whitespace-nowrap text-text-secondary tabular-nums">
-          <span data-testid="stat-remaining">
-            {formatDuration(progress.remainingDurationSeconds)}
-            <span aria-hidden="true"> &middot; </span>
-            <span className="sr-only">, </span>
-            {remaining.value} {remaining.unit}
-          </span>
-          <span aria-hidden="true">&middot;</span>
-          <span data-testid="stat-eta">Arrive {arrival}</span>
-        </p>
+        {freeRide ? null : (
+          <p className="flex items-baseline gap-[0.5em] text-hud-sm leading-tight whitespace-nowrap text-text-secondary tabular-nums">
+            <span data-testid="stat-remaining">
+              {formatDuration(progress.remainingDurationSeconds)}
+              <span aria-hidden="true"> &middot; </span>
+              <span className="sr-only">, </span>
+              {remaining.value} {remaining.unit}
+            </span>
+            <span aria-hidden="true">&middot;</span>
+            <span data-testid="stat-eta">Arrive {arrival}</span>
+          </p>
+        )}
       </div>
     </section>
   );

@@ -10,6 +10,8 @@ import {
   projectOntoRoute,
   systemClock,
   type Clock,
+  type GpsStatus,
+  type LiveGpsSource,
   type LatLng,
   type NavigationProgress,
   type PositionFix,
@@ -81,9 +83,25 @@ export interface RideSnapshot {
   /** Dev settings, echoed so the dev controls can show them. */
   readonly playbackSpeed: number;
   readonly telemetryLost: boolean;
+  /**
+   * True for a free ride: live phone GPS (or a replay) with no route. There is then no next turn,
+   * no route progress and no corridor, and speed, distance and time come from GPS.
+   */
+  readonly freeRide: boolean;
+  /** The state of the live receiver, in a free ride. Undefined for the simulator. */
+  readonly gps?: { readonly status: GpsStatus; readonly accuracyMetres?: number | undefined };
+  /** The latest phone altitude and its accuracy in metres, in a free ride, when the phone gives one. */
+  readonly altitude?: {
+    readonly metres: number;
+    readonly accuracyMetres?: number | undefined;
+    /** When the fix arrived, so a sample is counted once however often the snapshot is read. */
+    readonly timestamp: number;
+  };
 }
 
 export interface RideSessionOptions {
+  /** A live receiver. When given, the session is a free ride and the simulator is not used. */
+  readonly live?: LiveGpsSource;
   readonly route?: Route;
   readonly clock?: Clock;
   readonly playbackSpeed?: number;
@@ -98,13 +116,21 @@ const PACE_MIN_METRES = 100;
 /** Pace is kept inside this range so one slow patch does not swing the estimate. */
 const PACE_RANGE_MPS = { min: kmhToMps(8), max: kmhToMps(25) } as const;
 
+/** What the route progress is in a free ride: nothing to count down to. */
+const FREE_RIDE_PROGRESS: NavigationProgress = {
+  distanceAlongMetres: 0,
+  remainingDistanceMetres: 0,
+  arrived: false,
+};
+
 export class RideSession {
+  private readonly live: LiveGpsSource | undefined;
   private readonly clock: Clock;
   private readonly route: Route;
   private readonly model: ProgressModel;
   private readonly seed: number;
 
-  private sim!: GpsSimulator;
+  private sim: GpsSimulator | undefined;
   private vehicle!: MockVehicleAdapter;
   private readonly gpsDistance = new GpsDistanceIntegrator();
   private readonly tripTracker = new TripTracker();
@@ -121,6 +147,7 @@ export class RideSession {
 
   constructor(options: RideSessionOptions = {}) {
     this.clock = options.clock ?? systemClock;
+    this.live = options.live;
     this.route = options.route ?? DEMO_ROUTE;
     this.model = createProgressModel(this.route);
     this.playbackSpeed = options.playbackSpeed ?? 1;
@@ -151,7 +178,9 @@ export class RideSession {
     this.along = 0;
     this.guarded = false;
     this.vehicle.startTrip();
-    this.sim.start();
+    // For a live receiver this runs inside the tap on Start trip, so the browser may ask.
+    if (this.live) this.live.start();
+    else this.sim?.start();
     this.tick();
   }
 
@@ -169,7 +198,8 @@ export class RideSession {
       averageSpeedKmh: averageSpeedKmh(trip.distanceMetres, trip.durationSeconds),
       distanceSource: summaryDistanceSource(trip),
     };
-    this.sim.stop();
+    this.live?.stop();
+    this.sim?.stop();
     this.phase = "summary";
     this.guarded = false;
     this.current = this.compute();
@@ -193,7 +223,7 @@ export class RideSession {
   setPlaybackSpeed(multiplier: number): void {
     if (!Number.isFinite(multiplier) || multiplier <= 0) return;
     this.playbackSpeed = multiplier;
-    this.sim.setPlaybackSpeed(multiplier);
+    this.sim?.setPlaybackSpeed(multiplier);
     this.current = this.compute();
   }
 
@@ -209,20 +239,15 @@ export class RideSession {
   }
 
   private build(): void {
-    this.sim = new GpsSimulator({
-      path: this.route.path,
-      clock: this.clock,
-      playbackSpeed: this.playbackSpeed,
-      seed: this.seed,
-    });
+    const source = this.live ?? this.buildSimulator();
     this.vehicle = createMockVehicleAdapter({
-      motion: this.sim,
+      motion: this.live ?? (this.sim as GpsSimulator),
       clock: this.clock,
       seed: this.seed,
     });
     this.lastTelemetry = undefined;
     this.unsubscribes = [
-      this.sim.onFix((fix) => {
+      source.onFix((fix) => {
         if (this.phase === "riding") this.gpsDistance.add(fix);
       }),
       // A lost link simply stops samples arriving. The last one then goes stale.
@@ -236,26 +261,53 @@ export class RideSession {
     this.vehicle.tick();
   }
 
+  private buildSimulator(): GpsSimulator {
+    this.sim = new GpsSimulator({
+      path: this.route.path,
+      clock: this.clock,
+      playbackSpeed: this.playbackSpeed,
+      seed: this.seed,
+    });
+    return this.sim;
+  }
+
   private teardown(): void {
     for (const unsubscribe of this.unsubscribes) unsubscribe();
     this.unsubscribes = [];
     void this.vehicle.disconnect();
-    this.sim.stop();
+    this.live?.stop();
+    this.sim?.stop();
   }
 
   private advance(): void {
-    this.sim.update();
+    const live = this.live;
+    if (live) {
+      live.update();
+      this.vehicle.tick();
+      if (this.phase !== "riding") return;
+      // A free ride: no route to project onto. The trip counts GPS distance and time, because
+      // the vehicle is only the mock for now and has no say in a live ride.
+      this.tripTracker.update({
+        vehicle: undefined,
+        gpsDistanceMetres: this.gpsDistance.distanceMetres,
+        rideElapsedSeconds: live.getMotion().elapsedSeconds,
+        nowMs: this.clock.now(),
+      });
+      return;
+    }
+    const sim = this.sim as GpsSimulator;
+    sim.update();
     this.vehicle.tick();
     if (this.phase !== "riding") return;
     const nowMs = this.clock.now();
-    const fix = this.sim.getLastFix();
+    const fix = sim.getLastFix();
     if (fix) {
-      this.along = this.sim.state === "finished" ? this.model.index.totalMetres : this.project(fix);
+      this.along = sim.state === "finished" ? this.model.index.totalMetres : this.project(fix);
     }
     this.tripTracker.update({
       vehicle: this.lastTelemetry,
       gpsDistanceMetres: this.gpsDistance.distanceMetres,
-      rideElapsedSeconds: this.sim.getMotion().elapsedSeconds,
+      rideElapsedSeconds: sim.getMotion().elapsedSeconds,
       nowMs,
     });
   }
@@ -270,12 +322,21 @@ export class RideSession {
 
   private compute(): RideSnapshot {
     const nowMs = this.clock.now();
-    const fix = this.phase === "riding" ? this.sim.getLastFix() : undefined;
+    const live = this.live;
+    const fix =
+      this.phase === "riding" ? (live ? live.getLastFix() : this.sim?.getLastFix()) : undefined;
     const telemetry =
       this.lastTelemetry !== undefined && !isTelemetryStale(this.lastTelemetry, nowMs)
         ? this.lastTelemetry
         : undefined;
-    const speed = selectSpeed({ vehicle: this.lastTelemetry, gps: fix, nowMs });
+    // With live GPS the speed is the phone's. That is the plan for a free ride, not a fallback,
+    // so it carries no fallback reason (which the HUD would show in amber).
+    const picked = live
+      ? selectSpeed({ vehicle: undefined, gps: fix, nowMs })
+      : selectSpeed({ vehicle: this.lastTelemetry, gps: fix, nowMs });
+    const speed: SelectedSpeed = live
+      ? { speedMps: picked.speedMps, source: picked.source }
+      : picked;
     const trip = this.tripTracker.reading;
     this.guarded =
       this.phase === "riding"
@@ -285,11 +346,13 @@ export class RideSession {
           )
         : false;
 
-    const progress = computeProgress(this.model, {
-      distanceAlongMetres: this.along,
-      paceMps: this.pace(trip),
-      nowMs,
-    });
+    const progress = live
+      ? FREE_RIDE_PROGRESS
+      : computeProgress(this.model, {
+          distanceAlongMetres: this.along,
+          paceMps: this.pace(trip),
+          nowMs,
+        });
 
     return {
       phase: this.phase,
@@ -305,6 +368,21 @@ export class RideSession {
       summary: this.summary,
       playbackSpeed: this.playbackSpeed,
       telemetryLost: this.telemetryLost,
+      freeRide: live !== undefined,
+      ...(live
+        ? {
+            gps: { status: live.status, accuracyMetres: live.accuracyMetres },
+            ...(fix?.position.altitude !== undefined
+              ? {
+                  altitude: {
+                    metres: fix.position.altitude,
+                    accuracyMetres: fix.position.altitudeAccuracy,
+                    timestamp: fix.timestamp,
+                  },
+                }
+              : {}),
+          }
+        : {}),
     };
   }
 
@@ -339,5 +417,6 @@ export function createEmptySnapshot(route: Route = DEMO_ROUTE): RideSnapshot {
     guarded: false,
     playbackSpeed: 1,
     telemetryLost: false,
+    freeRide: false,
   };
 }

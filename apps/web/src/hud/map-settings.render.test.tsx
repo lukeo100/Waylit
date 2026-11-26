@@ -27,7 +27,7 @@ describe("map settings button", () => {
     expect(html).toContain("size-11");
     expect(html).toContain('aria-haspopup="dialog"');
     expect(html).toContain('aria-expanded="false"');
-    expect(html).toContain('aria-label="Map settings"');
+    expect(html).toContain('aria-label="Settings"');
     // Closed to start with.
     expect(html).not.toContain("map-settings-sheet");
   });
@@ -39,7 +39,7 @@ describe("map settings button", () => {
     expect(nextGuardState(false, 7.9)).toBe(false);
     const guarded = renderToStaticMarkup(<MapSettings model={model({})} guarded onChange={noop} />);
     expect(guarded).toContain('data-guarded="true"');
-    expect(guarded).toContain("Map settings. Hold to press.");
+    expect(guarded).toContain("Settings. Hold to press.");
     expect(guarded).toContain('data-testid="hold-ring"');
     expect(guarded).toContain("wl-hold-ring");
     const free = renderToStaticMarkup(
@@ -92,11 +92,11 @@ describe("map settings sheet", () => {
   });
 
   it("locks a choice the address has made and says how to change it", () => {
-    const html = sheet(model({ search: "?map=fallback&fx=low" }));
+    const html = sheet(model({ search: "?map=fallback&fx=low&gps=sim" }));
     expect(html).toContain('data-testid="map-locked"');
     expect(html).toContain('data-testid="fx-locked"');
     const radios = html.match(/<button[^>]*role="radio"[^>]*>/g) ?? [];
-    expect(radios.length).toBe(5);
+    expect(radios.length).toBe(7);
     for (const radio of radios) expect(radio).toContain('disabled=""');
     const free = sheet(model({}));
     expect(free).not.toContain("map-locked");
@@ -107,5 +107,52 @@ describe("map settings sheet", () => {
     const html = sheet(model({}));
     expect(html).toContain("var(--wl-credits-clearance");
     expect(html).not.toMatch(/danger|text-red|bg-red/);
+  });
+});
+
+describe("position source in the settings sheet", () => {
+  it("offers Simulator and Phone GPS, with the simulator as the default", () => {
+    const html = sheet(model({}));
+    expect(html).toContain('data-testid="gps-choice"');
+    expect(html).toContain("Phone GPS");
+    expect(html).toMatch(/aria-checked="true"[^>]*data-value="sim"/);
+    expect(html).toContain("A simulated ride on the demo route");
+  });
+
+  it("explains in plain words that live GPS is a free ride that stays on the device", () => {
+    const html = sheet(model({ settings: { gps: "live" } }));
+    expect(html).toMatch(/aria-checked="true"[^>]*data-value="live"/);
+    expect(html).toContain("free ride");
+    expect(html).toContain("never stored or sent");
+  });
+
+  it("is locked by ?gps= and while a trip is running", () => {
+    const locked = sheet(model({ search: "?gps=live", settings: { gps: "sim" } }));
+    expect(locked).toContain('data-testid="gps-locked"');
+    expect(locked).toMatch(/aria-checked="true"[^>]*data-value="live"/);
+    const busy = renderToStaticMarkup(
+      <MapSettingsSheet model={model({})} canChangeGps={false} onChange={noop} onClose={noop} />,
+    );
+    expect(busy).toContain('data-testid="gps-busy"');
+    const gpsRadios =
+      busy.match(/<button[^>]*role="radio"[^>]*data-value="(sim|live)"[^>]*>/g) ?? [];
+    expect(gpsRadios).toHaveLength(2);
+    for (const radio of gpsRadios) expect(radio).toContain('disabled=""');
+  });
+
+  it("says a replay is playing, with no location used", () => {
+    expect(sheet(model({ search: "?gps=replay" }))).toContain("generated trace");
+  });
+
+  it("shows the ground height field only for a free ride on Google tiles, with its range", () => {
+    expect(sheet(model({}))).not.toContain("ground-input");
+    expect(sheet(model({ settings: { gps: "live", map: "fallback" } }))).not.toContain(
+      "ground-input",
+    );
+    const html = sheet(model({ settings: { gps: "live" } }));
+    expect(html).toContain('data-testid="ground-input"');
+    expect(html).toContain('min="-100"');
+    expect(html).toContain('max="3000"');
+    expect(html).toContain("ellipsoid");
   });
 });

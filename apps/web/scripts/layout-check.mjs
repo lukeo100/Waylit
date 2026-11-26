@@ -167,7 +167,13 @@ try {
         await page.call("Page.addScriptToEvaluateOnNewDocument", {
           source: `window.__fakeCredits = ${process.env.FAKE_CREDITS === "1"}`,
         });
-        await page.navigate(`${base}/ride${dev ? "?dev=1&time=night" : ""}`);
+        const query = [
+          dev ? "dev=1&time=night" : "",
+          process.env.GPS ? `gps=${process.env.GPS}` : "",
+        ]
+          .filter(Boolean)
+          .join("&");
+        await page.navigate(`${base}/ride${query ? `?${query}` : ""}`);
         await sleep(1200);
         const m = await page.evaluate(MEASURE);
         const label = `${w}x${h} notice ${acknowledged ? "closed" : "open"} dev=${dev ? 1 : 0}`;

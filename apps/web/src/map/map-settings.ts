@@ -16,11 +16,35 @@ import {
  * small store, so they run in tests with no browser.
  */
 
+/** Where the rider's position comes from. `replay` is a generated trace for desks (`?gps=replay`). */
+export type GpsChoice = "sim" | "live" | "replay";
+
+/** The value of `?gps=` in the address: `sim`, `live` or `replay`. */
+export function parseGpsChoice(search: string): GpsChoice | undefined {
+  const value = new URLSearchParams(search).get("gps")?.trim().toLowerCase();
+  return value === "sim" || value === "live" || value === "replay" ? value : undefined;
+}
+
+/** True for the sources that have no route near the rider, so the scene is a free ride. */
+export function isFreeRide(gps: GpsChoice): boolean {
+  return gps !== "sim";
+}
+
+/** The lowest and highest ground height the settings accept, in metres above the ellipsoid. */
+export const GROUND_RANGE_METRES = { min: -100, max: 3000 } as const;
+
 export interface MapSettings {
   /** The rider's choice of map. Undefined means they never chose, so the defaults apply. */
   readonly map?: MapChoice;
   /** The rider's choice of effect level. Undefined means the provider's default. */
   readonly fx?: FxLevel;
+  /** The rider's choice of position source. Undefined means the simulator. */
+  readonly gps?: "sim" | "live";
+  /**
+   * Ground height in metres above the WGS84 ellipsoid, for Google tiles with live GPS until the
+   * phone gives a reliable altitude. Undefined means the demo route's constant.
+   */
+  readonly groundMetres?: number | undefined;
 }
 
 export const MAP_SETTINGS_STORAGE_KEY = "waylit:map-settings:v1";
@@ -40,7 +64,21 @@ export function parseMapSettings(raw: string | null | undefined): MapSettings {
     const map =
       typeof record["map"] === "string" ? parseMapChoice(`?map=${record["map"]}`) : undefined;
     const fx = typeof record["fx"] === "string" ? parseFxLevel(record["fx"]) : undefined;
-    return { ...(map ? { map } : {}), ...(fx ? { fx } : {}) };
+    const gps = record["gps"] === "sim" || record["gps"] === "live" ? record["gps"] : undefined;
+    const ground = record["groundMetres"];
+    const groundMetres =
+      typeof ground === "number" &&
+      Number.isFinite(ground) &&
+      ground >= GROUND_RANGE_METRES.min &&
+      ground <= GROUND_RANGE_METRES.max
+        ? ground
+        : undefined;
+    return {
+      ...(map ? { map } : {}),
+      ...(fx ? { fx } : {}),
+      ...(gps ? { gps } : {}),
+      ...(groundMetres !== undefined ? { groundMetres } : {}),
+    };
   } catch {
     return {};
   }
@@ -108,6 +146,11 @@ export interface MapSettingsModel {
   readonly mapLockedByAddress: boolean;
   /** True when `?fx=` in the address decides the level, so the sheet cannot change it. */
   readonly fxLockedByAddress: boolean;
+  /** The position source in force. The address beats the saved choice, and the default is `sim`. */
+  readonly gps: GpsChoice;
+  readonly gpsLockedByAddress: boolean;
+  /** True for live GPS or a replay: a free ride with no route. */
+  readonly freeRide: boolean;
 }
 
 export function mapSettingsModel(input: MapSettingsModelInput): MapSettingsModel {
@@ -117,6 +160,8 @@ export function mapSettingsModel(input: MapSettingsModelInput): MapSettingsModel
     nodeEnv: input.nodeEnv,
     preference: input.settings.map,
   });
+  const addressGps = parseGpsChoice(input.search);
+  const gps: GpsChoice = addressGps ?? input.settings.gps ?? "sim";
   return {
     selection,
     map: selection.id === "cesium-google" ? "cesium" : "fallback",
@@ -124,12 +169,15 @@ export function mapSettingsModel(input: MapSettingsModelInput): MapSettingsModel
     googleAvailable: (input.token?.trim() ?? "") !== "",
     mapLockedByAddress: parseMapChoice(input.search) !== undefined,
     fxLockedByAddress: fxLevelIsFromAddress(input.search),
+    gps,
+    gpsLockedByAddress: addressGps !== undefined,
+    freeRide: isFreeRide(gps),
   };
 }
 
 /** Words for the sheet. Plain, and no raw errors. */
 export const MAP_SETTINGS_TEXT = {
-  title: "Map",
+  title: "Settings",
   mapLabel: "Map",
   googleOption: "Google 3D tiles",
   fallbackOption: "Fallback map",
@@ -139,6 +187,18 @@ export const MAP_SETTINGS_TEXT = {
     "Google 3D tiles use Cesium ion requests, about 1,000 root requests per month on the Community plan. Each switch to Google uses one.",
   noToken:
     "Google 3D tiles need a Cesium ion token, and this build has none, so the fallback map is used.",
+  gpsLabel: "Position",
+  gpsSimOption: "Simulator",
+  gpsLiveOption: "Phone GPS",
+  gpsHintSim: "A simulated ride on the demo route, with turn guidance.",
+  gpsHintLive:
+    "A free ride on your real position: no route or turns. Waylit asks your browser for your location when you start a trip. It stays on this device and is never stored or sent.",
+  gpsHintReplay: "A generated trace is playing instead of your location (?gps=replay).",
+  gpsLocked: "The address sets the position (?gps=). Remove it to change it here.",
+  gpsBusy: "Change the position source before you start a trip.",
+  groundLabel: "Ground height (m)",
+  groundHint:
+    "Google tiles with Phone GPS only. Metres above the WGS84 ellipsoid, used until your phone gives a reliable altitude. Leave blank for the demo value, which is only right for Berlin.",
   mapLocked: "The address sets the map (?map=). Remove it to change the map here.",
   fxLocked: "The address sets the effect (?fx=). Remove it to change it here.",
 } as const;

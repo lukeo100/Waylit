@@ -3,6 +3,7 @@ import {
   FollowCamera,
   type FxLevel,
   RouteGuide,
+  freeRideFrame,
   type MapProvider,
   type ProviderActivity,
   type ProviderDiagnostics,
@@ -49,8 +50,12 @@ export interface SceneControllerOptions {
   readonly sceneElement: unknown;
   readonly creditsElement: unknown;
   readonly selection: ProviderSelection;
-  /** The route to guide along. Its corridor is drawn by whichever provider is running. */
-  readonly route: Route;
+  /**
+   * The route to guide along. Its corridor is drawn by whichever provider is running. Undefined
+   * for a free ride (live GPS): then there is no corridor, no chevrons and no turn beacon, only
+   * the rider and the heading marker.
+   */
+  readonly route: Route | undefined;
   readonly tuningFor: (id: ProviderId) => RenderTuning;
   readonly createProvider: (id: ProviderId, tuning: RenderTuning) => Promise<MapProvider>;
   /** Where the camera starts, before the first fix. */
@@ -69,7 +74,7 @@ export const NOTES = {
 export class MapSceneController {
   private readonly options: SceneControllerOptions;
   private readonly camera = new FollowCamera();
-  private readonly guide: RouteGuide;
+  private readonly guide: RouteGuide | undefined;
   private provider: MapProvider | undefined;
   private removeFrame: (() => void) | undefined;
   private removeStatus: (() => void) | undefined;
@@ -82,7 +87,7 @@ export class MapSceneController {
 
   constructor(options: SceneControllerOptions) {
     this.options = options;
-    this.guide = new RouteGuide(options.route);
+    this.guide = options.route ? new RouteGuide(options.route) : undefined;
     this.camera.snapTo(options.startFix, options.now());
     this.state = {
       selection: options.selection,
@@ -133,7 +138,7 @@ export class MapSceneController {
   /** Put the camera back at the start, with no gliding. For a new trip. */
   resetCamera(fix: RiderFix): void {
     this.camera.snapTo(fix, this.options.now());
-    this.guide.reset();
+    this.guide?.reset();
     this.sessionAlong = undefined;
   }
 
@@ -208,7 +213,9 @@ export class MapSceneController {
       // The rider and the guidance follow the same smoothed pose as the camera, so the rider
       // stays put in the lower middle of the screen and the chevrons ahead stay on the road.
       provider.setGuidance(
-        this.guide.frame(pose.rider, pose.headingDegrees, nowMs, this.sessionAlong),
+        this.guide
+          ? this.guide.frame(pose.rider, pose.headingDegrees, nowMs, this.sessionAlong)
+          : freeRideFrame(pose.rider, pose.headingDegrees, nowMs),
       );
     });
     this.removeStatus = provider.onStatus((status) => {
@@ -220,7 +227,7 @@ export class MapSceneController {
         this.publish({ status: "ready" });
       }
     });
-    provider.setRoute(this.guide.corridor);
+    if (this.guide) provider.setRoute(this.guide.corridor);
     if (this.lighting) provider.setLighting(this.lighting);
     provider.setActivity(this.activity);
   }

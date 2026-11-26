@@ -2,7 +2,10 @@ import { describe, expect, it } from "vitest";
 import {
   MAP_SETTINGS_STORAGE_KEY,
   MAP_SETTINGS_TEXT,
+  GROUND_RANGE_METRES,
   createMapSettingsStore,
+  isFreeRide,
+  parseGpsChoice,
   mapSettingsModel,
   parseMapSettings,
   readMapSettings,
@@ -133,5 +136,60 @@ describe("the guard closes the sheet", () => {
     expect(sheetShouldClose(true, true)).toBe(true);
     expect(sheetShouldClose(true, false)).toBe(false);
     expect(sheetShouldClose(false, true)).toBe(false);
+  });
+});
+
+describe("position source setting", () => {
+  const base = { token: undefined, nodeEnv: "development" } as const;
+
+  it("reads ?gps= from the address, ignoring junk", () => {
+    expect(parseGpsChoice("?gps=live")).toBe("live");
+    expect(parseGpsChoice("?gps=SIM")).toBe("sim");
+    expect(parseGpsChoice("?gps=replay")).toBe("replay");
+    expect(parseGpsChoice("?gps=nope")).toBeUndefined();
+    expect(parseGpsChoice("")).toBeUndefined();
+  });
+
+  it("defaults to the simulator, so nothing asks for location unprompted", () => {
+    const m = mapSettingsModel({ ...base, search: "", settings: {} });
+    expect(m.gps).toBe("sim");
+    expect(m.freeRide).toBe(false);
+    expect(m.gpsLockedByAddress).toBe(false);
+  });
+
+  it("uses the saved choice, and the address beats it", () => {
+    const saved = mapSettingsModel({ ...base, search: "", settings: { gps: "live" } });
+    expect(saved.gps).toBe("live");
+    expect(saved.freeRide).toBe(true);
+    const addr = mapSettingsModel({ ...base, search: "?gps=sim", settings: { gps: "live" } });
+    expect(addr.gps).toBe("sim");
+    expect(addr.gpsLockedByAddress).toBe(true);
+    expect(mapSettingsModel({ ...base, search: "?gps=replay", settings: {} }).freeRide).toBe(true);
+  });
+
+  it("treats only the simulator as a routed ride", () => {
+    expect(isFreeRide("sim")).toBe(false);
+    expect(isFreeRide("live")).toBe(true);
+    expect(isFreeRide("replay")).toBe(true);
+  });
+
+  it("saves and restores the position source and the ground height", () => {
+    const storage = memoryStorage();
+    const first = createMapSettingsStore(() => storage);
+    first.set({ gps: "live" });
+    first.set({ groundMetres: 120 });
+    const second = createMapSettingsStore(() => storage);
+    expect(second.get()).toEqual({ gps: "live", groundMetres: 120 });
+    second.set({ groundMetres: undefined });
+    expect(createMapSettingsStore(() => storage).get().groundMetres).toBeUndefined();
+  });
+
+  it("drops bad saved values, including a ground height out of range", () => {
+    expect(parseMapSettings('{"gps":"replay"}')).toEqual({});
+    expect(parseMapSettings('{"gps":"banana"}')).toEqual({});
+    expect(parseMapSettings(`{"groundMetres":${GROUND_RANGE_METRES.max + 1}}`)).toEqual({});
+    expect(parseMapSettings(`{"groundMetres":${GROUND_RANGE_METRES.min - 1}}`)).toEqual({});
+    expect(parseMapSettings('{"groundMetres":"85"}')).toEqual({});
+    expect(parseMapSettings('{"groundMetres":85}')).toEqual({ groundMetres: 85 });
   });
 });

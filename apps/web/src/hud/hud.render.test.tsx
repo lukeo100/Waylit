@@ -514,3 +514,56 @@ describe("HUD redesign: local readability, no screen wide backdrop", () => {
     expect(html).toMatch(/class="wl-plate[^"]*"[^>]*>Simulated ride/);
   });
 });
+
+describe("free ride screen", () => {
+  it("navigation panel says there is no route and hides the turn, ETA and distance left", () => {
+    const { snapshot } = ridingSnapshot();
+    const html = renderToStaticMarkup(
+      <NavigationPanel
+        speed={snapshot.speed}
+        gpsSpeedMps={snapshot.gpsSpeedMps}
+        progress={snapshot.progress}
+        riding
+        freeRide
+      />,
+    );
+    expect(html).toContain('data-testid="free-ride"');
+    expect(html).toContain("No route. Speed, distance and time come from GPS.");
+    expect(html).not.toContain("left</");
+    expect(
+      renderToStaticMarkup(
+        <NavigationPanel
+          speed={snapshot.speed}
+          gpsSpeedMps={snapshot.gpsSpeedMps}
+          progress={snapshot.progress}
+          riding
+        />,
+      ),
+    ).not.toContain("free-ride");
+  });
+
+  it("minimap with no route draws only the rider, still plain SVG", () => {
+    const withRoute = renderToStaticMarkup(<Minimap route={DEMO_ROUTE} alongMetres={0} />);
+    const free = renderToStaticMarkup(<Minimap alongMetres={0} />);
+    expect(free).toContain("Minimap, free ride");
+    expect(free).toContain("<svg");
+    expect(free).not.toContain("<image");
+    expect(free.length).toBeLessThan(withRoute.length);
+  });
+
+  it("start prompt for GPS explains the permission and that nothing is stored or sent", () => {
+    const html = renderToStaticMarkup(
+      <StartPrompt gps="live" onStart={noop} sunMode="follow-clock" onSunMode={noop} />,
+    );
+    expect(html).toContain("Start free ride");
+    expect(html).toMatch(/location/i);
+    expect(html).toMatch(
+      /not (stored|saved|sent)|never (stored|saved|sent)|nothing is (stored|saved|sent)/i,
+    );
+    expect(
+      renderToStaticMarkup(
+        <StartPrompt gps="sim" onStart={noop} sunMode="follow-clock" onSunMode={noop} />,
+      ),
+    ).toContain("Start trip");
+  });
+});

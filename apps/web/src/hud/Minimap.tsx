@@ -13,7 +13,11 @@ import {
 } from "./minimap-geometry";
 
 interface MinimapProps {
-  readonly route: Route;
+  /**
+   * The route to draw. Undefined in a free ride (live GPS, no route): then only the rider dot,
+   * the heading cone and the compass are drawn, with the heading up.
+   */
+  readonly route?: Route | undefined;
   /** Distance travelled along the route, in metres. */
   readonly alongMetres: number;
   /** Latest GPS position and heading. Without them the whole route is shown, north up. */
@@ -31,21 +35,28 @@ interface MinimapProps {
  */
 export function Minimap({ route, alongMetres, position, heading, nextTurnAt }: MinimapProps) {
   const minimap = useMemo(() => {
+    if (!route) return undefined;
     const index = createRouteIndex(route.path);
     return createMinimapRoute(route.path, index.cumulativeMetres);
   }, [route]);
   const { width, height, riderX, riderY, radius } = MINIMAP_VIEW;
 
-  const following = position !== undefined && heading !== undefined;
-  const { passed, ahead } = splitRoute(minimap, following ? alongMetres : 0);
-  const view = following
-    ? {
-        transform: followTransform(toLocal(minimap.origin, position), heading),
-        scale: MINIMAP_VIEW.unitsPerMetre,
-      }
-    : overviewTransform(minimap);
-  const start = minimap.points[0];
-  const turn = nextTurnAt ? toLocal(minimap.origin, nextTurnAt) : undefined;
+  const freeRide = minimap === undefined;
+  const following = position !== undefined && (heading !== undefined || freeRide);
+  const { passed, ahead } = minimap
+    ? splitRoute(minimap, following ? alongMetres : 0)
+    : { passed: [], ahead: [] };
+  const view =
+    minimap && following
+      ? {
+          transform: followTransform(toLocal(minimap.origin, position), heading ?? 0),
+          scale: MINIMAP_VIEW.unitsPerMetre,
+        }
+      : minimap
+        ? overviewTransform(minimap)
+        : { transform: "", scale: MINIMAP_VIEW.unitsPerMetre };
+  const start = minimap?.points[0];
+  const turn = minimap && nextTurnAt ? toLocal(minimap.origin, nextTurnAt) : undefined;
   // Marker sizes are in screen units, so they are divided by the scale inside the group.
   const unit = 1 / view.scale;
   // North is opposite to the heading, so the letter N sits on the rim in that direction.
@@ -56,7 +67,13 @@ export function Minimap({ route, alongMetres, position, heading, nextTurnAt }: M
       data-testid="minimap"
       className="wl-glass relative aspect-square size-[clamp(3.75rem,min(9vw,23dvh),7.5rem)] shrink-0 overflow-hidden rounded-full"
       role="img"
-      aria-label={following ? "Minimap, route ahead" : "Minimap, whole route"}
+      aria-label={
+        freeRide
+          ? "Minimap, free ride"
+          : following
+            ? "Minimap, route ahead"
+            : "Minimap, whole route"
+      }
     >
       <svg
         viewBox={`0 0 ${width} ${height}`}

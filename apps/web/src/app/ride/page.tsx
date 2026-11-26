@@ -25,6 +25,7 @@ import { MediaPanel } from "@/hud/MediaPanel";
 import { Minimap } from "@/hud/Minimap";
 import { NavigationPanel } from "@/hud/NavigationPanel";
 import { AttributionSlot, ScenePlaceholder } from "@/hud/SceneSlot";
+import { GpsNote } from "@/hud/GpsNote";
 import { StartPrompt } from "@/hud/StartPrompt";
 import { StatusCluster } from "@/hud/StatusCluster";
 import { TripSummary } from "@/hud/TripSummary";
@@ -68,7 +69,17 @@ import { useRide } from "@/ride/use-ride";
  * and dusk.
  */
 export default function RidePage() {
-  const { snapshot, actions } = useRide();
+  // The map and position settings come first: the position source decides which ride runs.
+  const search = useSearch();
+  const [mapSettings, setMapSettings] = useMapSettings();
+  const mapModel = mapSettingsModel({
+    search,
+    token: cesiumIonToken,
+    nodeEnv: process.env.NODE_ENV,
+    settings: mapSettings,
+  });
+  const { snapshot, actions } = useRide(mapModel.gps);
+  const freeRide = snapshot.freeRide;
   const riding = snapshot.phase === "riding";
   const summary = snapshot.phase === "summary";
   const wakeLock = useWakeLock(riding);
@@ -109,14 +120,6 @@ export default function RidePage() {
   // while the dev controls are shown, so riders can never end up on a frozen clock.
   // It starts from `?time=` in the address (see parseTimeOverride), and the controls take over
   // after that. "live" is the explicit choice to follow the real clock.
-  const search = useSearch();
-  const [mapSettings, setMapSettings] = useMapSettings();
-  const mapModel = mapSettingsModel({
-    search,
-    token: cesiumIonToken,
-    nodeEnv: process.env.NODE_ENV,
-    settings: mapSettings,
-  });
   const [timeChoice, setTimeChoice] = useState<number | "live" | undefined>(undefined);
   const urlTimeMs = devControls
     ? parseTimeOverride(search, DEFAULT_SUN_POSITION, realNowMs)
@@ -145,7 +148,7 @@ export default function RidePage() {
       ? undefined
       : sunMoment({
           mode: sunMode,
-          positionSource: POSITION_SOURCE,
+          positionSource: mapModel.freeRide ? "gps" : POSITION_SOURCE,
           deviceNowMs: realNowMs,
           deviceUtcOffsetMinutes: utcOffsetMinutesAt(realNowMs),
           position: sunPosition,
@@ -174,11 +177,12 @@ export default function RidePage() {
         <ScenePlaceholder />
         <MapScene
           creditsElement={noticeAcknowledged ? creditsElement : null}
-          route={DEMO_ROUTE}
+          route={freeRide ? undefined : DEMO_ROUTE}
           phase={snapshot.phase}
           position={riding ? snapshot.position : undefined}
           heading={riding ? snapshot.heading : undefined}
-          alongMetres={riding ? snapshot.progress.distanceAlongMetres : undefined}
+          alongMetres={riding && !freeRide ? snapshot.progress.distanceAlongMetres : undefined}
+          altitude={riding ? snapshot.altitude : undefined}
           daylight={daylight}
           settings={mapSettings}
           devOverlay={devControls}
@@ -194,6 +198,7 @@ export default function RidePage() {
                 riding={riding}
                 note={telemetryNote(snapshot.telemetry, snapshot.trip, riding)}
                 simulatedNowMs={timeOverrideMs}
+                freeRide={freeRide}
               />
             )
           }
@@ -204,10 +209,12 @@ export default function RidePage() {
                 <MapSettings
                   model={mapModel}
                   guarded={snapshot.guarded}
+                  canChangeGps={snapshot.phase === "idle"}
+                  groundMetres={mapSettings.groundMetres}
                   onChange={setMapSettings}
                 />
                 <Minimap
-                  route={DEMO_ROUTE}
+                  route={freeRide ? undefined : DEMO_ROUTE}
                   alongMetres={snapshot.progress.distanceAlongMetres}
                   position={riding ? snapshot.position : undefined}
                   heading={riding ? snapshot.heading : undefined}
@@ -221,8 +228,14 @@ export default function RidePage() {
             summary ? undefined : (
               <>
                 {snapshot.phase === "idle" ? (
-                  <StartPrompt onStart={startTrip} sunMode={sunMode} onSunMode={setSunMode} />
+                  <StartPrompt
+                    onStart={startTrip}
+                    sunMode={sunMode}
+                    onSunMode={setSunMode}
+                    gps={mapModel.gps}
+                  />
                 ) : null}
+                {riding && freeRide ? <GpsNote status={snapshot.gps?.status} /> : null}
                 {devControls ? (
                   <DevControls
                     playbackSpeed={snapshot.playbackSpeed}

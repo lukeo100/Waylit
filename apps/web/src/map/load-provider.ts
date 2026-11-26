@@ -1,6 +1,7 @@
 import {
   DEMO_ROUTE_GROUND_ELLIPSOID_METRES,
   constantGroundHeight,
+  type GroundHeightSource,
   type MapProvider,
   type ProviderId,
   type RenderTuning,
@@ -15,7 +16,12 @@ import {
 export async function loadProvider(
   id: ProviderId,
   tuning: RenderTuning,
-  context: { readonly token: string | undefined; readonly lighting: SceneLighting | undefined },
+  context: {
+    readonly token: string | undefined;
+    readonly lighting: SceneLighting | undefined;
+    /** A ground height source from outside, such as the phone's altitude in a free ride. */
+    readonly ground?: GroundHeightSource;
+  },
 ): Promise<MapProvider> {
   if (id === "cesium-google") {
     if (!context.token) throw new Error("no token");
@@ -23,9 +29,11 @@ export async function loadProvider(
     return new CesiumGoogleProvider({
       token: context.token,
       tuning,
-      ground: constantGroundHeight(
-        tuning.groundHeightEllipsoidMetres ?? DEMO_ROUTE_GROUND_ELLIPSOID_METRES,
-      ),
+      ground:
+        context.ground ??
+        constantGroundHeight(
+          tuning.groundHeightEllipsoidMetres ?? DEMO_ROUTE_GROUND_ELLIPSOID_METRES,
+        ),
     });
   }
   const { MapLibreFallbackProvider } = await import("./maplibre-fallback");
