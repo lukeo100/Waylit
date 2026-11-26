@@ -51,10 +51,13 @@ apps/web/src/
   hud/
     HudFrame            the layout only (top left, top right, centre, dock, credits rows), shared by the
                         ride page and the dev preview. Paints no backdrop of its own
-    NavigationPanel     top left, one small plate: speed, GPS speed and unit, a divider, then the turn
-                        arrow (cyan when imminent), distance, street, time and distance left, arrival
-    StatusCluster       top right: a status chip on a plate with local time, mock temperature and the dot
-    readability.ts      pure: plate opacity by daylight and the WCAG maths for the contrast tests
+    NavigationPanel     top left, bare text with a glyph shadow and no plate: speed, GPS speed and unit,
+                        then the turn arrow (cyan when imminent), distance, street, time and distance
+                        left, arrival
+    StatusCluster       top right: bare text with a glyph shadow and no plate: local time, mock
+                        temperature and the dot
+    readability.ts      pure: plate opacity by daylight, the glyph shadow model and the WCAG maths for
+                        the contrast tests
     Minimap             top right: round plain SVG route line, position dot, heading cone, N. No tiles
     Dock                one joined glass dock, content sized and centred, with a hairline divider between its two halves
     MediaPanel          dock, left half: artwork, title, artist, previous, play or pause, next, progress line
