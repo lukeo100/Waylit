@@ -24,6 +24,9 @@ apps/web/public/maplibre/
 *.keystore
 *.jks
 
+# Written by `next dev` (Next.js agent rules), not part of the project
+apps/web/AGENTS.md
+
 # Hosting tool state
 .vercel/
 .turbo/

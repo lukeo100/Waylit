@@ -1,6 +1,6 @@
 # Deploying your own copy
 
-> **Status: partial.** Running locally works today. The Vercel and self-host steps are outlined below and will be checked from a clean environment before the first release.
+> **Status.** The local steps, the production build and the no-keys fallback map were followed one by one from a fresh clone on 2026-11-26 (Node 22, pnpm 10.28). The Vercel steps were not repeated from a new account. The maintainer has not yet chosen which self-host path to document, so section 4 lists what was tested for each option.
 
 The goal is that anyone can run their own copy with their own accounts and keys. There is no shared hosted instance and no shared API key.
 
@@ -8,9 +8,10 @@ The goal is that anyone can run their own copy with their own accounts and keys.
 
 All free:
 
-- [Node.js](https://nodejs.org/) 22 LTS. The exact major version is in `.nvmrc`. With nvm, run `nvm use`.
-- pnpm 10. The exact version is pinned in the `packageManager` field of `package.json`. The simplest way to get it is Corepack, which ships with Node.js: `corepack enable`.
+- [Node.js](https://nodejs.org/) 22.12 or newer 22.x. `.nvmrc` holds the major version (22) and `engines` in `package.json` allows `>=22.12.0 <23`. With nvm, run `nvm use`. Another major version only prints an "Unsupported engine" warning and does not stop the install. Install, lint, typecheck, tests and the build also passed on Node 20 and Node 26 in a test, but CI checks Node 22 only, so use that.
+- pnpm 10. The exact version (10.28.0) is pinned in the `packageManager` field of `package.json`. The simplest way to get it is Corepack, which ships with Node 22: `corepack enable`. Corepack downloads pnpm the first time you run it. If your Node.js has no Corepack, `npm install -g pnpm@10.28.0` does the same.
 - Git.
+- An internet connection, for installing packages and for the map tiles.
 
 ## 2. Run locally with no keys
 
@@ -22,7 +23,9 @@ pnpm install
 pnpm dev
 ```
 
-Open http://localhost:3000. No `.env` file, account or API key is needed.
+Open http://localhost:3000. If the port is busy, `pnpm dev` uses the next free one and prints the address. No `.env` file, account or API key is needed.
+
+Check that it works: open `/ride`, tap **I understand**, then **Start trip**. The speed, the next turn, the dock with the media player and vehicle data, and a credits strip reading "OpenFreeMap", "OpenMapTiles", "OpenStreetMap contributors" and "Mapterhorn" should appear over a 3D scene. If the computer is offline or the tile hosts are blocked, the scene stays plain and a small amber note says some tiles could not load. Tap the layers button beside the minimap to open the map settings (above 8 km/h it needs a hold, and the sheet closes by itself). With no token, "Google 3D tiles" is greyed out and the sheet says it needs a Cesium ion token.
 
 To check a production build locally:
 
@@ -31,49 +34,78 @@ pnpm build
 pnpm start
 ```
 
+`pnpm build` takes about a minute. It first copies the CesiumJS and MapLibre runtime files into `apps/web/public/cesium` and `apps/web/public/maplibre` (git ignores both), then runs `next build` and prints a route table. `pnpm start` needs the build, serves it on http://localhost:3000 and does not pick another port when 3000 is taken, so set one with `PORT=8080 pnpm start`. The service worker only runs in this production mode. A quick check from another terminal:
+
+```sh
+curl -I http://localhost:3000/manifest.webmanifest   # 200, application/manifest+json
+curl -I http://localhost:3000/sw.js                  # 200, Cache-Control: no-cache, no-store, must-revalidate
+```
+
+The build also includes two developer preview pages, `/dev/holo-preview` and `/dev/fx-preview`. They draw procedural scenes, need no keys and are not linked from the app.
+
+The same checks that CI runs, for a change of your own:
+
+```sh
+pnpm format:check
+pnpm lint
+pnpm typecheck
+pnpm test
+pnpm build
+```
+
 ## 3. Deploy on Vercel
 
 1. Fork the repository on GitHub.
-2. In Vercel, import the fork. Set the **Root Directory** to `apps/web`. Vercel detects Next.js and pnpm from the lockfile, and installs the whole workspace.
-3. Leave environment variables empty for a no-keys deployment, or add the optional ones from section 5.
-4. Deploy.
+2. In Vercel, import the fork. Set the **Root Directory** to `apps/web`. Vercel detects Next.js and pnpm from the lockfile in the repository root and installs the whole workspace. Leave the install, build and output settings at their defaults: the build runs the `build` script in `apps/web`, which copies the map files and then runs `next build`. Keep **Include source files outside of the Root Directory in the Build Step** on (it is on by default), because the app imports the packages in `packages/`.
+3. Under **Settings**, **Build and Deployment**, set **Node.js Version** to 22.x so it matches CI. Vercel's default for a new project is its newest LTS version, and it does not read `.nvmrc`. The Root Directory is `apps/web`, so the `engines` field in the repository's top level `package.json` is outside it.
+4. Leave environment variables empty for a no-keys deployment, or add the optional ones from section 5 before the first deploy. `NEXT_PUBLIC_*` values are read at build time, so changing one needs a new deployment.
+5. Deploy. When it finishes, open `/ride` on the deployment and check `/manifest.webmanifest` and `/sw.js` the way section 2 does.
 
 Free Hobby plans are enough. Keep Deployment Protection on if the deployment is only for you.
 
 ## 4. Self-host
 
-> **Proposed, not final.** The recommendation below is a proposal for the maintainer to approve. Nothing in the build is switched yet.
+> **Not decided.** The maintainer has not chosen one documented self-host path yet. The three options below were each tried on 2026-11-26 from a fresh clone, so the facts are checked, but none is the recommended path and only the first needs no change to the repository.
 
-### Recommendation: static export
+### Option A: a Node.js server (works today)
 
-Build Waylit as a static site with Next.js static export (`output: "export"`), and serve the resulting `apps/web/out/` folder from any static web server or free static host.
+```sh
+git clone https://github.com/lukeo100/Waylit.git waylit
+cd waylit
+corepack enable
+pnpm install --frozen-lockfile
+pnpm build
+PORT=3000 pnpm start
+```
 
-Why:
+`pnpm start` listens on all interfaces. Put a reverse proxy with HTTPS in front of it (nginx, Caddy or similar) and keep it running with a service manager such as systemd. Everything works as on Vercel, including the response headers set in `next.config.ts`. Set any `NEXT_PUBLIC_*` variables before `pnpm build`.
 
-- **Milestone 1 has no server.** The app is a client-side PWA with simulated GPS, mock telemetry and mock media. There are no API routes, no server rendering per request and no backend in scope.
-- **Cheapest and simplest to run.** Plain files work on any web server (nginx, Caddy, Apache) and on free static hosts. There is no Node.js process to keep alive, patch or monitor.
-- **Smaller attack surface.** No server code runs in production, so there is nothing server-side to exploit or misconfigure.
-- **Fits the PWA.** A service worker and manifest are static files, and offline caching works the same as on Vercel.
-- **Keys stay the deployer's.** Public keys are inlined at build time, so each deployer builds with their own environment. This matches the bring-your-own-keys rule.
+- Good: no change to the repository, every Next.js feature works, the `Cache-Control` rule for the worker scripts applies on its own.
+- Cost: a Node.js 22 process to keep running, patch and watch.
 
-Trade-offs to accept:
+### Option B: static export (prototype, not switched on)
 
-- Features that need a server are unavailable in this mode: route handlers, middleware, incremental regeneration and the built-in image optimiser. The app should avoid them in milestone 1 so the same code builds both ways.
-- `NEXT_PUBLIC_*` values are fixed at build time. Changing a key means rebuilding.
-- Response headers (content security policy, service worker caching) must be set in the web server config rather than in Next.js. Example configs would be added to the docs.
-- HTTPS is required for service workers, geolocation and Web Bluetooth. Most static hosts provide it. A self-managed server needs a certificate, for example from Let's Encrypt.
+Next.js can write the app as plain files with `output: "export"` in `apps/web/next.config.ts`, which `pnpm build` then writes to `apps/web/out/`. The default build does not do this. Tried in a scratch copy:
 
-### Alternative: Docker image
+- It builds, with a warning that `headers` are ignored. The output is about 22 MB, of which about 9 MB is the CesiumJS runtime that only a build with a token uses.
+- `/`, `/ride`, `/dev/*`, the manifest, `/sw.js` and `/offline.html` are all in the output. The ride screen, the fallback map, the HUD, the map settings sheet, the manifest, the service worker, its caches and the offline page all worked from the exported files in headless Chrome.
+- `/ride` is written as `ride.html`, so the web server has to map `/ride` to it (nginx: `try_files $uri $uri.html $uri/index.html;`). Building with `trailingSlash: true` instead writes `ride/index.html`, which any plain file server finds (it worked with `python3 -m http.server`), but the address becomes `/ride/`.
+- The server must send `.mjs` files as `text/javascript`, `.wasm` as `application/wasm` and `.webmanifest` as `application/manifest+json`. With a wrong type for `.mjs`, the MapLibre map worker fails to load.
+- Headers in `next.config.ts` do not apply, so the server config must send `Cache-Control: no-cache` for `/sw.js` and `/sw-strategy.js`.
+- The app uses absolute paths (`/sw.js`, `/maplibre/`, `/cesium/`, the manifest `start_url`, the icons), so it has to be served from the root of its own domain or subdomain. A sub-path such as `user.github.io/Waylit/` does not work.
+- The developer preview pages are exported too.
 
-A Docker image built from Next.js standalone output runs `next start` inside a container. It supports every Next.js feature and suits a later phase if the app gains server code. It is heavier to build and run, needs a long-running process, and adds an image to maintain. It is worth revisiting if a later phase needs server features. A Docker image could also simply wrap the static export in a small web server, for people who prefer containers.
+Good: plain files on any web server or free static host, no process to keep alive, smaller attack surface. Cost: a build switch and server config would need to be added and documented, route handlers, middleware and the image optimiser could not be used later in this mode, and the root domain requirement.
 
-### Next steps if approved
+### Option C: Docker
 
-Add a build flag for static export, check the app builds and runs in both modes in CI, and document the steps for one static host and one generic web server.
+Next.js `output: "standalone"` builds a small self-contained server (about 73 MB with its dependencies) that starts with `node apps/web/.next/standalone/apps/web/server.js`. It only works after you copy `apps/web/public` and `apps/web/.next/static` next to it, which is the usual Dockerfile step. A Docker image could also wrap the static export in a small web server. No Docker image was built, because the test machine had no Docker daemon, and the repository has no Dockerfile.
+
+Good: one portable artifact, supports every Next.js feature. Cost: a Dockerfile and image to build, publish and maintain, and a long running process.
 
 ## 5. Environment variables
 
-Every variable is optional. With all of them empty, Waylit uses its defaults, the fallback map and mock data. Names are listed in [`.env.example`](../.env.example). For local development, copy it to `apps/web/.env.local`, which is ignored by git.
+Every variable is optional. With all of them empty, Waylit uses its defaults, the fallback map and mock data. Names are listed in [`.env.example`](../.env.example). To set any of them locally, copy it to `apps/web/.env.local` (inside `apps/web`, not the repository root, because Next.js reads it from there) and fill in the values. It is ignored by git. Copying it with every value left empty is fine, and so is not copying it at all. Values are read when you run `pnpm dev` or `pnpm build`, so rebuild after changing one.
 
 | Variable | Default when empty | Purpose |
 |---|---|---|
@@ -118,7 +150,7 @@ When you deploy your own copy you become the customer of Cesium ion and, through
 
 If CesiumJS fails (bad token, no quota, network, no WebGL) the app tries once, then switches to the fallback and shows a small amber note on the riding screen. It does not retry in a loop.
 
-Network hosts used by the scene, in case you set a content security policy or a firewall: `api.cesium.com` and `assets.ion.cesium.com` (and Cesium ion's tile hosts), `tile.googleapis.com`, `tiles.openfreemap.org`, `tiles.mapterhorn.com`. Waylit does not ship a content security policy. The scene also uses workers (`worker-src blob:`) and WebAssembly, and `/cesium/` and `/maplibre/` must be served as plain static files. Both folders are copied into `apps/web/public` by `pnpm dev` and `pnpm build`.
+Network hosts used by the scene, in case you set a content security policy or a firewall: `api.cesium.com` and `assets.ion.cesium.com` (and Cesium ion's tile hosts), `tile.googleapis.com`, `tiles.openfreemap.org`, `tiles.mapterhorn.com`. Waylit does not ship a content security policy. The scene also uses workers (`worker-src blob:`) and WebAssembly, and `/cesium/` and `/maplibre/` must be served as plain static files, with `.mjs` as `text/javascript` and `.wasm` as `application/wasm`. Both folders are copied into `apps/web/public` by `pnpm dev` and `pnpm build`.
 
 Waylit's service worker never caches Google, Cesium ion, OpenFreeMap or Mapterhorn tiles. Do not add a cache in front of them unless the provider's terms allow it.
 
@@ -128,8 +160,14 @@ Open your deployed HTTPS URL in Chrome on Android and tap **Install app**. The s
 
 ## 8. Updating and troubleshooting
 
-- **`pnpm: command not found`.** Run `corepack enable`, then open a new terminal.
-- **Install fails with an engine error.** Check `node --version` matches `.nvmrc`.
+To update a copy, pull the new code, run `pnpm install` and `pnpm build` again, and restart or redeploy.
+
+- **`pnpm: command not found`.** Run `corepack enable`, then open a new terminal. If your Node.js has no Corepack, run `npm install -g pnpm@10.28.0`.
+- **`Unsupported engine` warning during install.** `node --version` does not match `.nvmrc` and `engines` in `package.json`. The install still finishes, but switch to Node 22 (`nvm use`) to match what CI checks.
 - **Lockfile errors in CI.** Run `pnpm install` locally and commit the updated `pnpm-lock.yaml`.
+- **`pnpm start` says it could not find a production build.** Run `pnpm build` first.
+- **`EADDRINUSE` from `pnpm start`.** Port 3000 is taken. Use `PORT=8080 pnpm start` (`pnpm dev` picks a free port on its own).
+- **A small amber note says some map tiles could not load.** The browser could not reach the tile servers listed in section 6. Check the connection, a firewall or a content security policy. The HUD still works.
+- **`MODULE_NOT_FOUND` from `scripts/copy-map-assets.mjs` when running `pnpm dev` or `pnpm build`.** The dependencies are not installed. Run `pnpm install` in the repository root.
 
 If you hit a gap while following this guide, open an issue. Unclear deployment steps count as bugs.

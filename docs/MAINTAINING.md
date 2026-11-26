@@ -14,7 +14,7 @@ Tick these in the repository settings on GitHub.
 
 **Branch protection or rulesets**
 - [ ] `main`: require a pull request, require the CI checks `Repository hygiene` and `Lint, typecheck, test, build` to pass, block force pushes and deletions.
-- [ ] `dev`: block force pushes and deletions. Require the same checks.
+- [ ] `dev`: block force pushes and deletions. Requiring pull requests or the CI checks on `dev` is optional, because the maintainer and approved agents fast forward to it. If you require them, expect to merge by pull request.
 - [ ] Pushes to `main` only come from reviewed merges of `dev`.
 
 **Security**
@@ -31,6 +31,8 @@ Tick these in the repository settings on GitHub.
 
 GitHub reads issue templates, `CODEOWNERS`, `SECURITY.md` and `dependabot.yml` from the default branch. When the repository is new, `main` holds only the licence until `dev` is merged. Open the first `dev` to `main` pull request straight after the first push, and turn on Discussions at the same time so the issue chooser link does not 404. Dependabot security update pull requests target the default branch regardless of the `target-branch` setting, so expect those on `main`.
 
+Until `dev` is merged into `main`, a fresh `git clone` of the default branch holds only the licence and notice. It has no README, no `package.json` and none of the steps in `docs/DEPLOYING.md`, so a stranger cannot run anything. Merge `dev` into `main` before the project is promoted or the fresh clone check below is repeated against the default branch.
+
 ## Branch model
 
 Contributors branch from `dev` and open pull requests against `dev`. The maintainer merges `dev` into `main` for releases and milestones. Only `main` is deployed to production.
@@ -40,6 +42,18 @@ Contributors branch from `dev` and open pull requests against `dev`. The maintai
 1. Move the Unreleased entries in `CHANGELOG.md` under a new version heading with the date.
 2. Choose the version by [Semantic Versioning](https://semver.org/). While the major version is 0, minor bumps may contain breaking changes.
 3. Merge `dev` into `main`, tag `vX.Y.Z` and publish a GitHub release using the changelog text.
+
+## Fresh clone check
+
+Repeat this before a release and after any change to the toolchain, the build or the deployment docs. It proves a stranger can follow the docs. Use a new empty directory and no `.env` file or token.
+
+1. `git clone https://github.com/lukeo100/Waylit.git waylit`, then `cd waylit`. Use `git checkout dev` if `dev` has not been merged to `main` yet.
+2. Follow `README.md` and `docs/DEPLOYING.md` literally: `corepack enable`, `pnpm install`, then `pnpm format:check`, `pnpm lint`, `pnpm typecheck`, `pnpm test` and `pnpm build`. Everything should pass, and `git status` should show no changes.
+3. Start the build on a spare port with `PORT=3100 pnpm start`. Open `/ride` in Chrome, tap **I understand** and **Start trip**, and check that the HUD shows, the credits strip names OpenFreeMap, the manifest and `/sw.js` are served (the worker with `Cache-Control: no-cache`), and the map settings sheet shows Google 3D tiles as disabled with a plain message.
+4. With the build running, `node apps/web/scripts/layout-check.mjs http://localhost:3100` runs the headless Chrome layout checks (it needs Chrome or Chromium, see the top of the script).
+5. Note every place where the docs were wrong, missing or unclear, fix them, and record the result in the changelog.
+
+Not covered by this check: a real Vercel import from a new account, and the optional Cesium ion token path. Do those by hand with your own account and token.
 
 ## If a secret leaks
 

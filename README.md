@@ -2,7 +2,7 @@
 
 Open source 3D navigation for electric scooters and bicycles.
 
-> **Status: pre-alpha.** The project structure, design system, installable PWA shell and a placeholder home page are in place. The riding screen and 3D view arrive phase by phase, see the [roadmap](docs/ROADMAP.md).
+> **Status: pre-alpha.** The installable PWA, the riding screen with a simulated ride and mock vehicle data, and the 3D view (a MapLibre fallback with no key, or Google Photorealistic 3D Tiles with your own Cesium ion token) are in place. Real GPS, routing and vehicle connections are not built yet, see the [roadmap](docs/ROADMAP.md).
 
 ## What it is
 
@@ -21,7 +21,7 @@ Waylit is a navigation aid, not a safety system. Follow your local road and path
 
 ## Getting started
 
-You need Node.js 22 (see `.nvmrc`) and Git. pnpm is pinned in `package.json` and provided by Corepack, which ships with Node.js. No accounts or API keys are needed.
+You need Node.js 22.12 or newer 22.x (see `.nvmrc` and `engines` in `package.json`) and Git. pnpm is pinned in `package.json` and provided by Corepack, which ships with Node.js 22. No accounts or API keys are needed, and you do not need to create a `.env` file.
 
 ```sh
 git clone https://github.com/lukeo100/Waylit.git waylit
@@ -31,7 +31,16 @@ pnpm install
 pnpm dev
 ```
 
-Then open http://localhost:3000. The service worker only runs in production builds. To try install and offline behaviour, see [docs/PWA.md](docs/PWA.md).
+Then open http://localhost:3000 (if that port is busy, `pnpm dev` picks the next free one and prints it). The riding screen is at `/ride`: tap **I understand**, then **Start trip**. The map tiles are fetched from the internet, so without a connection the scene stays plain and a small amber note says some tiles could not load.
+
+The service worker only runs in production builds. To try the production build and the PWA, run:
+
+```sh
+pnpm build
+pnpm start
+```
+
+`pnpm build` takes about a minute. `pnpm start` serves the build on http://localhost:3000, or on another port with `PORT=8080 pnpm start`. It needs `pnpm build` first. Install and offline behaviour are in [docs/PWA.md](docs/PWA.md).
 
 | Command | What it does |
 |---|---|
@@ -47,7 +56,7 @@ The code is split into a Next.js app and small shared packages, described in [do
 
 The riding screen shows a 3D environment. Without any key it uses MapLibre with OpenFreeMap. With your own Cesium ion token (`NEXT_PUBLIC_CESIUM_ION_TOKEN`), production builds show Google Photorealistic 3D Tiles through CesiumJS and fall back to MapLibre if that fails. Development builds always use the fallback unless you add `?map=cesium` to the address, to save the Cesium ion allowance. `?map=fallback` forces the fallback anywhere, and `?dev=1` shows a frame rate overlay. The scene light follows your phone clock by default (so it is dark when it is night where you are), and `?sun=real` uses the real sun at the demo route instead; there is also a switch on the start screen. `?fx=off`, `?fx=low` and `?fx=high` set the futuristic look (see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)). The map button beside the minimap switches between Google 3D tiles and the fallback map and sets the hologram screen effect; it remembers the choice on the device, and the address still wins. Each switch to Google uses a Cesium ion request. See [docs/DEPLOYING.md](docs/DEPLOYING.md).
 
-Anyone should be able to deploy their own copy. The plan for that is in [docs/DEPLOYING.md](docs/DEPLOYING.md). Waylit does not run a shared hosted instance, so there are no shared API keys: you bring your own for any optional provider.
+Anyone should be able to deploy their own copy. The steps for Vercel and for self-hosting are in [docs/DEPLOYING.md](docs/DEPLOYING.md). Waylit does not run a shared hosted instance, so there are no shared API keys: you bring your own for any optional provider.
 
 ## Contributing
 
