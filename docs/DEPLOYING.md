@@ -57,7 +57,7 @@ pnpm build
 
 1. Fork the repository on GitHub.
 2. In Vercel, import the fork. Set the **Root Directory** to `apps/web`. Vercel detects Next.js and pnpm from the lockfile in the repository root and installs the whole workspace. Leave the install, build and output settings at their defaults: the build runs the `build` script in `apps/web`, which copies the map files and then runs `next build`. Keep **Include source files outside of the Root Directory in the Build Step** on (it is on by default), because the app imports the packages in `packages/`.
-3. Under **Settings**, **Build and Deployment**, set **Node.js Version** to 22.x so it matches CI. Vercel's default for a new project is its newest LTS version, and it does not read `.nvmrc`. The Root Directory is `apps/web`, so the `engines` field in the repository's top level `package.json` is outside it.
+3. Under **Settings**, **Build and Deployment**, set **Node.js Version** to 22.x so it matches CI. Vercel's default for a new project is its newest LTS version, which is not the one CI checks, and its documentation lists only this setting and the `engines` field of `package.json` as ways to choose. The Root Directory is `apps/web`, so the `engines` field in the repository's top level `package.json` is probably not read.
 4. Leave environment variables empty for a no-keys deployment, or add the optional ones from section 5 before the first deploy. `NEXT_PUBLIC_*` values are read at build time, so changing one needs a new deployment.
 5. Deploy. When it finishes, open `/ride` on the deployment and check `/manifest.webmanifest` and `/sw.js` the way section 2 does.
 
