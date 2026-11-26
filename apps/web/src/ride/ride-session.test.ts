@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createManualClock, kmhToMps, type Scheduler } from "@waylit/core";
+import type { VehicleAdapter, VehicleTelemetry } from "@waylit/vehicle";
 import { GUARD_OFF_KMH, GUARD_ON_KMH, nextGuardState } from "./guard";
 import { RideSession, createEmptySnapshot } from "./ride-session";
 import { createRideStore } from "./ride-store";
@@ -275,5 +276,98 @@ describe("ride store", () => {
     expect(calls).toBe(3);
     expect(store.getServerSnapshot()).toBe(store.getServerSnapshot());
     expect(store.getServerSnapshot()).toEqual(createEmptySnapshot());
+  });
+});
+
+describe("RideSession with a vehicle adapter owned by the app", () => {
+  function fakeAdapter() {
+    const listeners = new Set<(s: VehicleTelemetry) => void>();
+    const calls: string[] = [];
+    const adapter: VehicleAdapter = {
+      info: { adapterId: "fake", displayName: "Fake scooter" },
+      capabilities: { fields: ["speedMps"] },
+      connect: async () => void calls.push("connect"),
+      disconnect: async () => void calls.push("disconnect"),
+      getConnectionState: () => "connected",
+      onTelemetry: (l) => {
+        listeners.add(l);
+        return () => void listeners.delete(l);
+      },
+      onConnectionStateChange: () => () => undefined,
+    };
+    const emit = (sample: VehicleTelemetry) => {
+      for (const l of listeners) l(sample);
+    };
+    return { adapter, emit, calls, listeners };
+  }
+
+  it("uses its telemetry for speed, never connects or disconnects it, and falls back to GPS", () => {
+    const clock = createManualClock(1_700_000_000_000);
+    const { adapter, emit, calls } = fakeAdapter();
+    const session = new RideSession({ clock, vehicle: adapter });
+    expect(session.getSnapshot().vehicleName).toBe("Fake scooter");
+    expect(session.getSnapshot().telemetry).toBeUndefined();
+    session.start();
+    for (let t = 0; t < 12; t += 0.25) {
+      clock.advance(250);
+      emit({ speedMps: kmhToMps(17), timestamp: clock.now() });
+      session.tick();
+    }
+    let s = session.getSnapshot();
+    expect(s.speed.source).toBe("vehicle");
+    expect(s.speed.speedMps).toBeCloseTo(kmhToMps(17), 5);
+    expect(s.gpsSpeedMps).toBeDefined();
+
+    // The adapter stops sending, as a dropped link does. After the stale limit GPS takes over.
+    for (let t = 0; t < 3; t += 0.25) {
+      clock.advance(250);
+      s = session.tick();
+    }
+    expect(s.speed.source).toBe("gps");
+    expect(s.speed.fallbackReason).toBe("vehicle-telemetry-stale");
+    expect(calls).toEqual([]);
+    session.dispose();
+    expect(calls).toEqual([]);
+  });
+
+  it("switches between the mock and an adapter without losing the ride", () => {
+    const clock = createManualClock(1_700_000_000_000);
+    const { adapter, emit, listeners } = fakeAdapter();
+    const session = new RideSession({ clock });
+    session.start();
+    for (let t = 0; t < 10; t += 0.25) {
+      clock.advance(250);
+      session.tick();
+    }
+    const along = session.getSnapshot().progress.distanceAlongMetres;
+    expect(session.getSnapshot().vehicleName).toMatch(/simulated/i);
+
+    session.setVehicle(adapter);
+    expect(session.getSnapshot().vehicleName).toBe("Fake scooter");
+    expect(session.getSnapshot().telemetry).toBeUndefined();
+    expect(listeners.size).toBe(1);
+    emit({ speedMps: 3, timestamp: clock.now() });
+    clock.advance(250);
+    expect(session.tick().speed.source).toBe("vehicle");
+    expect(session.getSnapshot().progress.distanceAlongMetres).toBeGreaterThanOrEqual(along);
+
+    session.setVehicle(undefined);
+    expect(listeners.size).toBe(0);
+    expect(session.getSnapshot().vehicleName).toMatch(/simulated/i);
+    clock.advance(250);
+    expect(session.tick().telemetry).toBeDefined();
+  });
+
+  it("keeps the app's adapter across Start new trip", () => {
+    const clock = createManualClock(1_700_000_000_000);
+    const { adapter, calls } = fakeAdapter();
+    const session = new RideSession({ clock, vehicle: adapter });
+    session.start();
+    clock.advance(1000);
+    session.tick();
+    session.endTrip();
+    session.reset();
+    expect(session.getSnapshot().vehicleName).toBe("Fake scooter");
+    expect(calls).toEqual([]);
   });
 });

@@ -26,6 +26,7 @@ import {
   type MockVehicleAdapter,
   type SelectedSpeed,
   type TripReading,
+  type VehicleAdapter,
   type VehicleTelemetry,
 } from "@waylit/vehicle";
 import { nextGuardState } from "./guard";
@@ -106,6 +107,12 @@ export interface RideSessionOptions {
   readonly clock?: Clock;
   readonly playbackSpeed?: number;
   readonly seed?: number;
+  /**
+   * A vehicle adapter owned by the app, for example the Bluetooth one. The session only listens
+   * to it: it never connects, disconnects or disposes it. Without one the session runs the mock
+   * adapter, which is the default.
+   */
+  readonly vehicle?: VehicleAdapter | undefined;
 }
 
 /** Expected pace before the ride has shown its own, in km/h. Close to the simulator's average. */
@@ -131,10 +138,15 @@ export class RideSession {
   private readonly seed: number;
 
   private sim: GpsSimulator | undefined;
-  private vehicle!: MockVehicleAdapter;
+  private vehicle!: VehicleAdapter;
+  /** Set only while the mock adapter is the vehicle. It is driven by the simulated or live motion. */
+  private mock: MockVehicleAdapter | undefined;
+  /** A vehicle adapter owned by the app. Undefined means the mock. */
+  private external: VehicleAdapter | undefined;
   private readonly gpsDistance = new GpsDistanceIntegrator();
   private readonly tripTracker = new TripTracker();
   private unsubscribes: (() => void)[] = [];
+  private vehicleUnsubscribe: (() => void) | undefined;
 
   private phase: RidePhase = "idle";
   private playbackSpeed: number;
@@ -152,6 +164,7 @@ export class RideSession {
     this.model = createProgressModel(this.route);
     this.playbackSpeed = options.playbackSpeed ?? 1;
     this.seed = options.seed ?? 1;
+    this.external = options.vehicle;
     this.build();
     this.current = this.compute();
   }
@@ -177,7 +190,7 @@ export class RideSession {
     this.gpsDistance.reset();
     this.along = 0;
     this.guarded = false;
-    this.vehicle.startTrip();
+    this.mock?.startTrip();
     // For a live receiver this runs inside the tap on Start trip, so the browser may ask.
     if (this.live) this.live.start();
     else this.sim?.start();
@@ -227,6 +240,18 @@ export class RideSession {
     this.current = this.compute();
   }
 
+  /**
+   * Switches the vehicle: an adapter owned by the app, or the mock when given undefined. The
+   * route, the position source and the trip carry on. Anything the old vehicle reported is
+   * forgotten, so the speed falls back to GPS until the new one reports.
+   */
+  setVehicle(adapter: VehicleAdapter | undefined): void {
+    if (adapter === this.external && (adapter !== undefined || this.mock !== undefined)) return;
+    this.external = adapter;
+    this.attachVehicle();
+    this.current = this.compute();
+  }
+
   /** Dev control: stops vehicle telemetry arriving, to show the GPS fallback. */
   setTelemetryLost(lost: boolean): void {
     this.telemetryLost = lost;
@@ -240,25 +265,43 @@ export class RideSession {
 
   private build(): void {
     const source = this.live ?? this.buildSimulator();
-    this.vehicle = createMockVehicleAdapter({
-      motion: this.live ?? (this.sim as GpsSimulator),
-      clock: this.clock,
-      seed: this.seed,
-    });
-    this.lastTelemetry = undefined;
     this.unsubscribes = [
       source.onFix((fix) => {
         if (this.phase === "riding") this.gpsDistance.add(fix);
       }),
-      // A lost link simply stops samples arriving. The last one then goes stale.
-      this.vehicle.onTelemetry((sample) => {
-        if (!this.telemetryLost) this.lastTelemetry = sample;
-      }),
     ];
+    this.attachVehicle();
+  }
+
+  /** Listens to the app's adapter, or starts a mock one, and drops the previous vehicle. */
+  private attachVehicle(): void {
+    this.vehicleUnsubscribe?.();
+    this.vehicleUnsubscribe = undefined;
+    if (this.mock) void this.mock.disconnect();
+    this.mock = undefined;
+    this.lastTelemetry = undefined;
+
+    if (this.external) {
+      this.vehicle = this.external;
+    } else {
+      this.mock = createMockVehicleAdapter({
+        motion: this.live ?? (this.sim as GpsSimulator),
+        clock: this.clock,
+        seed: this.seed,
+      });
+      this.vehicle = this.mock;
+    }
+    // A lost link simply stops samples arriving. The last one then goes stale.
+    this.vehicleUnsubscribe = this.vehicle.onTelemetry((sample) => {
+      if (!this.telemetryLost) this.lastTelemetry = sample;
+    });
     // The mock connects in the same call, so telemetry is flowing before the trip starts and
-    // the dashboard has real values on the start screen.
-    void this.vehicle.connect();
-    this.vehicle.tick();
+    // the dashboard has real values on the start screen. An app owned adapter connects only
+    // when the rider taps Connect.
+    if (this.mock) {
+      void this.mock.connect();
+      this.mock.tick();
+    }
   }
 
   private buildSimulator(): GpsSimulator {
@@ -274,7 +317,11 @@ export class RideSession {
   private teardown(): void {
     for (const unsubscribe of this.unsubscribes) unsubscribe();
     this.unsubscribes = [];
-    void this.vehicle.disconnect();
+    this.vehicleUnsubscribe?.();
+    this.vehicleUnsubscribe = undefined;
+    // Only the mock belongs to the session. An adapter owned by the app is left alone.
+    if (this.mock) void this.mock.disconnect();
+    this.mock = undefined;
     this.live?.stop();
     this.sim?.stop();
   }
@@ -283,12 +330,13 @@ export class RideSession {
     const live = this.live;
     if (live) {
       live.update();
-      this.vehicle.tick();
+      this.mock?.tick();
       if (this.phase !== "riding") return;
       // A free ride: no route to project onto. The trip counts GPS distance and time, because
-      // the vehicle is only the mock for now and has no say in a live ride.
+      // the mock has no say in a live ride. A real vehicle the rider connected does: its odometer
+      // counts, with GPS filling in when it goes quiet.
       this.tripTracker.update({
-        vehicle: undefined,
+        vehicle: this.external ? this.lastTelemetry : undefined,
         gpsDistanceMetres: this.gpsDistance.distanceMetres,
         rideElapsedSeconds: live.getMotion().elapsedSeconds,
         nowMs: this.clock.now(),
@@ -297,7 +345,7 @@ export class RideSession {
     }
     const sim = this.sim as GpsSimulator;
     sim.update();
-    this.vehicle.tick();
+    this.mock?.tick();
     if (this.phase !== "riding") return;
     const nowMs = this.clock.now();
     const fix = sim.getLastFix();
@@ -329,12 +377,16 @@ export class RideSession {
       this.lastTelemetry !== undefined && !isTelemetryStale(this.lastTelemetry, nowMs)
         ? this.lastTelemetry
         : undefined;
-    // With live GPS the speed is the phone's. That is the plan for a free ride, not a fallback,
-    // so it carries no fallback reason (which the HUD would show in amber).
-    const picked = live
-      ? selectSpeed({ vehicle: undefined, gps: fix, nowMs })
-      : selectSpeed({ vehicle: this.lastTelemetry, gps: fix, nowMs });
-    const speed: SelectedSpeed = live
+    // With live GPS and only the mock, the speed is the phone's. That is the plan for a free
+    // ride, not a fallback, so it carries no fallback reason (which the HUD would show in amber).
+    // With a real vehicle connected the scooter's speed is used and GPS is the fallback.
+    const phoneOnly = live !== undefined && this.external === undefined;
+    const picked = selectSpeed({
+      vehicle: phoneOnly ? undefined : this.lastTelemetry,
+      gps: fix,
+      nowMs,
+    });
+    const speed: SelectedSpeed = phoneOnly
       ? { speedMps: picked.speedMps, source: picked.source }
       : picked;
     const trip = this.tripTracker.reading;

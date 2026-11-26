@@ -1,4 +1,5 @@
 import type { Scheduler } from "@waylit/core";
+import type { VehicleAdapter } from "@waylit/vehicle";
 import { createEmptySnapshot, type RideSession, type RideSnapshot } from "./ride-session";
 
 /**
@@ -20,6 +21,8 @@ export interface RideStore {
   reset(): void;
   setPlaybackSpeed(multiplier: number): void;
   setTelemetryLost(lost: boolean): void;
+  /** Switches between the mock vehicle (undefined) and an adapter owned by the app. */
+  setVehicle(adapter: VehicleAdapter | undefined): void;
 }
 
 export function createRideStore(session: RideSession, scheduler: Scheduler): RideStore {
@@ -61,5 +64,6 @@ export function createRideStore(session: RideSession, scheduler: Scheduler): Rid
     reset: () => act(() => session.reset()),
     setPlaybackSpeed: (multiplier) => act(() => session.setPlaybackSpeed(multiplier)),
     setTelemetryLost: (lost) => act(() => session.setTelemetryLost(lost)),
+    setVehicle: (adapter) => act(() => session.setVehicle(adapter)),
   };
 }

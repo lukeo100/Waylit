@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useState } from "react";
+import { useEffect, useId, useState, type ReactNode } from "react";
 import type { FxLevel, MapChoice } from "@waylit/map-provider";
 import { GROUND_RANGE_METRES } from "@/map/map-settings";
 import { HOLD_TO_PRESS_MS } from "@/ride/guard";
@@ -99,6 +99,8 @@ interface SheetProps {
   readonly onChange: (patch: MapSettingsValue) => void;
   readonly onClose: () => void;
   readonly id?: string;
+  /** Extra sections for the bottom of the sheet, such as the Vehicle section. */
+  readonly sections?: ReactNode;
 }
 
 /**
@@ -114,6 +116,7 @@ export function MapSettingsSheet({
   onChange,
   onClose,
   id,
+  sections,
 }: SheetProps) {
   const gpsNote = useId();
   const groundId = useId();
@@ -250,6 +253,7 @@ export function MapSettingsSheet({
         <p>{TEXT.fxHint}</p>
         {model.fxLockedByAddress ? <p data-testid="fx-locked">{TEXT.fxLocked}</p> : null}
       </div>
+      {sections}
     </div>
   );
 }
@@ -262,6 +266,8 @@ interface MapSettingsProps {
   readonly canChangeGps?: boolean;
   readonly groundMetres?: number | undefined;
   readonly onChange: (patch: MapSettingsValue) => void;
+  /** Extra sections for the settings sheet, such as the Vehicle section. */
+  readonly sections?: ReactNode;
 }
 
 /**
@@ -276,6 +282,7 @@ export function MapSettings({
   canChangeGps = true,
   groundMetres,
   onChange,
+  sections,
 }: MapSettingsProps) {
   const [open, setOpen] = useState(false);
   const sheetId = useId();
@@ -321,6 +328,7 @@ export function MapSettings({
           canChangeGps={canChangeGps}
           groundMetres={groundMetres}
           onChange={onChange}
+          sections={sections}
           onClose={() => {
             setOpen(false);
           }}

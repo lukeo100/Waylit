@@ -50,6 +50,8 @@ import { browserFullscreenEnvironment, enterFullscreen, exitFullscreen } from "@
 import { safetyNotice } from "@/pwa/safety-notice";
 import { useWakeLock } from "@/pwa/use-wake-lock";
 import { useRide } from "@/ride/use-ride";
+import { useVehicle, useVehicleSessionActive } from "@/vehicle/use-vehicle";
+import { VehicleSettings } from "@/hud/VehicleSettings";
 
 /**
  * The riding screen. It runs one simulated ride. The 3D scene fills the whole screen with
@@ -78,11 +80,17 @@ export default function RidePage() {
     nodeEnv: process.env.NODE_ENV,
     settings: mapSettings,
   });
-  const { snapshot, actions } = useRide(mapModel.gps);
+  // The vehicle choice is made in the settings sheet and lives outside the ride, so it survives
+  // a new trip. The ride follows it. The mock is the default.
+  const { controller: vehicleController, snapshot: vehicleSnapshot } = useVehicle();
+  const { snapshot, actions } = useRide(mapModel.gps, vehicleController);
   const freeRide = snapshot.freeRide;
   const riding = snapshot.phase === "riding";
   const summary = snapshot.phase === "summary";
-  const wakeLock = useWakeLock(riding);
+  useVehicleSessionActive(vehicleController, !summary);
+  // Bluetooth drops when the screen turns off, so the screen stays on while the scooter is linked.
+  const vehicleLinked = vehicleSnapshot.status.state === "connected";
+  const wakeLock = useWakeLock(riding || vehicleLinked);
   // Go fullscreen from the Start trip tap (a user gesture), so the phone's system bars hide while
   // riding. It does nothing when the installed app is already fullscreen, and fails silently.
   const { start } = actions;
@@ -212,6 +220,13 @@ export default function RidePage() {
                   canChangeGps={snapshot.phase === "idle"}
                   groundMetres={mapSettings.groundMetres}
                   onChange={setMapSettings}
+                  sections={
+                    <VehicleSettings
+                      snapshot={vehicleSnapshot}
+                      controller={vehicleController}
+                      guarded={snapshot.guarded}
+                    />
+                  }
                 />
                 <Minimap
                   route={freeRide ? undefined : DEMO_ROUTE}
