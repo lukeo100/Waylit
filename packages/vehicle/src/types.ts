@@ -28,13 +28,32 @@ export interface VehicleTelemetry {
   readonly temperatureCelsius?: number;
   /** Raw error codes for display. Never interpreted as commands. */
   readonly errorCodes?: readonly string[];
+  /** Raw warning codes for display. Never interpreted as commands. */
+  readonly warningCodes?: readonly string[];
   /** Milliseconds since the Unix epoch when this sample was taken. */
   readonly timestamp: number;
 }
 
 export type TelemetryField = Exclude<keyof VehicleTelemetry, "timestamp">;
 
-export type VehicleConnectionState = "disconnected" | "connecting" | "connected" | "error";
+/**
+ * Where a vehicle link stands. The mock adapter only uses `disconnected`, `connecting`,
+ * `connected` and `error`. A Bluetooth adapter also reports:
+ *
+ * - `idle`: nothing has been tried yet in this session
+ * - `authenticating`: connected over Bluetooth, the encrypted session is being set up
+ * - `auth-needed`: the vehicle needs this phone to be paired, or rejected the stored pairing
+ * - `unsupported`: this browser or page cannot use Bluetooth for this
+ */
+export type VehicleConnectionState =
+  | "idle"
+  | "disconnected"
+  | "connecting"
+  | "authenticating"
+  | "connected"
+  | "auth-needed"
+  | "unsupported"
+  | "error";
 
 /** Static description of what an adapter can provide. */
 export interface VehicleCapabilities {
