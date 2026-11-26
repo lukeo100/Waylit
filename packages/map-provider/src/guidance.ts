@@ -129,6 +129,43 @@ export function corridorShape(
   };
 }
 
+/**
+ * One frame for a free ride (live GPS, no route): only the rider and the heading marker. There is
+ * no corridor, no chevrons and no turn beacon, because there is no route near the rider.
+ */
+export function freeRideFrame(rider: LatLng, headingDegrees: number, nowMs: number): GuidanceFrame {
+  return {
+    nowMs,
+    alongMetres: 0,
+    offRoute: false,
+    items: riderItems(rider, headingDegrees, nowMs),
+    beacon: undefined,
+  };
+}
+
+function riderItems(rider: LatLng, headingDegrees: number, nowMs: number): HoloItem[] {
+  return [
+    {
+      kind: "heading",
+      position: rider,
+      headingDegrees,
+      scale: 1,
+      alpha: 0.9,
+      pulse: pulse01(nowMs, 2400),
+      liftMetres: 0,
+    },
+    {
+      kind: "rider",
+      position: rider,
+      headingDegrees,
+      scale: 1,
+      alpha: 1,
+      pulse: pulse01(nowMs, 3200),
+      liftMetres: 0,
+    },
+  ];
+}
+
 const clamp01 = (value: number): number => Math.min(1, Math.max(0, value));
 
 /** Opacity of a beacon for a phase: faint when first seen, brightest at the turn. */
@@ -187,26 +224,7 @@ export class RouteGuide {
     const along = projection.distanceMetres;
     const offRoute = projection.offsetMetres > o.offRouteMetres;
 
-    const items: HoloItem[] = [
-      {
-        kind: "heading",
-        position: rider,
-        headingDegrees,
-        scale: 1,
-        alpha: 0.9,
-        pulse: pulse01(nowMs, 2400),
-        liftMetres: 0,
-      },
-      {
-        kind: "rider",
-        position: rider,
-        headingDegrees,
-        scale: 1,
-        alpha: 1,
-        pulse: pulse01(nowMs, 3200),
-        liftMetres: 0,
-      },
-    ];
+    const items: HoloItem[] = riderItems(rider, headingDegrees, nowMs);
 
     let beacon: BeaconState | undefined;
     if (!offRoute) {

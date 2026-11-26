@@ -102,3 +102,20 @@ export {
   turnPhase,
 } from "./turn-guidance";
 export type { TurnDirection, TurnGuidance, TurnPhase, TurnPhaseThresholds } from "./turn-guidance";
+export type { GpsStatus, FixSource } from "./position-source";
+export { LiveGpsSource, WATCH_OPTIONS } from "./live-gps";
+export type {
+  GeolocationErrorLike,
+  GeolocationLike,
+  GeolocationPositionLike,
+  GeolocationWatchOptions,
+  GpsStatusListener,
+  LiveGpsOptions,
+} from "./live-gps";
+export { REPLAY_CENTRE, createReplayGeolocation, generateReplayTrace } from "./replay-trace";
+export type {
+  ReplayGeolocationOptions,
+  ReplayPoint,
+  ReplayTimers,
+  ReplayTraceOptions,
+} from "./replay-trace";

@@ -102,9 +102,11 @@ export {
   meshFor,
 } from "./holo-model";
 export type { HoloMesh } from "./holo-model";
-export { RouteGuide, corridorShape, offsetPath } from "./guidance";
+export { RouteGuide, freeRideFrame, corridorShape, offsetPath } from "./guidance";
 export type { RouteGuideOptions } from "./guidance";
 export { groundGrid } from "./ground-grid";
 export type { GroundGrid, GroundGridOptions } from "./ground-grid";
 export { identity, modelMatrix, multiply, transformPoint } from "./mat4";
 export type { Mat4 } from "./mat4";
+export { LiveGroundEstimator } from "./live-ground";
+export type { GroundSourceKind, LiveGroundOptions } from "./live-ground";

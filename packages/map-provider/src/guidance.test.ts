@@ -12,7 +12,7 @@ import {
   type LatLng,
   type Route,
 } from "@waylit/core";
-import { RouteGuide, corridorShape, offsetPath } from "./guidance";
+import { RouteGuide, corridorShape, freeRideFrame, offsetPath } from "./guidance";
 import { CORRIDOR_WIDTH_METRES } from "./holo";
 
 const origin = { lat: 52.47, lng: 13.4 };
@@ -304,5 +304,21 @@ describe("the beacon and the HUD read the same distance", () => {
     const a = guide.frame(here.position, here.headingDegrees, 0, Number.NaN);
     const b = guide.frame(here.position, here.headingDegrees, 0);
     expect(a.beacon).toEqual(b.beacon);
+  });
+});
+
+describe("freeRideFrame", () => {
+  const rider = fromLocalMetres(origin, { east: 10, north: 10 });
+
+  it("has only the rider and the heading marker, no corridor, chevrons or beacon", () => {
+    const frame = freeRideFrame(rider, 90, 1234);
+    expect(frame.beacon).toBeUndefined();
+    expect(frame.offRoute).toBe(false);
+    expect(frame.nowMs).toBe(1234);
+    expect(frame.items.map((i) => i.kind).sort()).toEqual(["heading", "rider"]);
+    for (const item of frame.items) {
+      expect(item.position).toEqual(rider);
+      expect(item.headingDegrees).toBe(90);
+    }
   });
 });

@@ -10,6 +10,8 @@ export interface GeoPosition extends LatLng {
   readonly altitude?: number;
   /** Horizontal accuracy radius in metres, when known. */
   readonly accuracy?: number;
+  /** Accuracy of the altitude in metres, when known. Phones often report 10 m or worse. */
+  readonly altitudeAccuracy?: number;
 }
 
 /** A single position fix from any source (simulated, browser GPS, native GPS). */
