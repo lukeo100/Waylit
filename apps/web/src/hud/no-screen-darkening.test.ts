@@ -67,6 +67,69 @@ function shadowProblems(layers: readonly ShadowLayer[]): string[] {
   return problems;
 }
 
+/** Component files that may paint a covering fill, and why. None is on the riding screen's HUD. */
+const COMPONENT_FILL_ALLOWED: Record<string, string> = {
+  "app/ride/page.tsx": "the screen root: its night colour sits behind the 3D canvas, never over it",
+  "hud/HoldButton.tsx": "the hold progress fill, inside one 44 pixel button",
+};
+
+/** Where the rules above stop being enough: a gradient on an allowed selector, a band, a utility class. */
+const ADDITIVE_ONLY = [".wl-scanband"];
+
+/** A colour stop in a rule body: `rgb(r g b / a)`, `rgba(r, g, b, a)` or a `#rrggbb` hex. */
+export function colourStops(body: string): { luminance: number; alpha: number }[] {
+  const stops: { luminance: number; alpha: number }[] = [];
+  const lum = (r: number, g: number, b: number): number =>
+    (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
+  for (const m of body.matchAll(
+    /rgba?\(\s*(\d+)[\s,]+(\d+)[\s,]+(\d+)(?:\s*[/,]\s*([\d.]+%?))?\s*\)/g,
+  )) {
+    const raw = m[4];
+    const alpha =
+      raw === undefined
+        ? 1
+        : raw.endsWith("%")
+          ? Number.parseFloat(raw) / 100
+          : Number.parseFloat(raw);
+    stops.push({ luminance: lum(Number(m[1]), Number(m[2]), Number(m[3])), alpha });
+  }
+  for (const m of body.matchAll(/#([0-9a-f]{6})\b/gi)) {
+    const n = Number.parseInt(m[1] ?? "0", 16);
+    stops.push({ luminance: lum((n >> 16) & 255, (n >> 8) & 255, n & 255), alpha: 1 });
+  }
+  if (/\b(black|var\(--[\w-]*(night|black|dark)[\w-]*\))/i.test(body))
+    stops.push({ luminance: 0, alpha: 1 });
+  return stops;
+}
+
+/** True when a rule paints a flat or gradient fill over a large part of the screen. */
+export function paintsLargeArea(body: string): boolean {
+  const fixed = /position:\s*(fixed|absolute)/.test(body);
+  const fill = /background(-color|-image)?:\s*(?!transparent|none)[^;]+;/.test(body);
+  if (!fixed || !fill) return false;
+  const inset = /(^|;)\s*inset:\s*([^;]+);/.exec(body)?.[2]?.trim().split(/\s+/);
+  const sides = (() => {
+    if (!inset) return undefined;
+    const [t = "0", r = t, b = t, l = r] = inset;
+    return { t, r, b, l };
+  })();
+  const zero = (v: string | undefined): boolean => v !== undefined && /^-?0(px|%)?$|^-\d/.test(v);
+  const prop = (name: string): string | undefined =>
+    new RegExp(`(^|;)\\s*${name}:\\s*([^;]+);`).exec(body)?.[2]?.trim();
+  const wide =
+    (zero(sides?.l) && zero(sides?.r)) ||
+    (zero(prop("left")) && zero(prop("right"))) ||
+    /^(100%|100vw|100dvw)$/.test(prop("width") ?? "");
+  const height = prop("height");
+  const tall =
+    (zero(sides?.t) && zero(sides?.b)) ||
+    (zero(prop("top")) && zero(prop("bottom"))) ||
+    (height !== undefined &&
+      /^(\d+(\.\d+)?)(%|vh|dvh)$/.test(height) &&
+      Number.parseFloat(height) >= 30);
+  return wide && tall;
+}
+
 function sourceFiles(dir: string): string[] {
   const out: string[] = [];
   for (const name of readdirSync(dir)) {
@@ -103,6 +166,28 @@ describe("no screen wide darkening on the riding screen", () => {
     }
   });
 
+  it("lets nothing but the allow list paint a wide band either, whatever way it is written", () => {
+    for (const rule of cssRules(css)) {
+      if (paintsLargeArea(rule.body)) {
+        expect(Object.keys(FULL_SCREEN_FILL_ALLOWED), `large fill in ${rule.selector}`).toContain(
+          rule.selector,
+        );
+      }
+    }
+  });
+
+  it("keeps the allowed additive gradients light: no dark colour stop that could darken", () => {
+    for (const rule of cssRules(css)) {
+      if (!ADDITIVE_ONLY.includes(rule.selector) || !/gradient\(/.test(rule.body)) continue;
+      const stops = colourStops(rule.body).filter((stop) => stop.alpha > 0);
+      expect(stops.length, rule.selector).toBeGreaterThan(0);
+      for (const stop of stops)
+        expect(stop.luminance, `${rule.selector} has a dark stop`).toBeGreaterThan(0.4);
+      // Screen blending can only add light, so it must stay on.
+      expect(rule.body, rule.selector).toMatch(/mix-blend-mode:\s*screen/);
+    }
+  });
+
   it("keeps the plates free of gradients and blur", () => {
     const plate = cssRules(css).find((rule) => rule.selector === ".wl-plate");
     expect(plate).toBeDefined();
@@ -121,6 +206,32 @@ describe("no screen wide darkening on the riding screen", () => {
       }
       if (/wl-scrim|data-testid="scrim"|vignette\s*[:=]/.test(text)) {
         offenders.push(`${rel}: scrim or vignette`);
+      }
+    }
+    expect(offenders).toEqual([]);
+  });
+
+  it("puts no large coloured fill over the screen in the components either", () => {
+    const offenders: string[] = [];
+    for (const file of sourceFiles(SRC)) {
+      const rel = relative(SRC, file);
+      if (rel.startsWith("app/dev/") || rel === "components/Corridor.tsx") continue;
+      const text = readFileSync(file, "utf8");
+      for (const literal of text.matchAll(/(["'`])((?:(?!\1)[^\\\n])*)\1/g)) {
+        const classes = (literal[2] ?? "").split(/\s+/);
+        const covers =
+          classes.some((c) => /^(inset-0|inset-y-0)$/.test(c)) ||
+          ((classes.includes("h-screen") ||
+            classes.includes("h-dvh") ||
+            classes.includes("h-full")) &&
+            (classes.includes("w-screen") ||
+              classes.includes("w-full") ||
+              classes.includes("inset-x-0")));
+        const painted = classes.some((c) => /^bg-(?!transparent|none)/.test(c));
+        const placed = classes.some((c) => c === "absolute" || c === "fixed");
+        if (covers && painted && placed && !(rel in COMPONENT_FILL_ALLOWED)) {
+          offenders.push(`${rel}: ${literal[2]}`);
+        }
       }
     }
     expect(offenders).toEqual([]);

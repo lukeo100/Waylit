@@ -95,3 +95,50 @@ jobs:
       - name: Build
         if: steps.detect.outputs.present == 'true'
         run: pnpm build
+
+  layout:
+    name: Layout check (headless Chrome)
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    env:
+      NEXT_TELEMETRY_DISABLED: "1"
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: ".nvmrc"
+
+      - name: Enable pnpm
+        run: corepack enable
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Build
+        run: pnpm build
+
+      - name: Start the app
+        run: |
+          pnpm --filter @waylit/web start > server.log 2>&1 &
+          for i in $(seq 1 30); do
+            if curl -fs http://localhost:3000/ride > /dev/null; then exit 0; fi
+            sleep 2
+          done
+          cat server.log
+          exit 1
+
+      # Chrome is preinstalled on the GitHub runner. The check fails if anything covers the
+      # credits strip, HUD parts overlap, a target is under 44 pixels or the text loses contrast.
+      - name: Layout check
+        run: node apps/web/scripts/layout-check.mjs
+
+      - name: Layout check with a fake credits strip
+        run: FAKE_CREDITS=1 node apps/web/scripts/layout-check.mjs
+
+      - name: Layout check, free ride on live GPS
+        run: GPS=live node apps/web/scripts/layout-check.mjs
+
+      - name: Layout check, free ride on the replay trace
+        run: GPS=replay node apps/web/scripts/layout-check.mjs
