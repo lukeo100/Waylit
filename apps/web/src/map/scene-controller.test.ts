@@ -45,7 +45,14 @@ class FakeProvider implements MapProvider {
   private frames = new Set<FrameListener>();
   private statuses = new Set<ProviderStatusListener>();
 
-  constructor(readonly id: ProviderId) {}
+  constructor(readonly id: ProviderId) {
+    if (id === "cesium-google") {
+      this.setFxLevel = (level, pinned) => {
+        this.fxCalls.push({ level, pinned });
+        return this.liveFx;
+      };
+    }
+  }
 
   mount(): Promise<void> {
     if (this.failMountWith !== undefined) return Promise.reject(new Error(this.failMountWith));
@@ -66,10 +73,9 @@ class FakeProvider implements MapProvider {
   setGuidance(frame: GuidanceFrame): void {
     this.guidance.push(frame);
   }
-  setFxLevel(level: "off" | "low" | "high", pinned: boolean): boolean {
-    this.fxCalls.push({ level, pinned });
-    return this.liveFx;
-  }
+  /** Only the Google provider can change the level live. The fallback has no such method. */
+  setFxLevel?: (level: "off" | "low" | "high", pinned: boolean) => boolean;
+  fxNow: string | undefined;
   setLighting(l: SceneLighting): void {
     this.lightings.push(l);
   }
@@ -85,7 +91,7 @@ class FakeProvider implements MapProvider {
     return () => this.statuses.delete(l);
   }
   getDiagnostics() {
-    return {};
+    return this.fxNow === undefined ? {} : { fxLevel: this.fxNow };
   }
   getFrameStats() {
     return {
@@ -282,25 +288,82 @@ describe("MapSceneController", () => {
 });
 
 describe("MapSceneController effect level", () => {
-  it("returns false before a provider is up, so the scene starts again with the new level", () => {
+  it("keeps the level while no provider is up, instead of asking for a restart", () => {
     const { controller } = setup("", undefined);
-    expect(controller.setFxLevel("low", true)).toBe(false);
+    expect(controller.setFxLevel("low", true)).toBe("deferred");
   });
 
-  it("hands the level to a provider that can change it live, and says so", async () => {
+  it("hands the level to a provider that can change it live", async () => {
     const { controller, created } = setup("", "t");
     await controller.start();
     const provider = created[0]!;
     provider.liveFx = true;
-    expect(controller.setFxLevel("high", true)).toBe(true);
+    expect(controller.setFxLevel("high", true)).toBe("applied");
     expect(provider.fxCalls).toEqual([{ level: "high", pinned: true }]);
   });
 
-  it("says false when the provider has to start again", async () => {
+  it("defers, not restarts, while Google is still starting, and applies it when ready", async () => {
     const { controller, created } = setup("", "t");
     await controller.start();
-    expect(controller.setFxLevel("low", false)).toBe(false);
+    const provider = created[0]!;
+    expect(controller.setFxLevel("low", false)).toBe("deferred");
     expect(created).toHaveLength(1);
+    provider.liveFx = true;
+    provider.status({ state: "ready" });
+    expect(provider.fxCalls.at(-1)).toEqual({ level: "low", pinned: false });
+  });
+
+  it("asks for a restart only from a provider that cannot change it live (the fallback)", async () => {
+    const { controller, created } = setup("", undefined);
+    await controller.start();
+    expect(created[0]!.id).toBe("maplibre-fallback");
+    expect(controller.setFxLevel("low", false)).toBe("restart");
+  });
+
+  it("after Google failed, a new level restarts the fallback and never creates Google again", async () => {
+    const { controller, created, failures } = setup("", "t");
+    failures.set("cesium-google", "Google 3D tiles are not available.");
+    await controller.start();
+    expect(created.map((p) => p.id)).toEqual(["cesium-google", "maplibre-fallback"]);
+    expect(controller.getState().providerId).toBe("maplibre-fallback");
+    // The caller restarts a controller for the fallback. It must not ask this one to retry Google.
+    expect(controller.setFxLevel("high", false)).toBe("restart");
+    expect(created.filter((p) => p.id === "cesium-google")).toHaveLength(1);
+  });
+
+  it("starts with a note when the caller already knows Google failed", () => {
+    const states: SceneState[] = [];
+    const controller = new MapSceneController({
+      sceneElement: {},
+      creditsElement: {},
+      selection: { id: "maplibre-fallback", reason: "chosen-fallback" },
+      route: DEMO_ROUTE,
+      tuningFor: (id) => DEFAULT_TUNING[id],
+      createProvider: (id) => Promise.resolve(new FakeProvider(id)),
+      startFix: START,
+      now: () => 0,
+      onState: (s) => states.push(s),
+      startNote: { text: "Google 3D tiles are not available.", warning: true },
+    });
+    expect(controller.getState()).toMatchObject({
+      note: "Google 3D tiles are not available.",
+      warning: true,
+    });
+  });
+
+  it("reports the level the provider is really drawing, so a governor step down shows", async () => {
+    const { controller, created, states } = setup("", "t");
+    await controller.start();
+    const provider = created[0]!;
+    provider.fxNow = "high";
+    provider.frame(2000);
+    expect(controller.getState().fxLevel).toBe("high");
+    provider.fxNow = "low";
+    provider.frame(2500);
+    expect(controller.getState().fxLevel).toBe("high");
+    provider.frame(3500);
+    expect(controller.getState().fxLevel).toBe("low");
+    expect(states.at(-1)?.fxLevel).toBe("low");
   });
 });
 

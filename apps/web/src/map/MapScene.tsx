@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { DEMO_ROUTE, type LatLng, type Route } from "@waylit/core";
 import {
@@ -18,7 +18,7 @@ import type { RidePhase } from "@/ride/ride-session";
 import { MapStats } from "./MapStats";
 import { sceneLightingFrom } from "./lighting-input";
 import { loadProvider } from "./load-provider";
-import { mapSettingsModel, type MapSettings } from "./map-settings";
+import { mapSettingsModel, savedFxFor, selectionForStart, type MapSettings } from "./map-settings";
 import { MapSceneController, startFixOf, type SceneState } from "./scene-controller";
 
 interface MapSceneProps {
@@ -60,6 +60,8 @@ interface MapSceneProps {
    * which nothing else uses, so they can never sit on the speed or turn text.
    */
   readonly statsSlot?: HTMLElement | null;
+  /** Told whenever the scene's state changes, so the settings sheet can show what is running. */
+  readonly onSceneState?: ((state: SceneState) => void) | undefined;
 }
 
 const ACTIVITY: Record<RidePhase, ProviderActivity> = {
@@ -89,10 +91,24 @@ export function MapScene({
   settings,
   devOverlay,
   statsSlot = null,
+  onSceneState,
 }: MapSceneProps) {
   const sceneRef = useRef<HTMLDivElement>(null);
   const controllerRef = useRef<MapSceneController | null>(null);
   const [state, setState] = useState<SceneState | undefined>(undefined);
+  const onSceneStateRef = useRef(onSceneState);
+  useEffect(() => {
+    onSceneStateRef.current = onSceneState;
+  });
+  const publishState = useCallback((next: SceneState) => {
+    setState(next);
+    onSceneStateRef.current?.(next);
+  }, []);
+  // True once Google failed and the fallback took over: a later restart (a new effect level on
+  // the fallback map) must not try Google again. Cleared when the rider changes the map.
+  const fellBackRef = useRef(false);
+  const lastNoteRef = useRef<SceneState["note"]>(undefined);
+  const lastMapRef = useRef(settings.map);
   const [expiredNote, setExpiredNote] = useState<string | undefined>(undefined);
 
   // The newest inputs, so a scene that starts late (the credits strip is found after the first
@@ -112,12 +128,18 @@ export function MapScene({
     const nodeEnv = process.env.NODE_ENV;
     const overrides = devControlsEnabled(search, nodeEnv);
     const stored = latest.current.settings;
-    const { selection } = mapSettingsModel({
+    if (lastMapRef.current !== settings.map) {
+      lastMapRef.current = settings.map;
+      fellBackRef.current = false;
+    }
+    const model = mapSettingsModel({
       search,
       token: cesiumIonToken,
       nodeEnv,
       settings: stored,
     });
+    const forcedFallback = fellBackRef.current && model.selection.id === "cesium-google";
+    const selection = selectionForStart(model.selection, fellBackRef.current);
     // A free ride on Google tiles takes the ground height from the phone's altitude, slowly and
     // clamped, with the settings constant until it is reliable. `?ground=` still wins. The height
     // never comes from the tiles (Amendment 3).
@@ -132,7 +154,13 @@ export function MapScene({
       creditsElement,
       selection,
       route,
-      tuningFor: (id) => resolveTuning(id, search, overrides, stored.fx),
+      // Read when the provider starts, so a level chosen while Google was still loading counts.
+      tuningFor: (id) =>
+        resolveTuning(id, search, overrides, savedFxFor(latest.current.settings, id)),
+      startNote:
+        forcedFallback && lastNoteRef.current !== undefined
+          ? { text: lastNoteRef.current, warning: true }
+          : undefined,
       createProvider: (id, tuning) =>
         loadProvider(id, tuning, {
           token: cesiumIonToken,
@@ -143,7 +171,17 @@ export function MapScene({
         }),
       startFix: startFixOf((route ?? DEMO_ROUTE).path),
       now: () => performance.now(),
-      onState: setState,
+      onState: (next) => {
+        if (next.note !== undefined) lastNoteRef.current = next.note;
+        if (
+          next.selection.id === "cesium-google" &&
+          next.providerId === "maplibre-fallback" &&
+          next.status !== "failed"
+        ) {
+          fellBackRef.current = true;
+        }
+        publishState(next);
+      },
     });
     controllerRef.current = next;
     next.setLighting(sceneLightingFrom(latest.current.daylight));
@@ -160,19 +198,23 @@ export function MapScene({
     // A new map choice or a restart starts a fresh controller, with its own one-shot fallback.
   }, [creditsElement, route, settings.map, restart]);
 
-  // A new effect level goes to a running Google scene directly. Anything else starts again.
-  const lastFx = useRef(settings.fx);
+  // A new effect level goes to a running Google scene directly. While Google is still loading it
+  // is kept and applied when ready. Only a scene that cannot change it live (the fallback map)
+  // starts again, and after a fallback it starts the fallback, never Google again (each Google
+  // start costs a Cesium ion root request).
+  const lastFx = useRef({ google: settings.fxGoogle, fallback: settings.fxFallback });
   useEffect(() => {
-    if (lastFx.current === settings.fx) return;
-    lastFx.current = settings.fx;
+    const previous = lastFx.current;
+    if (previous.google === settings.fxGoogle && previous.fallback === settings.fxFallback) return;
+    lastFx.current = { google: settings.fxGoogle, fallback: settings.fxFallback };
     const controller = controllerRef.current;
     if (!controller) return;
     const search = window.location.search;
-    const provider = controller.getState().providerId;
-    const level = resolveFxLevel(search, provider ?? "maplibre-fallback", settings.fx);
-    const pinned = fxLevelIsPinned(search, settings.fx);
-    if (!controller.setFxLevel(level, pinned)) setRestart((n) => n + 1);
-  }, [settings.fx]);
+    const running = controller.getState().providerId ?? controller.getState().selection.id;
+    const level = resolveFxLevel(search, running, savedFxFor(settings, running));
+    const result = controller.setFxLevel(level, fxLevelIsPinned(search));
+    if (result === "restart") setRestart((n) => n + 1);
+  }, [settings]);
 
   // A new trip puts the camera back at the start, with no gliding.
   useEffect(() => {

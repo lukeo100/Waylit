@@ -36,8 +36,14 @@ export const GROUND_RANGE_METRES = { min: -100, max: 3000 } as const;
 export interface MapSettings {
   /** The rider's choice of map. Undefined means they never chose, so the defaults apply. */
   readonly map?: MapChoice;
-  /** The rider's choice of effect level. Undefined means the provider's default. */
-  readonly fx?: FxLevel;
+  /**
+   * The rider's choice of effect level on Google 3D tiles. Undefined means the default (off).
+   * Saved per map, because the two maps have different defaults and the Google terms make the
+   * effect there a deliberate choice: choosing High on the fallback never turns it on for Google.
+   */
+  readonly fxGoogle?: FxLevel;
+  /** The rider's choice of effect level on the fallback map. Undefined means the default. */
+  readonly fxFallback?: FxLevel;
   /** The rider's choice of position source. Undefined means the simulator. */
   readonly gps?: "sim" | "live";
   /**
@@ -63,7 +69,12 @@ export function parseMapSettings(raw: string | null | undefined): MapSettings {
     const record = value as Record<string, unknown>;
     const map =
       typeof record["map"] === "string" ? parseMapChoice(`?map=${record["map"]}`) : undefined;
-    const fx = typeof record["fx"] === "string" ? parseFxLevel(record["fx"]) : undefined;
+    // An older single `fx` value is dropped on purpose: it applied to both maps, and it must not
+    // switch the effect on for Google tiles now that the levels are saved per map.
+    const fxGoogle =
+      typeof record["fxGoogle"] === "string" ? parseFxLevel(record["fxGoogle"]) : undefined;
+    const fxFallback =
+      typeof record["fxFallback"] === "string" ? parseFxLevel(record["fxFallback"]) : undefined;
     const gps = record["gps"] === "sim" || record["gps"] === "live" ? record["gps"] : undefined;
     const ground = record["groundMetres"];
     const groundMetres =
@@ -75,7 +86,8 @@ export function parseMapSettings(raw: string | null | undefined): MapSettings {
         : undefined;
     return {
       ...(map ? { map } : {}),
-      ...(fx ? { fx } : {}),
+      ...(fxGoogle ? { fxGoogle } : {}),
+      ...(fxFallback ? { fxFallback } : {}),
       ...(gps ? { gps } : {}),
       ...(groundMetres !== undefined ? { groundMetres } : {}),
     };
@@ -125,6 +137,19 @@ export function createMapSettingsStore(getStorage: () => SettingsStorage | null)
   };
 }
 
+/** The effect level the rider saved for a provider's map, if any. */
+export function savedFxFor(
+  settings: MapSettings,
+  id: ProviderSelection["id"],
+): FxLevel | undefined {
+  return id === "cesium-google" ? settings.fxGoogle : settings.fxFallback;
+}
+
+/** The settings field that holds the effect level for a map. */
+export function fxFieldFor(map: MapChoice): "fxGoogle" | "fxFallback" {
+  return map === "cesium" ? "fxGoogle" : "fxFallback";
+}
+
 export interface MapSettingsModelInput {
   readonly search: string;
   readonly token: string | undefined;
@@ -165,7 +190,7 @@ export function mapSettingsModel(input: MapSettingsModelInput): MapSettingsModel
   return {
     selection,
     map: selection.id === "cesium-google" ? "cesium" : "fallback",
-    fx: resolveFxLevel(input.search, selection.id, input.settings.fx),
+    fx: resolveFxLevel(input.search, selection.id, savedFxFor(input.settings, selection.id)),
     googleAvailable: (input.token?.trim() ?? "") !== "",
     mapLockedByAddress: parseMapChoice(input.search) !== undefined,
     fxLockedByAddress: fxLevelIsFromAddress(input.search),
@@ -173,6 +198,68 @@ export function mapSettingsModel(input: MapSettingsModelInput): MapSettingsModel
     gpsLockedByAddress: addressGps !== undefined,
     freeRide: isFreeRide(gps),
   };
+}
+
+/**
+ * The selection to start a scene with. Once Google failed and the fallback took over, every
+ * restart (a new effect level on the fallback) must keep the fallback, because each start of
+ * Google uses a Cesium ion root request and would clear the note.
+ */
+export function selectionForStart(
+  selection: ProviderSelection,
+  googleFailed: boolean,
+): ProviderSelection {
+  return googleFailed && selection.id === "cesium-google"
+    ? { id: "maplibre-fallback", reason: "chosen-fallback" }
+    : selection;
+}
+
+/** What the running scene reports, as far as the sheet needs it. */
+export interface RunningScene {
+  readonly providerId: ProviderSelection["id"] | undefined;
+  readonly fxLevel: FxLevel | undefined;
+}
+
+export interface SheetView {
+  readonly model: MapSettingsModel;
+  /** True when Google was selected but the fallback map is the one running. */
+  readonly fellBack: boolean;
+  /** Set when the frame rate stepped the effect below the level the sheet shows. */
+  readonly fxLoweredTo: FxLevel | undefined;
+}
+
+const FX_RANK: Record<FxLevel, number> = { off: 0, low: 1, high: 2 };
+
+/**
+ * What the sheet shows, from the settings model and what is really running. After Google fails
+ * and the fallback takes over, the sheet shows the fallback (with its own effect level) and says
+ * so, instead of claiming Google 3D tiles are on. A level the governor stepped down is reported
+ * so the rider knows why the effect is weaker than the sheet's choice.
+ */
+export function sheetView(
+  model: MapSettingsModel,
+  settings: MapSettings,
+  search: string,
+  scene: RunningScene | undefined,
+): SheetView {
+  const fellBack =
+    model.selection.id === "cesium-google" && scene?.providerId === "maplibre-fallback";
+  if (fellBack) {
+    return {
+      model: {
+        ...model,
+        map: "fallback",
+        fx: resolveFxLevel(search, "maplibre-fallback", settings.fxFallback),
+      },
+      fellBack: true,
+      fxLoweredTo: undefined,
+    };
+  }
+  const lowered =
+    scene?.fxLevel !== undefined &&
+    scene.providerId === model.selection.id &&
+    FX_RANK[scene.fxLevel] < FX_RANK[model.fx];
+  return { model, fellBack: false, fxLoweredTo: lowered ? scene.fxLevel : undefined };
 }
 
 /** Words for the sheet. Plain, and no raw errors. */
@@ -200,6 +287,10 @@ export const MAP_SETTINGS_TEXT = {
   groundHint:
     "Google tiles with Phone GPS only. Metres above the WGS84 ellipsoid, used until your phone gives a reliable altitude. Leave blank for the demo value, which is only right for Berlin.",
   mapLocked: "The address sets the map (?map=). Remove it to change the map here.",
+  mapFellBack:
+    "Google 3D tiles could not start, so the fallback map is running. Reload the page to try Google again.",
+  fxLowered:
+    "Lowered to {level} because the frame rate was low. It will not go back up on its own.",
   fxLocked: "The address sets the effect (?fx=). Remove it to change it here.",
 } as const;
 

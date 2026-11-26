@@ -6,6 +6,7 @@ import { GROUND_RANGE_METRES } from "@/map/map-settings";
 import { HOLD_TO_PRESS_MS } from "@/ride/guard";
 import {
   MAP_SETTINGS_TEXT as TEXT,
+  fxFieldFor,
   sheetShouldClose,
   type MapSettings as MapSettingsValue,
   type MapSettingsModel,
@@ -90,12 +91,18 @@ const FX_OPTIONS: readonly Option<FxLevel>[] = [
   { value: "high", label: "High" },
 ];
 
+const FX_LABEL: Record<FxLevel, string> = { off: "Off", low: "Low", high: "High" };
+
 interface SheetProps {
   readonly model: MapSettingsModel;
   /** False once a trip is running: the position source can only change before it starts. */
   readonly canChangeGps?: boolean;
   /** The saved ground height constant, shown in the ground field. */
   readonly groundMetres?: number | undefined;
+  /** True when Google was asked for but the fallback map is the one running. */
+  readonly fellBack?: boolean;
+  /** Set when the frame rate made the effect step down below the chosen level. */
+  readonly fxLoweredTo?: FxLevel | undefined;
   readonly onChange: (patch: MapSettingsValue) => void;
   readonly onClose: () => void;
   readonly id?: string;
@@ -113,6 +120,8 @@ export function MapSettingsSheet({
   model,
   canChangeGps = true,
   groundMetres,
+  fellBack = false,
+  fxLoweredTo,
   onChange,
   onClose,
   id,
@@ -168,6 +177,11 @@ export function MapSettingsSheet({
       />
       <div id={mapNote} className="flex flex-col gap-1 text-hud-sm leading-snug text-text-muted">
         {model.mapLockedByAddress ? <p data-testid="map-locked">{TEXT.mapLocked}</p> : null}
+        {fellBack ? (
+          <p data-testid="map-fell-back" className="text-caution">
+            {TEXT.mapFellBack}
+          </p>
+        ) : null}
         {model.googleAvailable ? (
           <p data-testid="map-quota">{TEXT.quota}</p>
         ) : (
@@ -246,12 +260,19 @@ export function MapSettingsSheet({
         describedBy={fxNote}
         testId="fx-choice"
         onChange={(value) => {
-          onChange({ fx: value });
+          onChange(
+            fxFieldFor(model.map) === "fxGoogle" ? { fxGoogle: value } : { fxFallback: value },
+          );
         }}
       />
       <div id={fxNote} className="flex flex-col gap-1 text-hud-sm leading-snug text-text-muted">
         <p>{TEXT.fxHint}</p>
         {model.fxLockedByAddress ? <p data-testid="fx-locked">{TEXT.fxLocked}</p> : null}
+        {fxLoweredTo !== undefined && !model.fxLockedByAddress ? (
+          <p data-testid="fx-lowered" className="text-caution">
+            {TEXT.fxLowered.replace("{level}", FX_LABEL[fxLoweredTo])}
+          </p>
+        ) : null}
       </div>
       {sections}
     </div>
@@ -265,6 +286,8 @@ interface MapSettingsProps {
   /** True before a trip starts, when the position source may still change. */
   readonly canChangeGps?: boolean;
   readonly groundMetres?: number | undefined;
+  readonly fellBack?: boolean;
+  readonly fxLoweredTo?: FxLevel | undefined;
   readonly onChange: (patch: MapSettingsValue) => void;
   /** Extra sections for the settings sheet, such as the Vehicle section. */
   readonly sections?: ReactNode;
@@ -281,6 +304,8 @@ export function MapSettings({
   guarded,
   canChangeGps = true,
   groundMetres,
+  fellBack = false,
+  fxLoweredTo,
   onChange,
   sections,
 }: MapSettingsProps) {
@@ -327,6 +352,8 @@ export function MapSettings({
           model={model}
           canChangeGps={canChangeGps}
           groundMetres={groundMetres}
+          fellBack={fellBack}
+          fxLoweredTo={fxLoweredTo}
           onChange={onChange}
           sections={sections}
           onClose={() => {

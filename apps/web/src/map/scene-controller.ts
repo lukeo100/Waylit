@@ -4,6 +4,7 @@ import {
   type FxLevel,
   RouteGuide,
   freeRideFrame,
+  parseFxLevel,
   type MapProvider,
   type ProviderActivity,
   type ProviderDiagnostics,
@@ -44,7 +45,21 @@ export interface SceneState {
   readonly note: string | undefined;
   /** True when the note is a warning (amber), false when it is just information. */
   readonly warning: boolean;
+  /**
+   * The screen effect level the running provider is drawing now. It can be lower than the level
+   * that was asked for, because the adaptive governor steps the effect down on a slow phone.
+   */
+  readonly fxLevel: FxLevel | undefined;
 }
+
+/** What `setFxLevel` did with a new effect level. */
+export type FxApplied =
+  /** The running provider took it in place. */
+  | "applied"
+  /** There is no provider up yet. The level is kept and applied when it is ready. */
+  | "deferred"
+  /** The running provider cannot change it live, so the caller starts the scene again. */
+  | "restart";
 
 export interface SceneControllerOptions {
   readonly sceneElement: unknown;
@@ -63,6 +78,8 @@ export interface SceneControllerOptions {
   /** A steadily increasing time in milliseconds, such as `performance.now`. */
   readonly now: () => number;
   readonly onState: (state: SceneState) => void;
+  /** A note to show from the start, such as that the fallback map is already in use. */
+  readonly startNote?: { readonly text: string; readonly warning: boolean } | undefined;
 }
 
 /** Wording for the notes. Plain and short, and they never carry a raw error. */
@@ -84,6 +101,9 @@ export class MapSceneController {
   private lighting: SceneLighting | undefined;
   private sessionAlong: number | undefined;
   private state: SceneState;
+  /** An effect level asked for while the provider was not up yet. */
+  private pendingFx: { level: FxLevel; pinned: boolean } | undefined;
+  private lastFxCheckMs = Number.NEGATIVE_INFINITY;
 
   constructor(options: SceneControllerOptions) {
     this.options = options;
@@ -96,8 +116,9 @@ export class MapSceneController {
       note:
         options.selection.reason === "override-cesium-no-token"
           ? NOTES.noTokenRequested
-          : undefined,
-      warning: false,
+          : options.startNote?.text,
+      warning: options.startNote?.warning ?? false,
+      fxLevel: undefined,
     };
   }
 
@@ -152,8 +173,32 @@ export class MapSceneController {
    * again (Google tiles can, and that saves a Cesium ion request). Returns false when the caller
    * has to start the scene again.
    */
-  setFxLevel(level: FxLevel, pinned: boolean): boolean {
-    return this.provider?.setFxLevel?.(level, pinned) ?? false;
+  setFxLevel(level: FxLevel, pinned: boolean): FxApplied {
+    const provider = this.provider;
+    // No provider yet (still loading, or none came up): keep it for when one is ready. Starting
+    // again here would ask Google for a new root request, and after a fallback it would try
+    // Google again.
+    if (!provider) {
+      this.pendingFx = { level, pinned };
+      return "deferred";
+    }
+    if (provider.setFxLevel === undefined) return "restart";
+    if (provider.setFxLevel(level, pinned)) {
+      this.pendingFx = undefined;
+      this.refreshFxLevel(provider, Number.NEGATIVE_INFINITY);
+      return "applied";
+    }
+    // The provider is attached but its scene is not up. It takes the level when it is ready.
+    this.pendingFx = { level, pinned };
+    return "deferred";
+  }
+
+  /** Publishes the effect level the provider is really drawing, at most once a second. */
+  private refreshFxLevel(provider: MapProvider, nowMs: number): void {
+    if (nowMs - this.lastFxCheckMs < 1000) return;
+    this.lastFxCheckMs = nowMs;
+    const level = parseFxLevel(provider.getDiagnostics().fxLevel);
+    if (level !== this.state.fxLevel) this.publish({ fxLevel: level });
   }
 
   setActivity(activity: ProviderActivity): void {
@@ -207,6 +252,7 @@ export class MapSceneController {
     this.detach();
     this.provider = provider;
     this.removeFrame = provider.onFrame((nowMs) => {
+      this.refreshFxLevel(provider, nowMs);
       const pose = this.camera.step(nowMs);
       if (!pose) return;
       provider.setCamera(pose);
@@ -225,6 +271,11 @@ export class MapSceneController {
         this.onProviderFailed(provider, status.message);
       } else if (status.state === "ready") {
         this.publish({ status: "ready" });
+        const pending = this.pendingFx;
+        if (pending && provider.setFxLevel?.(pending.level, pending.pinned)) {
+          this.pendingFx = undefined;
+        }
+        this.refreshFxLevel(provider, Number.NEGATIVE_INFINITY);
       }
     });
     if (this.guide) provider.setRoute(this.guide.corridor);

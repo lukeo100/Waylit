@@ -262,8 +262,8 @@ describe("the saved effect level", () => {
     expect(resolveFxLevel("", "maplibre-fallback", "low")).toBe("low");
   });
 
-  it("counts a saved level as chosen, and tells the address apart", () => {
-    expect(fxLevelIsPinned("", "low")).toBe(true);
+  it("pins only for the address, so a saved level can still be stepped down", () => {
+    expect(fxLevelIsPinned("?fx=low")).toBe(true);
     expect(fxLevelIsPinned("")).toBe(false);
     expect(fxLevelIsFromAddress("?fx=low")).toBe(true);
     expect(fxLevelIsFromAddress("")).toBe(false);

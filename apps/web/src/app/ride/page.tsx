@@ -42,7 +42,8 @@ import {
   useSunMode,
 } from "@/hud/use-browser-state";
 import { MapScene } from "@/map/MapScene";
-import { mapSettingsModel } from "@/map/map-settings";
+import { mapSettingsModel, sheetView } from "@/map/map-settings";
+import type { SceneState } from "@/map/scene-controller";
 import { cesiumIonToken } from "@/config";
 import { MapSettings } from "@/hud/MapSettings";
 import { useMockMedia } from "@/media/useMockMedia";
@@ -83,6 +84,8 @@ export default function RidePage() {
   // The vehicle choice is made in the settings sheet and lives outside the ride, so it survives
   // a new trip. The ride follows it. The mock is the default.
   const { controller: vehicleController, snapshot: vehicleSnapshot } = useVehicle();
+  const [scene, setScene] = useState<SceneState | undefined>(undefined);
+  const sheet = sheetView(mapModel, mapSettings, search, scene);
   const { snapshot, actions } = useRide(mapModel.gps, vehicleController);
   const freeRide = snapshot.freeRide;
   const riding = snapshot.phase === "riding";
@@ -193,6 +196,7 @@ export default function RidePage() {
           altitude={riding ? snapshot.altitude : undefined}
           daylight={daylight}
           settings={mapSettings}
+          onSceneState={setScene}
           devOverlay={devControls}
           statsSlot={statsSlot}
         />
@@ -215,7 +219,9 @@ export default function RidePage() {
             summary ? undefined : (
               <>
                 <MapSettings
-                  model={mapModel}
+                  model={sheet.model}
+                  fellBack={sheet.fellBack}
+                  fxLoweredTo={sheet.fxLoweredTo}
                   guarded={snapshot.guarded}
                   canChangeGps={snapshot.phase === "idle"}
                   groundMetres={mapSettings.groundMetres}

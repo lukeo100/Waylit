@@ -66,7 +66,7 @@ describe("map settings sheet", () => {
   it("marks the map and the effect in force", () => {
     const google = sheet(model({}));
     expect(google).toMatch(/aria-checked="true"[^>]*data-value="cesium"/);
-    const fallback = sheet(model({ settings: { map: "fallback", fx: "high" } }));
+    const fallback = sheet(model({ settings: { map: "fallback", fxFallback: "high" } }));
     expect(fallback).toMatch(/aria-checked="true"[^>]*data-value="fallback"/);
     expect(fallback).toMatch(/aria-checked="true"[^>]*data-value="high"/);
     // Effect defaults to off on Google tiles.
@@ -154,5 +154,42 @@ describe("position source in the settings sheet", () => {
     expect(html).toContain('min="-100"');
     expect(html).toContain('max="3000"');
     expect(html).toContain("ellipsoid");
+  });
+});
+
+describe("the sheet after Google failed or the effect was lowered", () => {
+  it("shows the fallback map as running, with an amber note, not Google selected", () => {
+    const m = {
+      ...model({ settings: { fxFallback: "low" } }),
+      map: "fallback" as const,
+      fx: "low" as const,
+    };
+    const html = renderToStaticMarkup(
+      <MapSettingsSheet model={m} fellBack onChange={noop} onClose={noop} />,
+    );
+    expect(html).toMatch(/aria-checked="true"[^>]*data-value="fallback"/);
+    expect(html).not.toMatch(/aria-checked="true"[^>]*data-value="cesium"/);
+    expect(html).toMatch(/data-testid="map-fell-back"[^>]*class="[^"]*text-caution/);
+    expect(html).toContain("fallback map is running");
+    expect(sheet(model({}))).not.toContain("map-fell-back");
+  });
+
+  it("says when the frame rate lowered the effect, in amber, and never when the address sets it", () => {
+    const m = model({ settings: { fxGoogle: "high" } });
+    const html = renderToStaticMarkup(
+      <MapSettingsSheet model={m} fxLoweredTo="low" onChange={noop} onClose={noop} />,
+    );
+    expect(html).toMatch(/data-testid="fx-lowered"[^>]*class="[^"]*text-caution/);
+    expect(html).toContain("Lowered to Low");
+    const locked = renderToStaticMarkup(
+      <MapSettingsSheet
+        model={model({ search: "?fx=high" })}
+        fxLoweredTo="low"
+        onChange={noop}
+        onClose={noop}
+      />,
+    );
+    expect(locked).not.toContain("fx-lowered");
+    expect(sheet(m)).not.toContain("fx-lowered");
   });
 });

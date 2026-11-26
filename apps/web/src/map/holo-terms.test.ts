@@ -15,15 +15,22 @@ function code(file: string): string {
   return source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:"'`])\/\/.*$/gm, "$1");
 }
 
-const GOOGLE_MODE_FILES = [
-  "cesium-google.ts",
-  "cesium-holo.ts",
-  "fx-stage.ts",
-  "fx-shader.ts",
-  "tile-shader.ts",
-  "holo-glsl.ts",
-  "beacon-label.ts",
+/**
+ * Every source file in this folder is checked, so a new file is covered with no edit here. Only
+ * the files that never run in Google mode are left out, and the list says why. The settings store
+ * keeps the rider's choice in localStorage on purpose and holds no scene code.
+ */
+const NOT_GOOGLE_MODE = [
+  "maplibre-fallback.ts",
+  "maplibre-holo.ts",
+  "fallback-style.ts",
+  "holo-style.ts",
+  "map-settings.ts",
 ];
+
+const GOOGLE_MODE_FILES = readdirSync(dir)
+  .filter((f) => /\.tsx?$/.test(f) && !/\.test\.tsx?$/.test(f) && !NOT_GOOGLE_MODE.includes(f))
+  .sort();
 
 const FORBIDDEN = [
   "sampleHeight",
@@ -60,6 +67,23 @@ const PICK_CALL = /\.pick\(/;
 const TILE_EVENTS = ["tileLoad"];
 
 describe("Google mode files", () => {
+  it("are found from the folder, and include the files that start, wrap or feed the scene", () => {
+    expect(GOOGLE_MODE_FILES).toEqual(
+      expect.arrayContaining([
+        "cesium-google.ts",
+        "cesium-holo.ts",
+        "cesium-setup.ts",
+        "scene-controller.ts",
+        "MapScene.tsx",
+        "load-provider.ts",
+        "credits-dom.ts",
+        "fx-stage.ts",
+        "tile-shader.ts",
+      ]),
+    );
+    for (const file of NOT_GOOGLE_MODE) expect(readdirSync(dir)).toContain(file);
+  });
+
   for (const file of GOOGLE_MODE_FILES) {
     it(`${file} never reads heights, depth or geometry back from the tiles`, () => {
       const text = code(file);

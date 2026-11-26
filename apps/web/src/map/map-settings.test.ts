@@ -3,6 +3,9 @@ import {
   MAP_SETTINGS_STORAGE_KEY,
   MAP_SETTINGS_TEXT,
   GROUND_RANGE_METRES,
+  savedFxFor,
+  selectionForStart,
+  sheetView,
   createMapSettingsStore,
   isFreeRide,
   parseGpsChoice,
@@ -34,7 +37,13 @@ const blocked: SettingsStorage = {
 
 describe("parseMapSettings", () => {
   it("reads a valid value", () => {
-    expect(parseMapSettings('{"map":"cesium","fx":"low"}')).toEqual({ map: "cesium", fx: "low" });
+    expect(parseMapSettings('{"map":"cesium","fxGoogle":"low","fxFallback":"off"}')).toEqual({
+      map: "cesium",
+      fxGoogle: "low",
+      fxFallback: "off",
+    });
+    // The old single level applied to both maps and is dropped, so it cannot switch Google on.
+    expect(parseMapSettings('{"map":"cesium","fx":"high"}')).toEqual({ map: "cesium" });
     expect(parseMapSettings('{"map":"fallback"}')).toEqual({ map: "fallback" });
   });
 
@@ -53,13 +62,13 @@ describe("persistence", () => {
     const storage = memoryStorage();
     const first = createMapSettingsStore(() => storage);
     first.set({ map: "cesium" });
-    first.set({ fx: "high" });
+    first.set({ fxGoogle: "high" });
     expect(JSON.parse(storage.data.get(MAP_SETTINGS_STORAGE_KEY)!)).toEqual({
       map: "cesium",
-      fx: "high",
+      fxGoogle: "high",
     });
     const second = createMapSettingsStore(() => storage);
-    expect(second.get()).toEqual({ map: "cesium", fx: "high" });
+    expect(second.get()).toEqual({ map: "cesium", fxGoogle: "high" });
   });
 
   it("keeps a stable object until something changes, and tells listeners", () => {
@@ -82,8 +91,8 @@ describe("persistence", () => {
     expect(() => store.set({ map: "cesium" })).not.toThrow();
     expect(store.get()).toEqual({ map: "cesium" });
     const none = createMapSettingsStore(() => null);
-    none.set({ fx: "low" });
-    expect(none.get()).toEqual({ fx: "low" });
+    none.set({ fxFallback: "low" });
+    expect(none.get()).toEqual({ fxFallback: "low" });
   });
 });
 
@@ -109,9 +118,9 @@ describe("mapSettingsModel", () => {
       settings: { map: "cesium" },
     });
     expect(locked).toMatchObject({ map: "fallback", mapLockedByAddress: true });
-    const fx = mapSettingsModel({ ...base, search: "?fx=low", settings: { fx: "high" } });
+    const fx = mapSettingsModel({ ...base, search: "?fx=low", settings: { fxGoogle: "high" } });
     expect(fx).toMatchObject({ fx: "low", fxLockedByAddress: true });
-    const free = mapSettingsModel({ ...base, settings: { fx: "high" } });
+    const free = mapSettingsModel({ ...base, settings: { fxGoogle: "high" } });
     expect(free).toMatchObject({ fx: "high", fxLockedByAddress: false, mapLockedByAddress: false });
   });
 
@@ -191,5 +200,76 @@ describe("position source setting", () => {
     expect(parseMapSettings(`{"groundMetres":${GROUND_RANGE_METRES.min - 1}}`)).toEqual({});
     expect(parseMapSettings('{"groundMetres":"85"}')).toEqual({});
     expect(parseMapSettings('{"groundMetres":85}')).toEqual({ groundMetres: 85 });
+  });
+});
+
+describe("the effect level is saved per map", () => {
+  const base = { search: "", token: "t", nodeEnv: "production" as string | undefined };
+
+  it("a level chosen on the fallback map never turns the effect on for Google", () => {
+    const settings = { fxFallback: "high" as const };
+    expect(mapSettingsModel({ ...base, settings }).fx).toBe("off");
+    expect(mapSettingsModel({ ...base, settings: { ...settings, map: "fallback" } }).fx).toBe(
+      "high",
+    );
+    expect(savedFxFor({ fxGoogle: "low" }, "cesium-google")).toBe("low");
+    expect(savedFxFor({ fxGoogle: "low" }, "maplibre-fallback")).toBeUndefined();
+  });
+});
+
+describe("sheetView", () => {
+  const base = { search: "", token: "t", nodeEnv: "production" as string | undefined };
+
+  it("shows Google as it is while Google runs", () => {
+    const model = mapSettingsModel({ ...base, settings: {} });
+    const view = sheetView(model, {}, "", { providerId: "cesium-google", fxLevel: "off" });
+    expect(view).toMatchObject({ fellBack: false, fxLoweredTo: undefined });
+    expect(view.model.map).toBe("cesium");
+  });
+
+  it("shows the fallback and says so after Google failed", () => {
+    const settings = { fxFallback: "low" as const };
+    const model = mapSettingsModel({ ...base, settings });
+    const view = sheetView(model, settings, "", {
+      providerId: "maplibre-fallback",
+      fxLevel: "low",
+    });
+    expect(view.fellBack).toBe(true);
+    expect(view.model).toMatchObject({ map: "fallback", fx: "low" });
+  });
+
+  it("does not say the fallback is running when the fallback was chosen", () => {
+    const model = mapSettingsModel({ ...base, settings: { map: "fallback" } });
+    const view = sheetView(model, { map: "fallback" }, "", {
+      providerId: "maplibre-fallback",
+      fxLevel: "high",
+    });
+    expect(view.fellBack).toBe(false);
+  });
+
+  it("reports an effect level the governor stepped down, and nothing when it matches", () => {
+    const settings = { fxGoogle: "high" as const };
+    const model = mapSettingsModel({ ...base, settings });
+    expect(
+      sheetView(model, settings, "", { providerId: "cesium-google", fxLevel: "low" }).fxLoweredTo,
+    ).toBe("low");
+    expect(
+      sheetView(model, settings, "", { providerId: "cesium-google", fxLevel: "high" }).fxLoweredTo,
+    ).toBeUndefined();
+    expect(sheetView(model, settings, "", undefined).fxLoweredTo).toBeUndefined();
+  });
+});
+
+describe("selectionForStart", () => {
+  const google = { id: "cesium-google", reason: "token" } as const;
+  const fallback = { id: "maplibre-fallback", reason: "no-token" } as const;
+
+  it("keeps Google when it has not failed", () => {
+    expect(selectionForStart(google, false)).toBe(google);
+  });
+
+  it("keeps the fallback after Google failed, so a restart never asks Google again", () => {
+    expect(selectionForStart(google, true).id).toBe("maplibre-fallback");
+    expect(selectionForStart(fallback, true)).toBe(fallback);
   });
 });

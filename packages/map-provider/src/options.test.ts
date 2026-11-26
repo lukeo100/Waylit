@@ -194,9 +194,10 @@ describe("the rider's saved choice", () => {
   });
 
   it("feeds the saved effect level into the tuning, and the address still wins", () => {
+    // A saved level is where it starts. Only the address pins it, so the governor can lower it.
     expect(resolveTuning("cesium-google", "", false, "low")).toMatchObject({
       fxLevel: "low",
-      fxPinned: true,
+      fxPinned: false,
     });
     expect(resolveTuning("cesium-google", "?fx=high", false, "low")).toMatchObject({
       fxLevel: "high",

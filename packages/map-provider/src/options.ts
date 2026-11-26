@@ -172,7 +172,7 @@ export function resolveTuning(
   // the rider in the settings sheet (the address wins).
   const fx = {
     fxLevel: resolveFxLevel(search, id, storedFx),
-    fxPinned: fxLevelIsPinned(search, storedFx),
+    fxPinned: fxLevelIsPinned(search),
   };
   const base = { ...DEFAULT_TUNING[id], ...fx };
   if (!allowOverrides) return base;

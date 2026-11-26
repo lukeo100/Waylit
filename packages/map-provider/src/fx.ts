@@ -59,11 +59,12 @@ export function resolveFxLevel(search: string, provider: ProviderId, stored?: Fx
 }
 
 /**
- * True when the address or the rider explicitly picked a level, so the adaptive governor must
- * not move it.
+ * True when the address picked a level (`?fx=`), so the adaptive governor must not move it. A
+ * level the rider saved in the settings sheet is only where the effect starts: on a slow phone
+ * the governor may still step it down (never back up).
  */
-export function fxLevelIsPinned(search: string, stored?: FxLevel): boolean {
-  return parseFxLevel(readQuery(search).get("fx")) !== undefined || stored !== undefined;
+export function fxLevelIsPinned(search: string): boolean {
+  return parseFxLevel(readQuery(search).get("fx")) !== undefined;
 }
 
 /** True when the address picked the level, so the settings sheet cannot change it. */
