@@ -130,7 +130,7 @@ The map settings (which map, how strong the hologram screen effect) are stored t
 
 Plan later phases around these.
 
-- **Web Bluetooth** works on Chromium browsers on Android and desktop, and not on iOS. It needs HTTPS and a user gesture to start pairing. A vehicle adapter built on it would be Android Chrome only until the Expo app exists.
+- **Web Bluetooth** works on Chromium browsers on Android and desktop, and not on iOS. It needs HTTPS and a user gesture, so the MAX G3 adapter connects only from a tap on Connect. GATT connections and notifications work on Chrome for Android with no flag, but `getDevices()` and advertisement watching are not reliable there, so the browser's chooser is shown every session. A phone with the screen off drops the link, so the app keeps the screen awake while the scooter is linked and tries to reconnect when the screen returns. The adapter is Android Chrome only until the Expo app exists. iPhone and iPad browsers cannot use it, and the Vehicle section says so. See [VEHICLE.md](VEHICLE.md).
 - **Background location is unreliable.** Browsers pause or throttle geolocation and timers when the page is hidden or the screen is off. A ride needs the screen on and the app in the foreground, which is why the wake lock exists. True background tracking is a reason for the later native app.
 - **Wake lock is a request.** The browser can refuse it, for example in battery saver, and releases it whenever the page is hidden.
 - **Storage is not guaranteed.** Browsers can evict site data under storage pressure, and caches have size limits. `navigator.storage.persist()` asks the browser to keep data, and installed apps are treated more generously, but it is still a request. Keep anything valuable recoverable.

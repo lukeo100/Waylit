@@ -147,6 +147,14 @@ A quiet round control (44 pixels, a stacked layers icon, glass border) sits besi
 
 The settings sheet has a third exclusive row, **Position** (Simulator, Phone GPS), in the same 44 pixel style, with the ground height field below it on a free ride on Google tiles. The row is only changeable before a trip, and says so in muted text. `GpsNote` is a small status plate in the clear middle, shown only in a free ride, for a signal that needs attention: amber (`caution`) for weak, lost, blocked or unavailable, quiet info for waiting for a fix, never red. A free ride replaces the turn column with "Free ride" and a one line explanation, and the minimap shows only the rider dot, cone and compass.
 
+## Vehicle section
+
+The settings sheet ends with a Vehicle section, divided from the map rows by a hairline. It has one exclusive row of 44 pixel choices, Mock and MAX G3 (Bluetooth), styled like the map rows. Under the row come quiet notes in muted text (for example that the address decides, or that the desk simulator is in use).
+
+For the real scooter the section adds a state line, then buttons. The state line is quiet grey while idle, connecting and setting up, and plain text when connected. Amber (`text-caution`) means something needs attention: pairing needed, a pairing the scooter refused, a pairing that timed out, a lost link, and "tap Connect to try again". Red (`text-danger`) is only for a real error such as a connection that could not be opened. A browser that cannot do Bluetooth gets a plain quiet message and a disabled Connect button, because that is not a fault.
+
+Connect is a 44 pixel cyan outlined button that runs from the tap. While connected it reads Disconnect. Pair this phone and Forget pairing appear only when pairing is needed, with Pair in amber and a short plain warning under the buttons. Connecting, pairing and disconnecting are switched off above 8 km/h and the sheet closes by itself then, like the map rows. At the bottom, in muted text: "Reads only. Waylit never sends control commands.", "Keep the screen on while riding.", a note that the official Segway app may need to be closed and that pairing is unverified, and that Waylit is not affiliated with Segway. No logos and no emoji.
+
 ## Motion
 
 | Token | Value | Use |

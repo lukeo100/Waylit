@@ -9,7 +9,7 @@ Open source 3D navigation for electric scooters and bicycles.
 Waylit aims to feel like a dedicated navigation cockpit rather than a flat map on a phone. The main screen is an immersive third-person 3D view of the road ahead, with a glowing route corridor, floating turn indicators and a heads-up display for speed, next turn, arrival time and vehicle status.
 
 - **PWA first.** An installable, landscape-oriented progressive web app, runnable from a normal browser or installed to the home screen. A native Expo app follows later and is meant to look and behave the same.
-- **Vehicle agnostic.** Telemetry comes through a vehicle interface, so any scooter or bicycle can get an adapter. The first development vehicle is the Segway Ninebot MAX G3, starting with simulated telemetry. GPS is always the fallback.
+- **Vehicle agnostic.** Telemetry comes through a vehicle interface, so any scooter or bicycle can get an adapter. The first development vehicle is the Segway Ninebot MAX G3. It starts with simulated telemetry (the default), and there is an experimental, read only Web Bluetooth adapter that you opt into in the settings sheet. It is unverified on a real scooter and never sends control commands, see [docs/VEHICLE.md](docs/VEHICLE.md). GPS is always the fallback. Waylit is not affiliated with Segway.
 - **Provider agnostic.** Map and 3D tile providers sit behind an interface and can be swapped. The app must run with no API keys, using a fallback map and mock data.
 - **Speed zones, later.** A community-maintained layer for road speed limits and custom path zones, kept separate from personal preferences and never presented as legal advice.
 
@@ -56,6 +56,8 @@ The code is split into a Next.js app and small shared packages, described in [do
 
 The riding screen shows a 3D environment. Without any key it uses MapLibre with OpenFreeMap. With your own Cesium ion token (`NEXT_PUBLIC_CESIUM_ION_TOKEN`), production builds show Google Photorealistic 3D Tiles through CesiumJS and fall back to MapLibre if that fails. Development builds always use the fallback unless you add `?map=cesium` to the address, to save the Cesium ion allowance. `?map=fallback` forces the fallback anywhere, and `?dev=1` shows a frame rate overlay. The scene light follows your phone clock by default (so it is dark when it is night where you are), and `?sun=real` uses the real sun at the demo route instead; there is also a switch on the start screen. `?fx=off`, `?fx=low` and `?fx=high` set the futuristic look (see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)). The map button beside the minimap switches between Google 3D tiles and the fallback map and sets the hologram screen effect; it remembers the choice on the device, and the address still wins. Each switch to Google uses a Cesium ion request. See [docs/DEPLOYING.md](docs/DEPLOYING.md).
 
+The settings sheet also has a Vehicle section: Mock (the default) or MAX G3 over Bluetooth (Chrome on Android only, from a tap, HTTPS). `?vehicle=mock|g3` in the address wins over the saved choice, and `?vehicle=g3sim` runs a desk simulator of the Bluetooth link with no hardware.
+
 Anyone should be able to deploy their own copy. The steps for Vercel and for self-hosting are in [docs/DEPLOYING.md](docs/DEPLOYING.md). Waylit does not run a shared hosted instance, so there are no shared API keys: you bring your own for any optional provider.
 
 ## Contributing
@@ -71,6 +73,7 @@ Contributions of all kinds are welcome, including bug reports, device testing, d
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Package layout, dependency rules and the 3D scene |
 | [docs/DESIGN_SYSTEM.md](docs/DESIGN_SYSTEM.md) | Design tokens and visual principles |
 | [docs/PRIVACY.md](docs/PRIVACY.md) | What location data the app touches (none is stored or sent) |
+| [docs/VEHICLE.md](docs/VEHICLE.md) | The MAX G3 Bluetooth adapter: what is known and unknown, the read only guard, safety and how to test it |
 | [docs/PWA.md](docs/PWA.md) | Installing, offline caching, wake lock, testing on Android and PWA limits |
 | [docs/DEPLOYING.md](docs/DEPLOYING.md) | Running your own copy |
 | [docs/MAINTAINING.md](docs/MAINTAINING.md) | Repository settings and release process |

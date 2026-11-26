@@ -466,7 +466,7 @@ export function createWebBluetoothAdapter(
       retryTimer = undefined;
       tearDownLink();
       handle = undefined;
-      if (status.state !== "unsupported") setStatus("disconnected");
+      if (status.state !== "unsupported" && status.state !== "idle") setStatus("disconnected");
     },
 
     getConnectionState: () => status.state,
