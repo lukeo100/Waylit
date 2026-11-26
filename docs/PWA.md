@@ -118,7 +118,7 @@ Build assets have content hashes in their names, so a saved copy is always the r
 
 ## Location permission (live GPS)
 
-Phone GPS is off by default. When the rider chooses **Phone GPS** and taps **Start free ride**, the page calls `watchPosition` from that tap (a user gesture), so the browser's location prompt appears then and not before. The start screen says first what will be asked and that the location stays on the device. If the rider blocks it, the ride shows an amber note and the browser setting has to be changed (the icon beside the address), then the trip started again. The screen wake lock is already held while a trip runs, so GPS keeps updating with the screen on. Background tracking is not supported by a PWA: if the page is hidden, the browser may stop location updates, and the ride shows the signal as lost until it returns. Not verified on a real phone yet.
+Phone GPS is off by default. When the rider chooses **Phone GPS** and taps **Start ride**, the page calls `watchPosition` from that tap (a user gesture), so the browser's location prompt appears then and not before. The start screen says first what will be asked and that the location stays on the device. If the rider blocks it, the ride shows an amber note and the browser setting has to be changed (the icon beside the address), then the trip started again. The screen wake lock is already held while a trip runs, so GPS keeps updating with the screen on. Background tracking is not supported by a PWA: if the page is hidden, the browser may stop location updates, and the ride shows the signal as lost until it returns. Not verified on a real phone yet.
 
 ## First run safety notice
 

@@ -1,6 +1,6 @@
 # Deploying your own copy
 
-> **Status.** The local steps, the production build and the no-keys fallback map were followed one by one from a fresh clone on 2026-11-26 (Node 22, pnpm 10.28). The Vercel steps were not repeated from a new account. The maintainer has not yet chosen which self-host path to document, so section 4 lists what was tested for each option.
+> **Status.** The local steps, the production build and the no-keys fallback map were followed one by one from a fresh clone on 2026-11-26 (Node 22, pnpm 10.28). The Vercel steps were not repeated from a new account. The self-host path is decided: a Node.js server is the documented default, and section 4 also lists a static export for file hosts. Docker is a future option.
 
 The goal is that anyone can run their own copy with their own accounts and keys. There is no shared hosted instance and no shared API key.
 
@@ -65,9 +65,9 @@ Free Hobby plans are enough. Keep Deployment Protection on if the deployment is 
 
 ## 4. Self-host
 
-> **Not decided.** The maintainer has not chosen one documented self-host path yet. The three options below were each tried on 2026-11-26 from a fresh clone, so the facts are checked, but none is the recommended path and only the first needs no change to the repository.
+> **Decided.** The documented default self-host path is a Node.js server (option A). A static export (option B) stays as a secondary option for people who only have a file host. Docker (option C) is a future option and has no Dockerfile yet. The options were each tried on 2026-11-26 from a fresh clone, so the facts below are checked.
 
-### Option A: a Node.js server (works today)
+### Option A: a Node.js server (the default path)
 
 ```sh
 git clone https://github.com/lukeo100/Waylit.git waylit
@@ -83,9 +83,9 @@ PORT=3000 pnpm start
 - Good: no change to the repository, every Next.js feature works, the `Cache-Control` rule for the worker scripts applies on its own.
 - Cost: a Node.js 22 process to keep running, patch and watch.
 
-### Option B: static export (prototype, not switched on)
+### Option B: static export (secondary option for file hosts, not switched on)
 
-Next.js can write the app as plain files with `output: "export"` in `apps/web/next.config.ts`, which `pnpm build` then writes to `apps/web/out/`. The default build does not do this. Tried in a scratch copy:
+Use this only if you cannot run a Node.js process. Next.js can write the app as plain files with `output: "export"` in `apps/web/next.config.ts`, which `pnpm build` then writes to `apps/web/out/`. The default build does not do this. Tried in a scratch copy:
 
 - It builds, with a warning that `headers` are ignored. The output is about 22 MB, of which about 9 MB is the CesiumJS runtime that only a build with a token uses.
 - `/`, `/ride`, `/dev/*`, the manifest, `/sw.js` and `/offline.html` are all in the output. The ride screen, the fallback map, the HUD, the map settings sheet, the manifest, the service worker, its caches and the offline page all worked from the exported files in headless Chrome.
@@ -97,7 +97,7 @@ Next.js can write the app as plain files with `output: "export"` in `apps/web/ne
 
 Good: plain files on any web server or free static host, no process to keep alive, smaller attack surface. Cost: a build switch and server config would need to be added and documented, route handlers, middleware and the image optimiser could not be used later in this mode, and the root domain requirement.
 
-### Option C: Docker
+### Option C: Docker (future)
 
 Next.js `output: "standalone"` builds a small self-contained server (about 73 MB with its dependencies) that starts with `node apps/web/.next/standalone/apps/web/server.js`. It only works after you copy `apps/web/public` and `apps/web/.next/static` next to it, which is the usual Dockerfile step. A Docker image could also wrap the static export in a small web server. No Docker image was built, because the test machine had no Docker daemon, and the repository has no Dockerfile.
 

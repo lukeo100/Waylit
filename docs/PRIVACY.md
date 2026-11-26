@@ -4,7 +4,7 @@ Waylit has no backend and no accounts, and it does not collect data about you.
 
 ## Location
 
-- Location is used only when you choose **Phone GPS** in the settings (or open the page with `?gps=live`) and tap **Start free ride**. The default is a simulated ride that uses no location.
+- Location is used only when you choose **Phone GPS** in the settings (or open the page with `?gps=live`) and tap **Start ride**. The default is a simulated ride that uses no location.
 - Your browser asks for permission at that moment. You can refuse, and the ride still works as a screen with a note.
 - The position is used on your device to draw the ride, work out speed, distance and time, and set daylight. It is not stored, not written to the console, and not sent to any server by Waylit.
 - Only the latest fix is held in memory, and it is gone when you end the trip or close the page. No trace of where you rode is kept, so the trip summary has distance, time and speed only.
