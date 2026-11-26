@@ -14,7 +14,7 @@ interface StartPromptProps {
 /** The line under the button for each position source. For live GPS it is the permission note. */
 export const START_CAPTION: Record<GpsChoice, string> = {
   sim: "Simulated ride on a demo route. Nothing here controls your scooter.",
-  live: "Free ride on phone GPS. Your location stays on this device, never stored or sent.",
+  live: "Uses your location if you allow it. It is never stored or sent.",
   replay: "Free ride on a generated GPS trace. No location is used.",
 };
 
