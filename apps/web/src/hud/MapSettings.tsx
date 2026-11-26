@@ -114,7 +114,9 @@ interface SheetProps {
  * The settings sheet: the map (Google 3D tiles or the fallback map) and the hologram screen
  * effect (off, low, high). Glass like the dock, one cyan accent, nothing red. It is a fixed panel
  * on the right, only as tall as its content, and never taller than the space above the credits
- * strip (it reads `--wl-credits-clearance`), so it can never cover the credits.
+ * strip, the dock and the start prompt (it reads `--wl-credits-clearance`, `--wl-dock-clearance`
+ * and `--wl-centre-clearance`), so it can never cover the credits, the vehicle stats, End trip or
+ * the light switch. A short screen scrolls the sheet instead.
  */
 export function MapSettingsSheet({
   model,
@@ -147,7 +149,7 @@ export function MapSettingsSheet({
       aria-modal="false"
       aria-labelledby={titleId}
       data-testid="map-settings-sheet"
-      className="wl-glass pointer-events-auto fixed top-[max(0.6rem,var(--wl-safe-top),2.2dvh)] right-[max(0.6rem,var(--wl-safe-right),1.6vw)] z-30 flex max-h-[calc(100dvh-var(--wl-credits-clearance,2rem)-0.5rem-max(0.6rem,var(--wl-safe-top),2.2dvh))] w-[min(21rem,36vw)] flex-col gap-3 overflow-y-auto p-3"
+      className="wl-glass pointer-events-auto fixed top-[max(0.6rem,var(--wl-safe-top),2.2dvh)] right-[max(0.6rem,var(--wl-safe-right),1.6vw)] z-30 flex max-h-[calc(100dvh-max(var(--wl-credits-clearance,2rem),var(--wl-dock-clearance,0px),var(--wl-centre-clearance,0px))-0.5rem-max(0.6rem,var(--wl-safe-top),2.2dvh))] w-[min(21rem,36vw)] flex-col gap-3 overflow-y-auto p-3"
     >
       <div className="flex items-center justify-between gap-2">
         <h2 id={titleId} className="text-hud-md leading-none font-semibold text-text">

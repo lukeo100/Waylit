@@ -558,7 +558,7 @@ describe("free ride screen", () => {
     const html = renderToStaticMarkup(
       <StartPrompt gps="live" onStart={noop} sunMode="follow-clock" onSunMode={noop} />,
     );
-    expect(html).toContain("Start free ride");
+    expect(html).toContain("Start ride");
     expect(html).toMatch(/location/i);
     expect(html).toMatch(
       /not (stored|saved|sent)|never (stored|saved|sent)|nothing is (stored|saved|sent)/i,

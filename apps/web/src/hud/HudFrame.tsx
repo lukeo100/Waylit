@@ -1,4 +1,7 @@
-import type { ReactNode, Ref } from "react";
+"use client";
+
+import { useState, type ReactNode, type Ref } from "react";
+import { CENTRE_CLEARANCE_VAR, DOCK_CLEARANCE_VAR, useClearanceVar } from "./use-clearance";
 
 interface HudFrameProps {
   /** Top left: the speed and turn card. */
@@ -39,6 +42,12 @@ export function HudFrame({
   dock,
   credits,
 }: HudFrameProps) {
+  // The dock and the centre group publish where their top edge is, so the settings sheet can stop
+  // above them (see MapSettings).
+  const [dockElement, setDockElement] = useState<HTMLElement | null>(null);
+  const [centreElement, setCentreElement] = useState<HTMLElement | null>(null);
+  useClearanceVar(dockElement, DOCK_CLEARANCE_VAR);
+  useClearanceVar(centreElement, CENTRE_CLEARANCE_VAR);
   const top = navigation !== undefined || status !== undefined || mapControls !== undefined;
   return (
     <div
@@ -66,14 +75,20 @@ export function HudFrame({
           </div>
         ) : null}
         {centre ? (
-          <div className="pointer-events-none absolute inset-x-0 bottom-[1.5dvh] flex flex-col items-center gap-[1.2dvh]">
+          <div
+            ref={setCentreElement}
+            className="pointer-events-none absolute inset-x-0 bottom-[1.5dvh] flex flex-col items-center gap-[1.2dvh]"
+          >
             {centre}
           </div>
         ) : null}
       </div>
 
       {dock ? (
-        <div className="row-start-2 flex justify-center pt-[1dvh] pr-[max(var(--wl-safe-right),clamp(0.5rem,2vw,2.5rem))] pb-[clamp(0.25rem,1.4dvh,0.6rem)] pl-[max(var(--wl-safe-left),clamp(0.5rem,2vw,2.5rem))]">
+        <div
+          ref={setDockElement}
+          className="row-start-2 flex justify-center pt-[1dvh] pr-[max(var(--wl-safe-right),clamp(0.5rem,2vw,2.5rem))] pb-[clamp(0.25rem,1.4dvh,0.6rem)] pl-[max(var(--wl-safe-left),clamp(0.5rem,2vw,2.5rem))]"
+        >
           {dock}
         </div>
       ) : null}

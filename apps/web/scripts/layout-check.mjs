@@ -283,7 +283,16 @@ try {
             if (o.covered > 0) problems.push(`open sheet covers ${o.covered} strip probe points`);
             if (o.strip && intersects(sheet, o.strip))
               problems.push("open sheet overlaps the strip");
-            const leftHud = ["speed-value", "turn-distance", "turn-instruction"];
+            // The dock (vehicle stats, End trip), the start prompt and the dev controls sit low, and
+            // the sheet has to stop above them as well as above the strip.
+            const leftHud = [
+              "speed-value",
+              "turn-distance",
+              "turn-instruction",
+              "dock",
+              "start-prompt",
+              "dev-controls",
+            ];
             for (const id of leftHud) {
               const r = o.hud[id];
               if (r && r.w > 0 && intersects(sheet, r)) problems.push(`open sheet overlaps ${id}`);

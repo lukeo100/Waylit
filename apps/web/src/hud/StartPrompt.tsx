@@ -14,7 +14,7 @@ interface StartPromptProps {
 /** The line under the button for each position source. For live GPS it is the permission note. */
 export const START_CAPTION: Record<GpsChoice, string> = {
   sim: "Simulated ride on a demo route. Nothing here controls your scooter.",
-  live: "Free ride on your phone's GPS. Your browser asks for location when you start. It stays on this device, never stored or sent.",
+  live: "Free ride on phone GPS. Your location stays on this device, never stored or sent.",
   replay: "Free ride on a generated GPS trace. No location is used.",
 };
 
@@ -40,7 +40,7 @@ export function StartPrompt({ onStart, sunMode, onSunMode, gps = "sim" }: StartP
           data-testid="start-trip"
           className="inline-flex min-h-[clamp(2.75rem,12dvh,3.5rem)] min-w-[clamp(9rem,22vw,12rem)] items-center justify-center rounded-md bg-cyan px-6 text-hud-lg font-semibold text-night-950 transition-colors duration-200 ease-out hover:bg-cyan-soft"
         >
-          {gps === "sim" ? "Start trip" : "Start free ride"}
+          {gps === "sim" ? "Start trip" : "Start ride"}
         </button>
         <button
           type="button"
